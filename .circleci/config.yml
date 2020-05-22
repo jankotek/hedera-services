@@ -848,6 +848,7 @@ workflows:
               ignore:
                 - /.*-PERF/
                 - /.*-REGRESSION/
+                - stable-record-queries
       - start-singlejob-testnet:
           requires:
             - build-artifact

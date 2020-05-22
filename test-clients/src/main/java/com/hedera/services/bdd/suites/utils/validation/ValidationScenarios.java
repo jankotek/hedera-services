@@ -293,7 +293,7 @@ public class ValidationScenarios extends HapiApiSuite {
 							withOpContext((spec, opLog) -> {
 								var lookup = getTxnRecord("transferTxn")
 										.payingWith(SCENARIO_PAYER_NAME)
-										.setNodeFrom(ValidationScenarios::nextNode)
+										.setNodeFrom(ValidationScenarios::lastNode)
 										.logged();
 								allRunFor(spec, lookup);
 								var record = lookup.getResponseRecord();
@@ -592,7 +592,7 @@ public class ValidationScenarios extends HapiApiSuite {
 									.via("donation"),
 							getTxnRecord("donation")
 									.payingWith(SCENARIO_PAYER_NAME)
-									.setNodeFrom(ValidationScenarios::nextNode)
+									.setNodeFrom(ValidationScenarios::lastNode)
 									.logged()
 									.has(recordWith().transfers(
 											includingDeduction(contract.getPersistent()::getNum, 1))),
@@ -1017,6 +1017,14 @@ public class ValidationScenarios extends HapiApiSuite {
 		var account = nodeAccounts.get(nextAccount++);
 		nextAccount %= nodeAccounts.size();
 		return account;
+	}
+
+	private static String lastNode() {
+		var prevAccount = nextAccount - 1;
+		if (prevAccount < 0) {
+			prevAccount = nodeAccounts.size() - 1;
+		}
+		return nodeAccounts.get(prevAccount);
 	}
 
 	private static String nodes() {

@@ -460,7 +460,7 @@ public class ValidationScenarios extends HapiApiSuite {
 						.content("nopqrstuvwxyz"),
 				getFileContents(NOVEL_FILE_NAME)
 						.payingWith(SCENARIO_PAYER_NAME)
-						.setNodeFrom(ValidationScenarios::nextNode)
+						.setNodeFrom(ValidationScenarios::lastNode)
 						.hasContents(ignore -> "abcdefghijklmnopqrstuvwxyz".getBytes()),
 				fileUpdate(NOVEL_FILE_NAME)
 						.payingWith(SCENARIO_PAYER_NAME)

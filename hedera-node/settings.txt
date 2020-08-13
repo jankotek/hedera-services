@@ -14,7 +14,7 @@ reconnect.active, 0
 showInternalStats, 1
 state.roundsExpired, 500
 state.roundsStale, 25
-state.saveStatePeriod, 300
-state.signedStateDisk, 10
+state.saveStatePeriod, 30
+state.signedStateDisk, 100
 throttle7extra, 0.2
 throttleTransactionQueueSize, 6000

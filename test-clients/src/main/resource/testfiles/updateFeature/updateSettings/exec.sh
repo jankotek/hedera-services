@@ -110,7 +110,7 @@ elif [[ "$unamestr" == 'Darwin' ]]; then
     sleep 15
 
     shell_echo $LINENO $0 "Restart HGCApp"
-    java -Dflag=1 -cp swirlds.jar:data/lib/* com.swirlds.platform.Browser
+    java -Dflag=1 -cp swirlds.jar:data/lib/* com.swirlds.platform.Browser >> $OUTPUT 2>&1
 else
     shell_echo $LINENO $0 " untested OS :$platform"
     exit

@@ -38,20 +38,19 @@ import static com.hedera.services.bdd.spec.keys.KeyShape.threshOf;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.createTopic;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.submitMessageTo;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.logIt;
-import static com.hedera.services.bdd.spec.utilops.UtilVerbs.sleepFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withOpContext;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.BUSY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.DUPLICATE_TRANSACTION;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PLATFORM_TRANSACTION_NOT_CREATED;
 
-public class createTopicLoadTest extends LoadTest {
+public class CreateTopicLoadTest extends LoadTest {
 
-	private static final Logger log = LogManager.getLogger(createTopicLoadTest.class);
+	private static final Logger log = LogManager.getLogger(CreateTopicLoadTest.class);
 
 	public static void main(String... args) {
 		parseArgs(args);
 
-		createTopicLoadTest suite = new createTopicLoadTest();
+		CreateTopicLoadTest suite = new CreateTopicLoadTest();
 		suite.setReportStats(true);
 		suite.runSuiteSync();
 	}

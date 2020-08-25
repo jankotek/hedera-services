@@ -53,6 +53,7 @@ import com.hedera.services.bdd.suites.misc.FileQueriesStressTests;
 import com.hedera.services.bdd.suites.misc.OneOfEveryTransaction;
 import com.hedera.services.bdd.suites.misc.ZeroStakeNodeTest;
 import com.hedera.services.bdd.suites.perf.ContractCallLoadTest;
+import com.hedera.services.bdd.suites.perf.CreateTopicLoadTest;
 import com.hedera.services.bdd.suites.perf.CryptoTransferLoadTest;
 import com.hedera.services.bdd.suites.perf.FileUpdateLoadTest;
 import com.hedera.services.bdd.suites.perf.HCSChunkingRealisticPerfSuite;
@@ -145,6 +146,7 @@ public class SuiteRunner {
 		put("CryptoTransferLoadTest", aof(new CryptoTransferLoadTest()));
 		put("MixedTransferAndSubmitLoadTest", aof(new MixedTransferAndSubmitLoadTest()));
 		put("MixedTransferCallAndSubmitLoadTest", aof(new MixedTransferCallAndSubmitLoadTest()));
+		put("CreateTopicLoadTest", aof(new CreateTopicLoadTest()));
 		put("HCSChunkingRealisticPerfSuite", aof(new HCSChunkingRealisticPerfSuite()));
 		/* Functional tests - CONSENSUS */
 		put("TopicCreateSpecs", aof(new TopicCreateSuite()));

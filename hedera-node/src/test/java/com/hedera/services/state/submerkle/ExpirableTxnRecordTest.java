@@ -28,6 +28,7 @@ import com.hedera.services.state.serdes.DomainSerdesTest;
 import com.swirlds.common.crypto.Hash;
 import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
+import com.swirlds.common.merkle.io.MerkleDataOutputStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,8 @@ import org.mockito.Mockito;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hedera.services.state.submerkle.ExpirableTxnRecord.UNKNOWN_SUBMITTING_MEMBER;
@@ -102,6 +105,19 @@ class ExpirableTxnRecordTest {
 		s.setExpiry(expiry);
 		s.setSubmittingMember(submittingMember);
 		return s;
+	}
+
+	@Test
+	public void writeSampleRecord() throws IOException {
+		// setup:
+		var example = DomainSerdesTest.recordZero();
+
+		var out = new SerializableDataOutputStream(Files.newOutputStream(Paths.get("singleRecord.bin")));
+
+		example.serialize(out);
+
+		out.flush();
+		out.close();
 	}
 
 	@Test

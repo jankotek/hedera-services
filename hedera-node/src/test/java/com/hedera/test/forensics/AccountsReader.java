@@ -31,6 +31,7 @@ import com.hedera.services.state.submerkle.HbarAdjustments;
 import com.hedera.services.state.submerkle.SolidityFnResult;
 import com.swirlds.common.constructable.ClassConstructorPair;
 import com.swirlds.common.constructable.ConstructableRegistry;
+import com.swirlds.common.constructable.ConstructableRegistryException;
 import com.swirlds.common.merkle.io.MerkleDataInputStream;
 import com.swirlds.common.merkle.utility.MerkleLong;
 import com.swirlds.fcmap.FCMap;
@@ -43,7 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class AccountsReader {
-	public static FCMap<MerkleEntityId, MerkleAccount> from(String loc) throws Exception {
+	public static void registerConstructables() throws ConstructableRegistryException {
 		ConstructableRegistry.registerConstructable(
 				new ClassConstructorPair(FCMInternalNode.class, FCMInternalNode::new));
 		ConstructableRegistry.registerConstructable(
@@ -74,7 +75,10 @@ public class AccountsReader {
 				new ClassConstructorPair(HbarAdjustments.class, HbarAdjustments::new));
 		ConstructableRegistry.registerConstructable(
 				new ClassConstructorPair(SolidityFnResult.class, SolidityFnResult::new));
+	}
 
+	public static FCMap<MerkleEntityId, MerkleAccount> from(String loc) throws Exception {
+		registerConstructables();
 		try (MerkleDataInputStream in = new MerkleDataInputStream(Files.newInputStream(Path.of(loc)), false)) {
 			FCMap<MerkleEntityId, MerkleAccount> fcm = in.readMerkleTree(Integer.MAX_VALUE);
 			return fcm;

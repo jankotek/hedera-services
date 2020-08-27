@@ -389,6 +389,28 @@ public class DomainSerdesTest {
 		assertEquals(JKey.mapJKey(keyIn), JKey.mapJKey(keyOut));
 	}
 
+	public static ExpirableTxnRecord recordZero() {
+		TransactionRecord record = TransactionRecord.newBuilder()
+				.setReceipt(TransactionReceipt.newBuilder()
+						.setStatus(INVALID_ACCOUNT_ID))
+				.setTransactionID(TransactionID.newBuilder()
+						.setTransactionValidStart(Timestamp.newBuilder()
+								.setSeconds(9_999_999_999L)
+								.setNanos(54321)))
+				.setTransactionHash(ByteString.copyFrom("12345689012345689012345689012345689012345678".getBytes()))
+				.setTransactionFee(555)
+				.setMemo("Alpha bravo charlie")
+				.setConsensusTimestamp(Timestamp.newBuilder().setSeconds(1_234_567L))
+				.setTransferList(withAdjustments(
+						asAccount("0.0.2"), -4L,
+						asAccount("0.0.1001"), 2L,
+						asAccount("0.0.1002"), 2L))
+				.build();
+		ExpirableTxnRecord jRecord = ExpirableTxnRecord.fromGprc(record);
+		jRecord.setSubmittingMember(2);
+		jRecord.setExpiry(1_234_567L);
+		return jRecord;
+	}
 
 	public static ExpirableTxnRecord recordOne() {
 		TransactionRecord record = TransactionRecord.newBuilder()

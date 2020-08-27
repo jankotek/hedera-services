@@ -24,7 +24,9 @@ function updateServiceMainJava
 
     # only copy updated jar files to target directory
     TARGET_DIR=../test-clients/updateFiles
-    rm -rf $TARGET_DIR
+    if [ -d "$TARGET_DIR" ]; then
+     rm -rf $TARGET_DIR
+    fi
     mkdir -p $TARGET_DIR
     find ./data -type f -name "*.jar" -newermt "$beforeTime" -exec rsync  {} $TARGET_DIR \;
 

@@ -95,10 +95,10 @@ public class SpecUtils {
 	}
 
 	public static void main(String... args) throws Exception {
-		var pemLoc = new File("pretend-genesis.pem");
-		var passphrase = "guessAgain";
+		var pemLoc = new File("stable-testnet-genesis.pem");
+		var passphrase = "DQdujtpps6efVXY9sUga";
 
-		var b64Loc = "PretendStartupAccount.txt";
+		var b64Loc = "StableTestnetStartupAccount.txt";
 		var literal = "0.0.2";
 
 		var txt = asSerializedLegacyOcKeystore(pemLoc, passphrase, asAccount(literal));

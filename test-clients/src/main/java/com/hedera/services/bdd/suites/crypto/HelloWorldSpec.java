@@ -23,32 +23,32 @@ package com.hedera.services.bdd.suites.crypto;
 import com.hedera.services.bdd.spec.HapiApiSpec;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.customHapiSpec;
+import static com.hedera.services.bdd.spec.assertions.AssertUtils.inOrder;
+import static com.hedera.services.bdd.spec.assertions.TransactionRecordAsserts.recordWith;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCall;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoDelete;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoUpdate;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.balanceSnapshot;
 import static com.hedera.services.bdd.spec.assertions.AccountInfoAsserts.changeFromSnapshot;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.*;
 
-import com.hedera.services.bdd.spec.infrastructure.meta.ContractCallDetails;
-import com.hedera.services.bdd.spec.infrastructure.meta.SupportedContract;
+import com.hedera.services.bdd.spec.assertions.AssertUtils;
+import com.hedera.services.bdd.spec.assertions.TransactionRecordAsserts;
+import com.hedera.services.bdd.spec.keys.KeyFactory;
 import com.hedera.services.bdd.suites.HapiApiSuite;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.SplittableRandom;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.*;
-import static com.hedera.services.bdd.spec.utilops.UtilVerbs.freeze;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
-import static com.hedera.services.bdd.spec.utilops.UtilVerbs.sleepFor;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withOpContext;
 
 public class HelloWorldSpec extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(HelloWorldSpec.class);
@@ -62,7 +62,9 @@ public class HelloWorldSpec extends HapiApiSuite {
 		return List.of(
 				new HapiApiSpec[]{
 //						balancesChangeOnTransfer(),
-						balancesChangeOnTransferWithOverrides(),
+//						balancesChangeOnTransferWithOverrides(),
+//						someCreateRecordsSomeDont(),
+						info(),
 				}
 		);
 	}
@@ -108,6 +110,55 @@ public class HelloWorldSpec extends HapiApiSuite {
 								.hasTinyBars(changeFromSnapshot("sponsorBefore", -1L)),
 						getAccountBalance("beneficiary")
 								.hasTinyBars(changeFromSnapshot("beneficiaryBefore", +1L))
+				);
+	}
+
+	private HapiApiSpec someCreateRecordsSomeDont() {
+		var START = 1_000 * 100_000_000L;
+
+		return defaultHapiSpec("SomeCreateRecordsSomeDont")
+				.given(
+						cryptoCreate("low").balance(START).sendThreshold(0L),
+						cryptoCreate("high").balance(START).sendThreshold(Long.MAX_VALUE)
+				).when(
+						cryptoTransfer(tinyBarsFromTo("low", FUNDING, 1L))
+								.payingWith("low")
+								.memo("Hello World!"),
+						cryptoTransfer(tinyBarsFromTo("low", FUNDING, 1L))
+								.payingWith("low")
+								.memo("Hello World!"),
+						cryptoTransfer(tinyBarsFromTo("low", FUNDING, 1L))
+								.payingWith("low")
+								.memo("Hello World!"),
+						cryptoTransfer(tinyBarsFromTo("high", FUNDING, 1L))
+								.payingWith("high"),
+						cryptoTransfer(tinyBarsFromTo("high", FUNDING, 1L))
+								.payingWith("high")
+				).then(
+						getAccountRecords("low").has(inOrder(recordWith(), recordWith(), recordWith()))
+				);
+	}
+
+	private HapiApiSpec info() {
+		var START = 1_000 * 100_000_000L;
+		var r = new SplittableRandom();
+		var sb = new StringBuilder();
+		var choices = "abcdefghijklmnopqrstuvwxqyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXQYZ".toCharArray();
+		for (int i = 0; i < 20; i++) {
+			sb.append(choices[r.nextInt(choices.length)]);
+		}
+		var password = sb.toString();
+		System.out.println(password);
+		return defaultHapiSpec("Info")
+				.given(
+						newKeyNamed("fm").type(KeyFactory.KeyType.SIMPLE),
+						withOpContext((spec, opLog) -> {
+							KeyFactory.PEM_PASSPHRASE = password;
+							spec.keys().exportSimpleKey(String.format("stable-testnet-genesis.pem"), "fm");
+						})
+				).when( ).then(
+						getAccountInfo("0.0.1001").logged(),
+						getAccountInfo("0.0.1002").logged()
 				);
 	}
 

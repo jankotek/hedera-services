@@ -20,6 +20,7 @@ package com.hedera.test.forensics;
  * ‍
  */
 
+import com.google.common.base.Stopwatch;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.hedera.services.state.merkle.MerkleAccount;
@@ -46,6 +47,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toMap;
@@ -71,7 +73,8 @@ public class AccountExtractor {
 		FCMap<MerkleEntityId, MerkleAccount> accounts =
 				new FCMap<>(new MerkleEntityId.Provider(), MerkleAccount.LEGACY_PROVIDER);
 
-		var sbc = Files.newByteChannel(Paths.get(savedStateLoc));
+//		var sbc = Files.newByteChannel(Paths.get(savedStateLoc));
+		var sbc = Files.newByteChannel(Paths.get(localLoc(626)));
 		seekToNext(sbc, MERKLE_ENTITY_ID);
 		System.out.println("First entity  @ " + sbc.position());
 
@@ -94,8 +97,14 @@ public class AccountExtractor {
 		}
 		System.out.println("Last entity before accounts @ " + lastEntity);
 
+		int numScanned = 0;
 		int maxAccounts = 1_000;
+		Stopwatch watch = Stopwatch.createStarted();
 		while (seekToNext(sbc, MERKLE_ENTITY_ID)) {
+			numScanned++;
+			if (numScanned % 100 == 0) {
+				System.out.println("Scanned " + numScanned + " in " + watch.elapsed(TimeUnit.SECONDS) + "s");
+			}
 			var id = deserializeEntityId(sbc);
 			if (includeNum(id.getNum())) {
 				System.out.println(id);
@@ -103,10 +112,10 @@ public class AccountExtractor {
 					throw new IllegalStateException("No paired account!");
 				}
 				var account = deserializeAccount(sbc, false, false);
-				System.out.println(account);
+				System.out.println("  ==>> " + account);
 				if (includeAccount(account)) {
 					accounts.put(id, account);
-					System.out.println(account);
+//					System.out.println(account);
 					if (accounts.size() > maxAccounts) {
 						break;
 					}
@@ -123,13 +132,18 @@ public class AccountExtractor {
 		return String.format("/Users/tinkerm/Dev/hgn3/hedera-services/%s.json", desc);
 	}
 
+	private String localLoc(int round) {
+		return String.format("/Users/tinkerm/Dev/hgn3/hedera-services/hedera-node/data/saved/" +
+				"com.hedera.services.ServicesMain/0/123/%d/SignedState.swh", round);
+	}
+
 	private boolean includeAccount(MerkleAccount account) {
 		long TINYBARS_PER_HBAR = 100_000_000L;
 		return account.getReceiverThreshold() <= TINYBARS_PER_HBAR || account.getSenderThreshold() <= TINYBARS_PER_HBAR;
 	}
 
 	private boolean includeNum(long num) {
-		return true;
+		return num > 1000;
 	}
 
 	private MerkleAccount deserializeAccount(

@@ -1381,6 +1381,7 @@ workflows:
               ignore:
                 - /.*-PERF/
                 - /.*-REGRESSION/
+                - forensics
           workflow-name: "Continuous integration"
       - start-singlejob-testnet:
           context: Slack

@@ -357,4 +357,10 @@ public class HapiSpecSetup {
 	public String systemDeleteAdminName() { return props.get("systemDeleteAdmin.name"); }
 	public AccountID systemUndeleteAdmin() { return props.getAccount("systemUndeleteAdmin.account"); }
 	public String systemUndeleteAdminName() { return props.get("systemUndeleteAdmin.name"); }
+	public AccountID freezeAdmin() { return props.getAccount("freezeAdmin.account"); }
+	public String freezeAdminName() { return props.get("freezeAdmin.name"); }
+	public AccountID synthetics() { return props.getAccount("synthetics.account"); }
+	public String syntheticsName() { return props.get("synthetics.name"); }
+	public AccountID hcsOperator() { return props.getAccount("hcsOperator.account"); }
+	public String hcsOperatorName() { return props.get("hcsOperator.name"); }
 }

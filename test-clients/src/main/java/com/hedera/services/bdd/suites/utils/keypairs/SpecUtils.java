@@ -83,6 +83,7 @@ public class SpecUtils {
 	public static String asSerializedLegacyOcKeystore(KeyPair keyPair, AccountID id) throws IOException {
 		var hexPublicKey = Hex.encodeHexString(keyPair.getPublic().getEncoded());
 		var hexPrivateKey = Hex.encodeHexString(keyPair.getPrivate().getEncoded());
+		System.out.println(hexPrivateKey);
 		var keyPairObj = new com.hedera.services.legacy.core.KeyPairObj(hexPublicKey, hexPrivateKey);
 		var keys = new com.hedera.services.legacy.core.AccountKeyListObj(id, List.of(keyPairObj));
 
@@ -95,11 +96,11 @@ public class SpecUtils {
 	}
 
 	public static void main(String... args) throws Exception {
-		var pemLoc = new File("stable-testnet-genesis.pem");
-		var passphrase = "DQdujtpps6efVXY9sUga";
+		var pemLoc = new File("newKeys/stableTestnet-account88.pem");
+		var passphrase = "YdP0Y0GZQRTTHKBnxIrB";
 
-		var b64Loc = "StableTestnetStartupAccount.txt";
-		var literal = "0.0.2";
+		var b64Loc = "WhoCares.txt";
+		var literal = "0.0.88";
 
 		var txt = asSerializedLegacyOcKeystore(pemLoc, passphrase, asAccount(literal));
 		var out = newBufferedWriter(Paths.get(b64Loc));

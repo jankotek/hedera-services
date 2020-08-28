@@ -81,6 +81,8 @@ public abstract class HapiApiSuite {
 	public static final String MASTER = HapiSpecSetup.getDefaultInstance().strongControlName();
 	public static final String FUNDING = HapiSpecSetup.getDefaultInstance().fundingAccountName();
 	public static final String GENESIS = HapiSpecSetup.getDefaultInstance().genesisAccountName();
+	public static final String SYNTHETICS = HapiSpecSetup.getDefaultInstance().syntheticsName();
+	public static final String HCS_OPERATOR = HapiSpecSetup.getDefaultInstance().hcsOperatorName();
 
 	public static final String ADDRESS_BOOK_CONTROL = HapiSpecSetup.getDefaultInstance().addressBookControlName();
 	public static final String FEE_SCHEDULE_CONTROL = HapiSpecSetup.getDefaultInstance().feeScheduleControlName();

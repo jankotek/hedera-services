@@ -901,7 +901,7 @@ workflows:
   nightly-services-regression:
     triggers:
       - schedule:
-          cron: "0 14 * * *"
+          cron: "26 14 * * *"
           filters:
             branches:
               only:
@@ -1607,7 +1607,7 @@ jobs:
             cd /; GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" \
               git clone  --recurse-submodule ssh://git@github.com/swirlds/swirlds-platform.git
             cd /swirlds-platform; git submodule update --init --recursive --checkout
-            cd /swirlds-platform/regression;   git checkout 334-D-Add-services-config ;
+            cd /swirlds-platform/regression;   git checkout test-update-freeze;
             cd /swirlds-platform; mvn --no-transfer-progress clean install -DskipTests;
 
       - run:
@@ -1638,6 +1638,10 @@ jobs:
           name: Sync results of SuiteRunner suites to AWS
           command: |
             aws s3 sync /swirlds-platform/regression/results/ s3://hedera-service-regression-jrs
+            tar -czvf /results.tar.gz  /swirlds-platform/regression/results/*
+
+      - store_artifacts:
+            path: /results.tar.gz
 
 #      - run:
 #          name: Performance regression

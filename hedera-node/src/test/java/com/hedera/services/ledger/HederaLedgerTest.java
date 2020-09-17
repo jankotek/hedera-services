@@ -89,10 +89,7 @@ import static com.hedera.services.legacy.core.jproto.JKey.mapKey;
 import static com.hedera.services.utils.EntityIdUtils.asContract;
 import static com.hedera.test.utils.IdUtils.asAccount;
 import static com.hedera.test.utils.IdUtils.tokenWith;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSFERS_NOT_ZERO_SUM_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -415,6 +412,21 @@ public class HederaLedgerTest {
 		// and:
 		assertEquals(0, subject.numTouches);
 	}
+
+	@Test
+	public void refusesToAdjustWronglyDueToAccountIsSmartContract() {
+		given(tokenStore.adjustBalance(misc, tokenId, 1))
+				.willReturn(ACCOUNT_IS_SMART_CONTRACT);
+
+		// given:
+		var status = subject.adjustTokenBalance(misc, tokenId, 1);
+
+		// expect:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, status);
+		// and:
+		assertEquals(0, subject.numTouches);
+	}
+
 
 	@Test
 	public void adjustsIfValid() {

@@ -60,40 +60,7 @@ import static com.hedera.services.tokens.TokenCreationResult.success;
 import static com.hedera.services.utils.EntityIdUtils.readableId;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_HAS_NO_TOKEN_RELATIONSHIP;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ACCOUNT_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ADMIN_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_FREEZE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_KYC_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SUPPLY_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_AMOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_DECIMALS;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_INITIAL_SUPPLY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_REF;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_SYMBOL;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TREASURY_ACCOUNT_FOR_TOKEN;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING_AMOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MISSING_TOKEN_NAME;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MISSING_TOKEN_SYMBOL;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_FREEZE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_KYC_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_WIPE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NAME_ALREADY_IN_USE;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NAME_TOO_LONG;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABlE;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_SYMBOL_ALREADY_IN_USE;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_SYMBOL_TOO_LONG;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 import static java.util.stream.IntStream.range;
 
 /**
@@ -252,6 +219,9 @@ public class HederaTokenStore implements TokenStore {
 	public ResponseCodeEnum adjustBalance(AccountID aId, TokenID tId, long adjustment) {
 		return sanityChecked(aId, tId, token -> {
 			var account = ledger.getTokenRef(aId);
+			if (account.isSmartContract()) {
+				return ACCOUNT_IS_SMART_CONTRACT;
+			}
 			if (!unsaturated(account) && !account.hasRelationshipWith(tId)) {
 				return TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
 			}
@@ -280,6 +250,9 @@ public class HederaTokenStore implements TokenStore {
 			}
 
 			var account = ledger.getTokenRef(aId);
+			if (account.isSmartContract()) {
+				return ACCOUNT_IS_SMART_CONTRACT;
+			}
 			if (!account.hasRelationshipWith(tId)) {
 				return ACCOUNT_HAS_NO_TOKEN_RELATIONSHIP;
 			}
@@ -355,6 +328,10 @@ public class HederaTokenStore implements TokenStore {
 			return failure(validity);
 		}
 		validity = accountCheck(request.getTreasury(), INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
+		if (validity != OK) {
+			return failure(validity);
+		}
+		validity = accountSmartContractCheck(request.getTreasury());
 		if (validity != OK) {
 			return failure(validity);
 		}
@@ -685,6 +662,14 @@ public class HederaTokenStore implements TokenStore {
 		return OK;
 	}
 
+	private ResponseCodeEnum accountSmartContractCheck(AccountID id) {
+		if ((boolean) ledger.get(id, AccountProperty.IS_SMART_CONTRACT)) {
+			return ACCOUNT_IS_SMART_CONTRACT;
+		}
+
+		return OK;
+	}
+
 	private ResponseCodeEnum manageFlag(
 			AccountID aId,
 			TokenID tId,
@@ -700,6 +685,9 @@ public class HederaTokenStore implements TokenStore {
 			}
 
 			var account = ledger.getTokenRef(aId);
+			if (account.isSmartContract()) {
+				return ACCOUNT_IS_SMART_CONTRACT;
+			}
 			if (!account.hasRelationshipWith(tId) && saturated(account) && defaultValueCheck.test(token) != value) {
 				return TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
 			}

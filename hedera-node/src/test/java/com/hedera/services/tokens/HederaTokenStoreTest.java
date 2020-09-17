@@ -57,9 +57,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.hedera.services.ledger.properties.AccountProperty.BALANCE;
-import static com.hedera.services.ledger.properties.AccountProperty.IS_DELETED;
-import static com.hedera.services.ledger.properties.AccountProperty.IS_FROZEN;
+import static com.hedera.services.ledger.properties.AccountProperty.*;
 import static com.hedera.services.state.merkle.MerkleEntityId.fromTokenId;
 import static com.hedera.test.factories.scenarios.TxnHandlingScenario.CARELESS_SIGNING_PAYER_KT;
 import static com.hedera.test.factories.scenarios.TxnHandlingScenario.COMPLEX_KEY_ACCOUNT_KT;
@@ -98,6 +96,7 @@ class HederaTokenStoreTest {
 	MerkleToken token;
 	MerkleToken modifiableToken;
 	MerkleAccount account;
+	MerkleAccount smartContract;
 
 	Key newKey = TxnHandlingScenario.TOKEN_REPLACE_KT.asKey();
 	JKey newFcKey = TxnHandlingScenario.TOKEN_REPLACE_KT.asJKeyUnchecked();
@@ -119,6 +118,7 @@ class HederaTokenStoreTest {
 	long newAutoRenewPeriod = 2_000_000;
 	AccountID autoRenewAccount = IdUtils.asAccount("1.2.5");
 	AccountID newAutoRenewAccount = IdUtils.asAccount("1.2.6");
+	AccountID smartContractAccount = IdUtils.asAccount("1.2.9");
 	AccountID treasury = IdUtils.asAccount("1.2.3");
 	AccountID newTreasury = IdUtils.asAccount("3.2.1");
 	AccountID sponsor = IdUtils.asAccount("1.2.666");
@@ -151,18 +151,30 @@ class HederaTokenStoreTest {
 		given(ids.newTokenId(sponsor)).willReturn(created);
 
 		account = mock(MerkleAccount.class);
+		smartContract = mock(MerkleAccount.class);
 
 		hederaLedger = mock(HederaLedger.class);
 
 		ledger = (TransactionalLedger<AccountID, AccountProperty, MerkleAccount>) mock(TransactionalLedger.class);
+		given(ledger.exists(smartContractAccount)).willReturn(true);
 		given(ledger.exists(treasury)).willReturn(true);
 		given(ledger.exists(autoRenewAccount)).willReturn(true);
 		given(ledger.exists(newAutoRenewAccount)).willReturn(true);
 		given(ledger.exists(sponsor)).willReturn(true);
+		given(ledger.get(smartContractAccount, IS_DELETED)).willReturn(false);
 		given(ledger.get(treasury, IS_DELETED)).willReturn(false);
 		given(ledger.get(autoRenewAccount, IS_DELETED)).willReturn(false);
 		given(ledger.get(newAutoRenewAccount, IS_DELETED)).willReturn(false);
+
+		given(ledger.get(smartContractAccount, IS_SMART_CONTRACT)).willReturn(true);
+		given(ledger.get(treasury, IS_SMART_CONTRACT)).willReturn(false);
+		given(ledger.get(autoRenewAccount, IS_SMART_CONTRACT)).willReturn(false);
+		given(ledger.get(newAutoRenewAccount, IS_SMART_CONTRACT)).willReturn(false);
+
+		given(ledger.getTokenRef(smartContractAccount)).willReturn(smartContract);
 		given(ledger.getTokenRef(treasury)).willReturn(account);
+
+		given(smartContract.isSmartContract()).willReturn(true);
 
 		tokens = (FCMap<MerkleEntityId, MerkleToken>) mock(FCMap.class);
 		given(tokens.get(fromTokenId(created))).willReturn(token);
@@ -395,6 +407,17 @@ class HederaTokenStoreTest {
 	}
 
 	@Test
+	public void grantingKycRejectsProvidedAccountIsSmartContract() {
+		givenTokenWithKycKey(false);
+
+		// when:
+		var status = subject.grantKyc(smartContractAccount, misc);
+
+		// expect:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, status);
+	}
+
+	@Test
 	public void revokingKycRejectsMissingAccount() {
 		given(ledger.exists(sponsor)).willReturn(false);
 
@@ -406,6 +429,17 @@ class HederaTokenStoreTest {
 	}
 
 	@Test
+	public void revokingKycRejectsProvidedAccountIsSmartContract() {
+		givenTokenWithKycKey(false);
+
+		// when:
+		var status = subject.revokeKyc(smartContractAccount, misc);
+
+		// expect:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, status);
+	}
+
+	@Test
 	public void wipingRejectsMissingAccount() {
 		given(ledger.exists(sponsor)).willReturn(false);
 
@@ -414,6 +448,17 @@ class HederaTokenStoreTest {
 
 		// expect:
 		assertEquals(ResponseCodeEnum.INVALID_ACCOUNT_ID, status);
+	}
+
+	@Test
+	public void wipingRejectsProvidedAccountIsSmartContract() {
+		givenTokenWithWipeKey();
+
+		// when:
+		var status = subject.wipe(smartContractAccount, misc, adjustment, false);
+
+		// expect:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, status);
 	}
 
 	@Test
@@ -1264,6 +1309,17 @@ class HederaTokenStoreTest {
 	}
 
 	@Test
+	public void freezingRejectsProvidedAccountIsSmartContract() {
+		givenTokenWithFreezeKey(true);
+
+		// when:
+		var status = subject.freeze(smartContractAccount, misc);
+
+		// then:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, status);
+	}
+
+	@Test
 	public void freezingPermitsSaturatedAccountIfNoExplicitFreezeRequired() {
 		givenTokenWithFreezeKey(true);
 		given(account.numTokenRelationships()).willReturn(MAX_TOKENS_PER_ACCOUNT);
@@ -1299,6 +1355,17 @@ class HederaTokenStoreTest {
 		// then:
 		assertEquals(ResponseCodeEnum.TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED, status);
 		verify(account).hasRelationshipWith(misc);
+	}
+
+	@Test
+	public void unfreezingRejectsProvidedAccountIsSmartContract() {
+		givenTokenWithFreezeKey(true);
+
+		// when:
+		var status = subject.unfreeze(smartContractAccount, misc);
+
+		// expect:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, status);
 	}
 
 	@Test
@@ -1344,6 +1411,11 @@ class HederaTokenStoreTest {
 		given(token.accountsKycGrantedByDefault()).willReturn(accountsKycGrantedByDefault);
 	}
 
+	private void givenTokenWithWipeKey() {
+		given(token.wipeKey()).willReturn(Optional.of(MISC_ACCOUNT_KT.asJKeyUnchecked()));
+		given(token.hasWipeKey()).willReturn(true);
+	}
+
 	@Test
 	public void adjustingRejectsDeletedToken() {
 		given(token.isDeleted()).willReturn(true);
@@ -1353,6 +1425,15 @@ class HederaTokenStoreTest {
 
 		// then:
 		assertEquals(ResponseCodeEnum.TOKEN_WAS_DELETED, status);
+	}
+
+	@Test
+	public void adjustingRejectsSmartContractAccount() {
+		// when:
+		var status = subject.adjustBalance(smartContractAccount, misc, 1);
+
+		// then:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, status);
 	}
 
 	@Test
@@ -1571,6 +1652,20 @@ class HederaTokenStoreTest {
 
 		// then:
 		assertEquals(INVALID_EXPIRATION_TIME, result.getStatus());
+	}
+
+	@Test
+	public void rejectsProvidedTreasuryIsSmartContract() {
+		// given:
+		var req = fullyValidAttempt()
+				.setTreasury(smartContractAccount)
+				.build();
+
+		// when:
+		var result = subject.createProvisionally(req, sponsor, thisSecond);
+
+		// then:
+		assertEquals(ACCOUNT_IS_SMART_CONTRACT, result.getStatus());
 	}
 
 	@Test

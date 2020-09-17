@@ -211,4 +211,5 @@ enum ResponseCodeEnum {
   INVALID_TOKEN_EXPIRY = 197;
   TOKEN_HAS_EXPIRED = 198;
   TOKEN_IS_IMMUTABlE = 199;
+  ACCOUNT_IS_SMART_CONTRACT = 200; // Provided account upon token creation and transfers must not be a smart contract
 }

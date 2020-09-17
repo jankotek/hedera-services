@@ -158,6 +158,28 @@ class TokenCreateTransitionLogicTest {
 	}
 
 	@Test
+	public void abortsIfProvidedTreasuryIsSmartContract() {
+		givenValidTxnCtx();
+		// and:
+		given(store.createProvisionally(tokenCreateTxn.getTokenCreation(), payer, thisSecond))
+				.willReturn(TokenCreationResult.success(created));
+		given(ledger.unfreeze(treasury, created)).willReturn(OK);
+		given(ledger.adjustTokenBalance(treasury, created, tinyFloat))
+				.willReturn(ACCOUNT_IS_SMART_CONTRACT);
+
+		// when:
+		subject.doStateTransition();
+
+		// then:
+		verify(txnCtx, never()).setCreated(created);
+		verify(txnCtx).setStatus(ACCOUNT_IS_SMART_CONTRACT);
+		// and:
+		verify(store, never()).commitCreation();
+		verify(store).rollbackCreation();
+		verify(ledger).dropPendingTokenChanges();
+	}
+
+	@Test
 	public void followsHappyPathWithAllKeys() {
 		givenValidTxnCtx(true, true);
 		// and:

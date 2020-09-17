@@ -43,16 +43,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ACCOUNT_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_REF;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_SYMBOL;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TREASURY_ACCOUNT_FOR_TOKEN;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABlE;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNAUTHORIZED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -181,6 +172,24 @@ class TokenUpdateTransitionLogicTest {
 		verify(store, never()).update(any(), anyLong());
 		// and:
 		verify(txnCtx).setStatus(INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
+		// and:
+		verify(ledger, never()).doTokenTransfer(any(), any(), any(), anyLong(), anyBoolean());
+	}
+
+	@Test
+	public void abortsOnSmartContractNewTreasury() {
+		givenValidTxnCtx(true);
+		givenToken(true, true);
+		// and:
+		given(ledger.isSmartContract(newTreasury)).willReturn(true);
+
+		// when:
+		subject.doStateTransition();
+
+		// then:
+		verify(store, never()).update(any(), anyLong());
+		// and:
+		verify(txnCtx).setStatus(ACCOUNT_IS_SMART_CONTRACT);
 		// and:
 		verify(ledger, never()).doTokenTransfer(any(), any(), any(), anyLong(), anyBoolean());
 	}

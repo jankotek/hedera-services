@@ -96,6 +96,10 @@ public class TokenUpdateTransitionLogic implements TransitionLogic {
 				txnCtx.setStatus(INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
 				return;
 			}
+			if (ledger.isSmartContract(newTreasury)) {
+				txnCtx.setStatus(ACCOUNT_IS_SMART_CONTRACT);
+				return;
+			}
 			var existingTreasury = token.treasury().toGrpcAccountId();
 			if (!newTreasury.equals(existingTreasury)) {
 				outcome = prepNewTreasury(id, token, newTreasury);

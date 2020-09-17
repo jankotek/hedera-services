@@ -65,9 +65,7 @@ import static com.hedera.services.ledger.properties.AccountProperty.PAYER_RECORD
 import static com.hedera.services.tokens.TokenScope.idScopeOf;
 import static com.hedera.services.txns.validation.TransferListChecks.isNetZeroAdjustment;
 import static com.hedera.services.utils.EntityIdUtils.readableId;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSFERS_NOT_ZERO_SUM_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 
 /**
  * Provides a ledger for Hedera Services crypto and smart contract

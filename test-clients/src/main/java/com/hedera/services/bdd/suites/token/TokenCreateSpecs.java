@@ -33,6 +33,7 @@ import java.util.Map;
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenInfo;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileUpdate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
@@ -41,8 +42,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 
 public class TokenCreateSpecs extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(TokenCreateSpecs.class);
-
-	private static String TOKEN_TREASURY = "treasury";
 
 	public static void main(String... args) {
 		new TokenCreateSpecs().runSuiteSync();
@@ -58,8 +57,22 @@ public class TokenCreateSpecs extends HapiApiSuite {
 						numAccountsAllowedIsDynamic(),
 						creationYieldsExpectedToken(),
 						autoRenewValidationWorks(),
+						creationValidatesTreasuryType(),
 				}
 		);
+	}
+
+	private HapiApiSpec creationValidatesTreasuryType() {
+		return defaultHapiSpec("CreationValidatesTreasuryType")
+				.given(
+						cryptoCreate("payer").balance(A_HUNDRED_HBARS),
+						contractCreate(SMART_CONTRACT_TREASURY)
+				).when(
+						tokenCreate("tokenWithSmartContractTreasury")
+								.treasury(SMART_CONTRACT_TREASURY)
+								.payingWith("payer")
+								.hasKnownStatus(ACCOUNT_IS_SMART_CONTRACT)
+				).then();
 	}
 
 	public HapiApiSpec autoRenewValidationWorks() {

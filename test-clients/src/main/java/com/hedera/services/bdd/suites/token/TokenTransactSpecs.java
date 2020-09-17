@@ -48,7 +48,6 @@ public class TokenTransactSpecs extends HapiApiSuite {
 	private static final String B_TOKEN = "TokenB";
 	private static final String FIRST_USER = "Client1";
 	private static final String SECOND_USER = "Client2";
-	private static final String TOKEN_TREASURY = "treasury";
 
 	public static void main(String... args) {
 		new TokenTransactSpecs().runSuiteSync();

@@ -36,6 +36,7 @@ import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.*;
 import static com.hedera.services.bdd.spec.transactions.token.HapiTokenTransact.TokenMovement.moving;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_IS_SMART_CONTRACT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SIGNATURE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_REF;
@@ -44,8 +45,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNAUTHORIZED;
 
 public class TokenUpdateSpecs extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(TokenUpdateSpecs.class);
-
-	private static String TOKEN_TREASURY = "treasury";
 
 	public static void main(String... args) {
 		new TokenUpdateSpecs().runSuiteSync();
@@ -61,8 +60,26 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 						standardImmutabilitySemanticsHold(),
 						validAutoRenewWorks(),
 						validatesMissingAdminKey(),
+						validatesTreasury(),
 				}
 		);
+	}
+
+	private HapiApiSpec validatesTreasury() {
+		return defaultHapiSpec("ValidatesTreasury")
+				.given(
+						newKeyNamed("adminKey"),
+						cryptoCreate("oldTreasury"),
+						cryptoCreate("payer").balance(A_HUNDRED_HBARS),
+						contractCreate(SMART_CONTRACT_TREASURY),
+						tokenCreate("tbu")
+								.adminKey("adminKey")
+								.treasury("oldTreasury")
+				).when(
+						tokenUpdate("tbu")
+								.treasury(SMART_CONTRACT_TREASURY)
+								.hasKnownStatus(ACCOUNT_IS_SMART_CONTRACT)
+				).then();
 	}
 
 	private HapiApiSpec standardImmutabilitySemanticsHold() {

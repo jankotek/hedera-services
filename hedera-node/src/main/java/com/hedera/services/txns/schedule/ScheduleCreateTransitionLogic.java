@@ -42,22 +42,7 @@ public class ScheduleCreateTransitionLogic implements TransitionLogic {
 
     @Override
     public void doStateTransition() {
-        try {
-            transitionFor(txnCtx.accessor().getTxn().getScheduleCreate());
-        } catch (Exception e) {
-            log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxn4Log(), e);
-            abortWith(FAIL_INVALID);
-        }
-    }
-
-    private void transitionFor(ScheduleCreateTransactionBody op) {
-        // TODO: Implement transitionFor() functionality
-        throw new UnsupportedOperationException();
-    }
-
-    private void abortWith(ResponseCodeEnum cause) {
-        // TODO: Implement abortWith() failure functionality
-        throw new UnsupportedOperationException();
+        // TODO: Not in this scope
     }
 
     @Override

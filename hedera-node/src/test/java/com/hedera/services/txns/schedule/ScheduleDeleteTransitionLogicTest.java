@@ -49,11 +49,16 @@ public class ScheduleDeleteTransitionLogicTest {
     }
 
     @Test
-    public void doStateTransitionIsUnsupported() {
+    public void doStateTransitionHappyPath() {
         givenValidTxnCtx();
+        subject.doStateTransition();
+    }
 
-        // expect:
-        assertThrows(UnsupportedOperationException.class, () -> subject.doStateTransition());
+    @Test
+    public void doStateTransitionWithInvalidTransactionBodyFails() {
+        givenValidTxnCtx();
+        scheduleDeleteTxn = null;
+        subject.doStateTransition();
     }
 
     @Test

@@ -41,20 +41,7 @@ public class ScheduleSignTransitionLogic implements TransitionLogic {
 
     @Override
     public void doStateTransition() {
-        try {
-            transitionFor(txnCtx.accessor().getTxn().getScheduleSign());
-        } catch (Exception e) {
-            log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxn4Log(), e);
-            abortWith(FAIL_INVALID);
-        }
-    }
-
-    private void transitionFor(ScheduleSignTransactionBody op) {
-        throw new UnsupportedOperationException();
-    }
-
-    private void abortWith(ResponseCodeEnum cause) {
-        throw new UnsupportedOperationException();
+        // TODO: Not in this scope
     }
 
     @Override

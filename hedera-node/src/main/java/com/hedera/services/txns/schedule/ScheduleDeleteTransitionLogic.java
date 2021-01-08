@@ -41,20 +41,7 @@ public class ScheduleDeleteTransitionLogic implements TransitionLogic {
 
     @Override
     public void doStateTransition() {
-        try {
-            transitionFor(txnCtx.accessor().getTxn().getScheduleDelete());
-        } catch (Exception e) {
-            log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxn4Log(), e);
-            abortWith(FAIL_INVALID);
-        }
-    }
-
-    private void transitionFor(ScheduleDeleteTransactionBody op) {
-        throw new UnsupportedOperationException();
-    }
-
-    private void abortWith(ResponseCodeEnum cause) {
-        throw new UnsupportedOperationException();
+        // TODO: Not in this scope
     }
 
     @Override

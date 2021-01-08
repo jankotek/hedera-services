@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @RunWith(JUnitPlatform.class)
 public class ScheduleCreateTransitionLogicTest {
@@ -71,9 +72,16 @@ public class ScheduleCreateTransitionLogicTest {
     }
 
     @Test
-    public void doStateTransitionIsUnsupported() {
+    public void doStateTransitionHappyPath() {
         givenValidTxnCtx();
-        assertThrows(UnsupportedOperationException.class, () -> subject.doStateTransition());
+        subject.doStateTransition();
+    }
+
+    @Test
+    public void doStateTransitionWithInvalidTransactionBodyFails() {
+        givenValidTxnCtx();
+        scheduleCreateTxn = null;
+        subject.doStateTransition();
     }
 
     @Test

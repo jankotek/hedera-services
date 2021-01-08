@@ -21,7 +21,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -62,9 +61,16 @@ public class ScheduleSignTransitionLogicTest {
     }
 
     @Test
-    public void doStateTransitionIsUnsupported() {
+    public void doStateTransitionHappyPath() {
         givenValidTxnCtx();
-        assertThrows(UnsupportedOperationException.class, () -> subject.doStateTransition());
+        subject.doStateTransition();
+    }
+
+    @Test
+    public void doStateTransitionWithInvalidTransactionBodyFails() {
+        givenValidTxnCtx();
+        scheduleSignTxn = null;
+        subject.doStateTransition();
     }
 
     @Test

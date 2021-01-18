@@ -56,6 +56,7 @@ public class ScheduleCreateUsageTest {
 
 	Key adminKey = KeyUtils.A_THRESHOLD_KEY;
 	byte[] transactionBody = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
+	byte[] memo = new byte[]{0x01, 0x02};
 	long now = 1_000L;
 	int scheduledTXExpiry = 1000;
 	AccountID payer = IdUtils.asAccount("0.0.2");
@@ -188,7 +189,7 @@ public class ScheduleCreateUsageTest {
 	}
 
 	private long baseRamBytes() {
-		return SCHEDULE_ENTITY_SIZES.bytesInBaseReprGiven(transactionBody);
+		return SCHEDULE_ENTITY_SIZES.bytesInBaseReprGiven(transactionBody, memo);
 	}
 
 	private void givenBaseOp() {

@@ -55,13 +55,15 @@ public class ScheduleEntitySizesTest {
 	public void sizeWithTransactionBodyAsExpected() {
 		// setup:
 		var transactionBody = new byte[]{0x00, 0x01, 0x02, 0x03};
+		var memo = new byte[]{0x00, 0x01};
 		long expected = NUM_FLAGS_IN_BASE_SCHEDULE_REPRESENTATION * BOOL_SIZE
 				+ NUM_ENTITY_ID_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_ENTITY_ID_SIZE
 				+ NUM_RICH_INSTANT_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_RICH_INSTANT_SIZE
-				+ transactionBody.length;
+				+ transactionBody.length
+				+ memo.length;
 
 		// given:
-		long actual = subject.bytesInBaseReprGiven(transactionBody);
+		long actual = subject.bytesInBaseReprGiven(transactionBody, memo);
 
 		// expect:
 		assertEquals(expected, actual);

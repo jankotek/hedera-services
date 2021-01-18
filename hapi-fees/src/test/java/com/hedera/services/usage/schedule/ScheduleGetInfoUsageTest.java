@@ -46,6 +46,7 @@ public class ScheduleGetInfoUsageTest {
 	Optional<KeyList> signers = Optional.of(KeyUtils.DUMMY_KEY_LIST);
 	ScheduleID id = IdUtils.asSchedule("0.0.1");
 	byte[] transactionBody = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
+	byte[] memo = new byte[]{0x01, 0x02};
 	ScheduleGetInfoUsage subject;
 
 	@BeforeEach
@@ -64,7 +65,7 @@ public class ScheduleGetInfoUsageTest {
 		// and:
 		var expectedAdminBytes = FeeBuilder.getAccountKeyStorageSize(adminKey.get());
 		var signersBytes = signers.get().toByteArray().length;
-		var expectedBytes = expectedAdminBytes + signersBytes + SCHEDULE_ENTITY_SIZES.bytesInBaseReprGiven(transactionBody);
+		var expectedBytes = expectedAdminBytes + signersBytes + SCHEDULE_ENTITY_SIZES.bytesInBaseReprGiven(transactionBody, memo);
 
 		// when:
 		var usage = subject.get();

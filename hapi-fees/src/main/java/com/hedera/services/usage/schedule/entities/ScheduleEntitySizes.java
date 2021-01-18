@@ -44,8 +44,8 @@ public enum ScheduleEntitySizes {
 				+ NUM_RICH_INSTANT_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_RICH_INSTANT_SIZE;
 	}
 
-	public int bytesInBaseReprGiven(byte[] transactionBody) {
-		return fixedBytesInScheduleRepr() + transactionBody.length;
+	public int bytesInBaseReprGiven(byte[] transactionBody, byte[] memo) {
+		return fixedBytesInScheduleRepr() + transactionBody.length + memo.length;
 	}
 
 	/**

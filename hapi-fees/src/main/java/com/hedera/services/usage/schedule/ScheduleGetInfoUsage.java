@@ -53,6 +53,11 @@ public class ScheduleGetInfoUsage extends QueryUsage {
 		return this;
 	}
 
+	public ScheduleGetInfoUsage givenMemo(byte[] memo) {
+		this.updateRb(memo.length);
+		return this;
+	}
+
 	public ScheduleGetInfoUsage givenSigners(Optional<KeyList> keyList) {
 		keyList.map(kl -> kl.toByteArray().length).ifPresent(this::updateRb);
 		return this;

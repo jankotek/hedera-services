@@ -1,5 +1,6 @@
 package com.hedera.services.txns.schedule;
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.store.schedule.ScheduleStore;
@@ -20,6 +21,7 @@ import org.junit.runner.RunWith;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ADMIN_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_MEMO_TOO_LONG;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -79,10 +81,19 @@ public class ScheduleCreateTransitionLogicTest {
     @Test
     public void failsOnInvalidAdminKey() {
         givenCtx(
-                true);
+                true, false);
 
         // expect:
         assertEquals(INVALID_ADMIN_KEY, subject.validate(scheduleCreateTxn));
+    }
+
+    @Test
+    public void failsOnInvalidMemo() {
+        givenCtx(
+                false, true);
+
+        // expect:
+        assertEquals(SCHEDULE_MEMO_TOO_LONG, subject.validate(scheduleCreateTxn));
     }
 
     @Test
@@ -95,11 +106,13 @@ public class ScheduleCreateTransitionLogicTest {
 
     private void givenValidTxnCtx() {
         givenCtx(
+                false,
                 false);
     }
 
     private void givenCtx(
-            boolean invalidAdminKey
+            boolean invalidAdminKey,
+            boolean invalidMemo
             ) {
         sigMap = SignatureMap.newBuilder().addSigPair(SignaturePair.newBuilder().build()).build();
 
@@ -111,6 +124,10 @@ public class ScheduleCreateTransitionLogicTest {
 
         if (invalidAdminKey) {
             scheduleCreate.setAdminKey(invalidKey);
+        }
+
+        if (invalidMemo) {
+            scheduleCreate.setMemo(ByteString.copyFrom(new byte[101]));
         }
 
         builder.setScheduleCreate(scheduleCreate);

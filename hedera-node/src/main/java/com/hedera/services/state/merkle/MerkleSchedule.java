@@ -144,10 +144,10 @@ public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
     @Override
     public void deserialize(SerializableDataInputStream in, int version) throws IOException {
         deleted = in.readBoolean();
-        int txBodyLength = in.readInt();
-        transactionBody = in.readByteArray(txBodyLength);
         int txMemo = in.readInt();
         memo = in.readByteArray(txMemo);
+        int txBodyLength = in.readInt();
+        transactionBody = in.readByteArray(txBodyLength);
         payer = serdes.readNullableSerializable(in);
         schedulingAccount = in.readSerializable();
         schedulingTXValidStart = RichInstant.from(in);

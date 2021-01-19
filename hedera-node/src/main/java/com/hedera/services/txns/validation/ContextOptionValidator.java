@@ -48,6 +48,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOPIC_
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MISSING_TOKEN_NAME;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MISSING_TOKEN_SYMBOL;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_MEMO_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NAME_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_SYMBOL_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_TRANSFER_LIST_SIZE_LIMIT_EXCEEDED;
@@ -165,6 +166,14 @@ public class ContextOptionValidator implements OptionValidator {
 		}
 		if (numUtf8Bytes > properties.maxTokenNameUtf8Bytes()) {
 			return TOKEN_NAME_TOO_LONG;
+		}
+		return OK;
+	}
+
+	@Override
+	public ResponseCodeEnum scheduleMemoCheck(byte[] memo) {
+		if (memo.length > properties.maxTokenNameUtf8Bytes()) {
+			return SCHEDULE_MEMO_TOO_LONG;
 		}
 		return OK;
 	}

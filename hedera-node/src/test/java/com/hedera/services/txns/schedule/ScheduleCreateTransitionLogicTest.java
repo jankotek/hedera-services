@@ -120,7 +120,8 @@ public class ScheduleCreateTransitionLogicTest {
         var scheduleCreate = ScheduleCreateTransactionBody.newBuilder()
                 .setSigMap(sigMap)
                 .setAdminKey(key)
-                .setPayerAccountID(payer);
+                .setPayerAccountID(payer)
+                .setMemo(ByteString.copyFrom(new byte[]{0x01, 0x02}));
 
         if (invalidAdminKey) {
             scheduleCreate.setAdminKey(invalidKey);

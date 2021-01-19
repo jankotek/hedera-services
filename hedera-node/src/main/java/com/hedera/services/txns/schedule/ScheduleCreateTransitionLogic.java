@@ -83,8 +83,9 @@ public class ScheduleCreateTransitionLogic implements TransitionLogic {
             return validity;
         }
 
-        if (op.getMemo().size() > 100) {
-            return SCHEDULE_MEMO_TOO_LONG;
+        validity = validator.scheduleMemoCheck(op.getMemo().toByteArray());
+        if (validity != OK) {
+            return validity;
         }
 
         return validity;

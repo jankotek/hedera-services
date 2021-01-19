@@ -63,6 +63,7 @@ import static org.mockito.Mockito.mock;
 @RunWith(JUnitPlatform.class)
 public class MerkleScheduleTest {
     final int TX_BYTES = 64;
+    final int TX_МЕМО_BYTES = 99;
     byte[] transactionBody, otherTransactionBody, txMemo, otherTxMemo;
     EntityId payer, otherPayer;
     EntityId schedulingAccount, otherSchedulingAccount;
@@ -82,8 +83,8 @@ public class MerkleScheduleTest {
         transactionBody = TxnUtils.randomUtf8Bytes(TX_BYTES * 2);
         otherTransactionBody = TxnUtils.randomUtf8Bytes(TX_BYTES);
 
-        txMemo = TxnUtils.randomUtf8Bytes(TX_BYTES * 2);
-        otherTxMemo = TxnUtils.randomUtf8Bytes(TX_BYTES);
+        txMemo = TxnUtils.randomUtf8Bytes(TX_МЕМО_BYTES);
+        otherTxMemo = TxnUtils.randomUtf8Bytes(TX_МЕМО_BYTES + 3);
 
         payer = new EntityId(4, 5, 6);
         otherPayer = new EntityId(4, 5, 5);

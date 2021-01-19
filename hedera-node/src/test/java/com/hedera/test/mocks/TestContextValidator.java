@@ -99,4 +99,9 @@ public enum TestContextValidator implements OptionValidator {
 	public ResponseCodeEnum tokenNameCheck(String name) {
 		throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public ResponseCodeEnum scheduleMemoCheck(byte[] memo) {
+		throw new UnsupportedOperationException();
+	}
 }

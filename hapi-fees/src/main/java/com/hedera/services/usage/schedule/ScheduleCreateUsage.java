@@ -25,6 +25,8 @@ import com.hedera.services.usage.TxnUsageEstimator;
 import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 
+import java.util.Optional;
+
 import static com.hedera.services.usage.SingletonEstimatorUtils.ESTIMATOR_UTILS;
 import static com.hederahashgraph.fee.FeeBuilder.BASIC_ENTITY_ID_SIZE;
 import static com.hederahashgraph.fee.FeeBuilder.getAccountKeyStorageSize;
@@ -47,8 +49,13 @@ public class ScheduleCreateUsage extends ScheduleTxnUsage<ScheduleCreateUsage> {
 	public FeeData get() {
 		var op = this.op.getScheduleCreate();
 
-		var txBytes = op.getTransactionBody().toByteArray().length + op.getMemo().toByteArray().length;
-		var ramBytes = scheduleEntitySizes.bytesInBaseReprGiven(op.getTransactionBody().toByteArray(), op.getMemo().toByteArray());
+		var txBytes = op.getTransactionBody().toByteArray().length;
+
+		if (!op.getMemo().isEmpty()) {
+			txBytes += op.getMemo().toByteArray().length;
+		}
+
+		var ramBytes = scheduleEntitySizes.bytesInBaseReprGiven(op.getTransactionBody().toByteArray(), Optional.of(op.getMemo().toByteArray()));
 
 		if (op.hasAdminKey()) {
 			long keySize = getAccountKeyStorageSize(op.getAdminKey());

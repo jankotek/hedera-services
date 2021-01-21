@@ -30,7 +30,7 @@ public class GlobalDynamicProperties {
 	private int maxTokensPerAccount;
 	private int maxTokenSymbolUtf8Bytes;
 	private int maxTokenNameUtf8Bytes;
-	private int maxScheduleMemoBytes;
+	private int maxMemoBytes;
 	private int maxFileSizeKb;
 	private int cacheRecordsTtl;
 	private int maxContractStorageKb;
@@ -72,7 +72,7 @@ public class GlobalDynamicProperties {
 		maxTokensPerAccount = properties.getIntProperty("tokens.maxPerAccount");
 		maxTokenSymbolUtf8Bytes = properties.getIntProperty("tokens.maxSymbolUtf8Bytes");
 		maxTokenNameUtf8Bytes = properties.getIntProperty("tokens.maxTokenNameUtf8Bytes");
-		maxScheduleMemoBytes = properties.getIntProperty("schedules.maxScheduleMemoBytes");
+		maxMemoBytes = properties.getIntProperty("entity.maxMemoBytes");
 		maxAccountNum = properties.getLongProperty("ledger.maxAccountNum");
 		maxFileSizeKb = properties.getIntProperty("files.maxSizeKb");
 		fundingAccount = AccountID.newBuilder()
@@ -111,8 +111,8 @@ public class GlobalDynamicProperties {
 		return maxTokenSymbolUtf8Bytes;
 	}
 
-	public int maxScheduleMemoBytes() {
-		return maxScheduleMemoBytes;
+	public int maxMemoBytes() {
+		return maxMemoBytes;
 	}
 
 	public long maxAccountNum() {

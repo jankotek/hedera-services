@@ -53,8 +53,8 @@ public class ScheduleGetInfoUsage extends QueryUsage {
 		return this;
 	}
 
-	public ScheduleGetInfoUsage givenMemo(byte[] memo) {
-		this.updateRb(memo.length);
+	public ScheduleGetInfoUsage givenMemo(Optional<byte[]> memo) {
+		this.updateRb(memo.get().length);
 		return this;
 	}
 

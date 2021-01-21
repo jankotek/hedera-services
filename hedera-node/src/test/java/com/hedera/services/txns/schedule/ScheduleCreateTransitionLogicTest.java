@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.RunWith;
 
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ENTITY_MEMO_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ADMIN_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_MEMO_TOO_LONG;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -93,7 +93,7 @@ public class ScheduleCreateTransitionLogicTest {
                 false, true);
 
         // expect:
-        assertEquals(SCHEDULE_MEMO_TOO_LONG, subject.validate(scheduleCreateTxn));
+        assertEquals(ENTITY_MEMO_TOO_LONG, subject.validate(scheduleCreateTxn));
     }
 
     @Test
@@ -114,6 +114,8 @@ public class ScheduleCreateTransitionLogicTest {
             boolean invalidAdminKey,
             boolean invalidMemo
             ) {
+        var memo = new byte[]{0x01, 0x02};
+        given(validator.entityMemoCheck(memo)).willReturn(OK);
         sigMap = SignatureMap.newBuilder().addSigPair(SignaturePair.newBuilder().build()).build();
 
         var builder = TransactionBody.newBuilder();
@@ -121,14 +123,14 @@ public class ScheduleCreateTransitionLogicTest {
                 .setSigMap(sigMap)
                 .setAdminKey(key)
                 .setPayerAccountID(payer)
-                .setMemo(ByteString.copyFrom(new byte[]{0x01, 0x02}));
+                .setMemo(ByteString.copyFrom(memo));
 
         if (invalidAdminKey) {
             scheduleCreate.setAdminKey(invalidKey);
         }
 
         if (invalidMemo) {
-            scheduleCreate.setMemo(ByteString.copyFrom(new byte[101]));
+            given(validator.entityMemoCheck(memo)).willReturn(ENTITY_MEMO_TOO_LONG);
         }
 
         builder.setScheduleCreate(scheduleCreate);

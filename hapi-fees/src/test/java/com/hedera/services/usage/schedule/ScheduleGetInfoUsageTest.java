@@ -46,7 +46,7 @@ public class ScheduleGetInfoUsageTest {
 	Optional<KeyList> signers = Optional.of(KeyUtils.DUMMY_KEY_LIST);
 	ScheduleID id = IdUtils.asSchedule("0.0.1");
 	byte[] transactionBody = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
-	byte[] memo = new byte[]{0x01, 0x02};
+	Optional<byte[]> memo = Optional.of(new byte[]{0x01, 0x02});
 	ScheduleGetInfoUsage subject;
 
 	@BeforeEach
@@ -59,7 +59,8 @@ public class ScheduleGetInfoUsageTest {
 		// given:
 		subject.givenCurrentAdminKey(adminKey)
 				.givenSigners(signers)
-				.givenTransaction(transactionBody);
+				.givenTransaction(transactionBody)
+				.givenMemo(memo);
 
 
 		// and:

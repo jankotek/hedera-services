@@ -23,6 +23,8 @@ package com.hedera.services.usage.schedule.entities;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignaturePair;
 
+import java.util.Optional;
+
 import static com.hederahashgraph.fee.FeeBuilder.BASIC_ENTITY_ID_SIZE;
 import static com.hederahashgraph.fee.FeeBuilder.BASIC_RICH_INSTANT_SIZE;
 import static com.hederahashgraph.fee.FeeBuilder.BOOL_SIZE;
@@ -44,23 +46,19 @@ public enum ScheduleEntitySizes {
 				+ NUM_RICH_INSTANT_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_RICH_INSTANT_SIZE;
 	}
 
-	public int bytesInBaseReprGiven(byte[] transactionBody, byte[] memo) {
-		return fixedBytesInScheduleRepr() + transactionBody.length + memo.length;
+	public int bytesInBaseReprGiven(byte[] transactionBody, Optional<byte[]> memo) {
+		var bytes = fixedBytesInScheduleRepr() + transactionBody.length;
+		if (memo.isPresent()) {
+			bytes += memo.get().length;
+		}
+		return bytes;
 	}
 
 	/**
 	 * Signature map is not stored in state, we only need it for bpt
 	 */
 	public int bptScheduleReprGiven(SignatureMap sigMap) {
-		var bytes = 0;
-		for (SignaturePair signaturePair : sigMap.getSigPairList()) {
-			bytes += signaturePair.getPubKeyPrefix().size() +
-					signaturePair.getEd25519().size() +
-					signaturePair.getContract().size() +
-					signaturePair.getRSA3072().size() +
-					signaturePair.getECDSA384().size();
-		}
-		return bytes;
+		return sigMap.toByteArray().length;
 	}
 
 	/**

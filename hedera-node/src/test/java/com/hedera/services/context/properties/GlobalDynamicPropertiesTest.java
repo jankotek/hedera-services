@@ -88,7 +88,7 @@ class GlobalDynamicPropertiesTest {
 		assertEquals(25, subject.minAutoRenewDuration());
 		assertEquals(26, subject.localCallEstRetBytes());
 		assertEquals(27, subject.scheduledTxExpiryTimeSecs());
-		assertEquals(28, subject.maxScheduleMemoBytes());
+		assertEquals(28, subject.maxMemoBytes());
 	}
 
 	@Test
@@ -126,7 +126,7 @@ class GlobalDynamicPropertiesTest {
 		assertEquals(26, subject.minAutoRenewDuration());
 		assertEquals(27, subject.localCallEstRetBytes());
 		assertEquals(28, subject.scheduledTxExpiryTimeSecs());
-		assertEquals(29, subject.maxScheduleMemoBytes());
+		assertEquals(29, subject.maxMemoBytes());
 	}
 
 	private void givenPropsWithSeed(int i) {
@@ -157,7 +157,7 @@ class GlobalDynamicPropertiesTest {
 		given(properties.getLongProperty("ledger.autoRenewPeriod.minDuration")).willReturn(i + 24L);
 		given(properties.getIntProperty("contracts.localCall.estRetBytes")).willReturn(i + 25);
 		given(properties.getIntProperty("ledger.schedule.txExpiryTimeSecs")).willReturn(i + 26);
-		given(properties.getIntProperty("schedules.maxScheduleMemoBytes")).willReturn(i + 27);
+		given(properties.getIntProperty("entity.maxMemoBytes")).willReturn(i + 27);
 	}
 
 	private AccountID accountWith(long shard, long realm, long num) {

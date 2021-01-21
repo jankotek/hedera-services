@@ -24,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.RunWith;
 
+import java.util.Optional;
+
 import static com.hedera.services.usage.schedule.entities.ScheduleEntitySizes.NUM_ENTITY_ID_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION;
 import static com.hedera.services.usage.schedule.entities.ScheduleEntitySizes.NUM_FLAGS_IN_BASE_SCHEDULE_REPRESENTATION;
 import static com.hedera.services.usage.schedule.entities.ScheduleEntitySizes.NUM_RICH_INSTANT_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION;
@@ -52,15 +54,15 @@ public class ScheduleEntitySizesTest {
 	}
 
 	@Test
-	public void sizeWithTransactionBodyAsExpected() {
+	public void bytesInBaseReprGivenAsExpected() {
 		// setup:
 		var transactionBody = new byte[]{0x00, 0x01, 0x02, 0x03};
-		var memo = new byte[]{0x00, 0x01};
+		var memo = Optional.of(new byte[]{0x00, 0x01});
 		long expected = NUM_FLAGS_IN_BASE_SCHEDULE_REPRESENTATION * BOOL_SIZE
 				+ NUM_ENTITY_ID_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_ENTITY_ID_SIZE
 				+ NUM_RICH_INSTANT_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_RICH_INSTANT_SIZE
 				+ transactionBody.length
-				+ memo.length;
+				+ memo.get().length;
 
 		// given:
 		long actual = subject.bytesInBaseReprGiven(transactionBody, memo);

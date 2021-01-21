@@ -41,6 +41,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.RunWith;
 
+import java.util.Optional;
+
 import static com.hedera.services.test.UsageUtils.A_USAGES_MATRIX;
 import static com.hedera.services.usage.SingletonUsageProperties.USAGE_PROPERTIES;
 import static com.hedera.services.usage.schedule.entities.ScheduleEntitySizes.SCHEDULE_ENTITY_SIZES;
@@ -56,7 +58,7 @@ public class ScheduleCreateUsageTest {
 
 	Key adminKey = KeyUtils.A_THRESHOLD_KEY;
 	byte[] transactionBody = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
-	byte[] memo = new byte[]{0x01, 0x02};
+	Optional<byte[]> memo = Optional.empty();
 	long now = 1_000L;
 	int scheduledTXExpiry = 1000;
 	AccountID payer = IdUtils.asAccount("0.0.2");
@@ -166,6 +168,29 @@ public class ScheduleCreateUsageTest {
 	}
 
 	@Test
+	public void createsExpectedDeltaForMemo() {
+		// setup:
+		givenOpWithMemo();
+		var expectedTxBytes = transactionBody.length + memo.get().length;
+		var expectedRamBytes = baseRamBytes();
+
+		// and:
+		subject = ScheduleCreateUsage.newEstimate(txn, sigUsage)
+				.givenScheduledTxExpirationTimeSecs(scheduledTXExpiry);
+
+		// when:
+		var actual = subject.get();
+
+		// then:
+		assertEquals(A_USAGES_MATRIX, actual);
+		// and:
+		verify(base).addBpt(expectedTxBytes);
+		verify(base).addRbs(expectedRamBytes * scheduledTXExpiry);
+		verify(base).addVpt(0);
+		verify(base).addNetworkRbs(BASIC_ENTITY_ID_SIZE * USAGE_PROPERTIES.legacyReceiptStorageSecs());
+	}
+
+	@Test
 	public void createsExpectedDeltaForSigMap() {
 		// setup:
 		var expectedTxBytes = transactionBody.length + SCHEDULE_ENTITY_SIZES.bptScheduleReprGiven(sigMap);
@@ -219,6 +244,15 @@ public class ScheduleCreateUsageTest {
 		op = ScheduleCreateTransactionBody.newBuilder()
 				.setTransactionBody(ByteString.copyFrom(transactionBody))
 				.setSigMap(sigMap)
+				.build();
+		setTxn();
+	}
+
+	private void givenOpWithMemo() {
+		memo = Optional.of(new byte[]{0x01, 0x02});
+		op = ScheduleCreateTransactionBody.newBuilder()
+				.setTransactionBody(ByteString.copyFrom(transactionBody))
+				.setMemo(ByteString.copyFrom(memo.get()))
 				.build();
 		setTxn();
 	}

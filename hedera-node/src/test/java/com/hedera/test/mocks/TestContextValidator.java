@@ -101,7 +101,7 @@ public enum TestContextValidator implements OptionValidator {
 	}
 
 	@Override
-	public ResponseCodeEnum scheduleMemoCheck(byte[] memo) {
+	public ResponseCodeEnum entityMemoCheck(byte[] memo) {
 		throw new UnsupportedOperationException();
 	}
 }

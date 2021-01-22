@@ -9,9 +9,9 @@ package com.hedera.services.context;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,7 +23,7 @@ package com.hedera.services.context;
 import com.google.protobuf.ByteString;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.merkle.MerkleTopic;
-import com.hedera.services.utils.PlatformTxnAccessor;
+import com.hedera.services.utils.TxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -69,14 +69,18 @@ public class AwareTransactionContext implements TransactionContext {
 	private static final Logger log = LogManager.getLogger(AwareTransactionContext.class);
 
 	public static final JKey EMPTY_KEY;
+
 	static {
 		EMPTY_KEY = asFcKeyUnchecked(Key.newBuilder().setKeyList(KeyList.getDefaultInstance()).build());
 	}
 
 	private final ServicesContext ctx;
+	private TxnAccessor triggeredTxn = null;
 
-	private final Consumer<TransactionRecord.Builder> noopRecordConfig = ignore -> {};
-	private final Consumer<TransactionReceipt.Builder> noopReceiptConfig = ignore -> {};
+	private final Consumer<TransactionRecord.Builder> noopRecordConfig = ignore -> {
+	};
+	private final Consumer<TransactionReceipt.Builder> noopReceiptConfig = ignore -> {
+	};
 
 	private long submittingMember;
 	private long otherNonThresholdFees;
@@ -85,7 +89,7 @@ public class AwareTransactionContext implements TransactionContext {
 	private Timestamp consensusTimestamp;
 	private ByteString hash;
 	private ResponseCodeEnum statusSoFar;
-	private PlatformTxnAccessor accessor;
+	private TxnAccessor accessor;
 	private Consumer<TransactionRecord.Builder> recordConfig = noopRecordConfig;
 	private Consumer<TransactionReceipt.Builder> receiptConfig = noopReceiptConfig;
 
@@ -97,10 +101,11 @@ public class AwareTransactionContext implements TransactionContext {
 	}
 
 	@Override
-	public void resetFor(PlatformTxnAccessor accessor, Instant consensusTime, long submittingMember) {
+	public void resetFor(TxnAccessor accessor, Instant consensusTime, long submittingMember) {
 		this.accessor = accessor;
 		this.consensusTime = consensusTime;
 		this.submittingMember = submittingMember;
+		this.triggeredTxn = null;
 
 		otherNonThresholdFees = 0L;
 		hash = accessor.getHash();
@@ -163,6 +168,9 @@ public class AwareTransactionContext implements TransactionContext {
 				.setTransactionHash(hash)
 				.setConsensusTimestamp(consensusTimestamp)
 				.addAllTokenTransferLists(ctx.ledger().netTokenTransfersInTxn());
+		if (accessor.isTriggeredTxn()) {
+			recordSoFar.setScheduleRef(accessor.getScheduleRef());
+		}
 
 		recordConfig.accept(recordSoFar);
 		hasComputedRecordSoFar = true;
@@ -223,7 +231,7 @@ public class AwareTransactionContext implements TransactionContext {
 	}
 
 	@Override
-	public PlatformTxnAccessor accessor() {
+	public TxnAccessor accessor() {
 		return accessor;
 	}
 
@@ -243,7 +251,9 @@ public class AwareTransactionContext implements TransactionContext {
 	}
 
 	@Override
-	public void setCreated(ScheduleID id) { receiptConfig = receipt -> receipt.setScheduleID(id); }
+	public void setCreated(ScheduleID id) {
+		receiptConfig = receipt -> receipt.setScheduleID(id);
+	}
 
 	@Override
 	public void setNewTotalSupply(long newTotalTokenSupply) {
@@ -296,5 +306,18 @@ public class AwareTransactionContext implements TransactionContext {
 	@Override
 	public void payerSigIsKnownActive() {
 		isPayerSigKnownActive = true;
+	}
+
+	@Override
+	public void trigger(TxnAccessor scopedAccessor) {
+		if (this.accessor().isTriggeredTxn()) {
+			throw new IllegalStateException("Unable to trigger txns in triggered txns");
+		}
+		this.triggeredTxn = scopedAccessor;
+	}
+
+	@Override
+	public TxnAccessor triggeredTxn() {
+		return triggeredTxn;
 	}
 }

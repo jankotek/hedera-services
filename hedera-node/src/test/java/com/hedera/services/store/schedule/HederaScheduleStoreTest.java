@@ -124,6 +124,7 @@ public class HederaScheduleStoreTest {
         schedule = mock(MerkleSchedule.class);
         anotherSchedule = mock(MerkleSchedule.class);
 
+        given(schedule.transactionBody()).willReturn(transactionBody);
         given(schedule.hasAdminKey()).willReturn(true);
         given(schedule.adminKey()).willReturn(Optional.of(SCHEDULE_ADMIN_KT.asJKeyUnchecked()));
         given(schedule.signers()).willReturn(signers);
@@ -151,18 +152,6 @@ public class HederaScheduleStoreTest {
         subject = new HederaScheduleStore(ids, () -> schedules);
         subject.setAccountsLedger(accountsLedger);
         subject.setHederaLedger(hederaLedger);
-    }
-
-    @Test
-    public void rejectsDeletionScheduleAlreadyDeleted() {
-        // given:
-        given(schedule.isDeleted()).willReturn(true);
-
-        // when:
-        var outcome = subject.delete(created);
-
-        // expect:
-        assertEquals(SCHEDULE_WAS_DELETED, outcome);
     }
 
     @Test
@@ -213,7 +202,6 @@ public class HederaScheduleStoreTest {
         // setup:
         subject.pendingId = created;
         subject.pendingCreation = schedule;
-        subject.pendingTxHashCode = 123;
 
         // when:
         subject.commitCreation();
@@ -353,11 +341,9 @@ public class HederaScheduleStoreTest {
         // setup:
         subject.pendingId = created;
         subject.pendingCreation = schedule;
-        subject.pendingTxHashCode = transactionBodyHashCode;
 
         // expect:
         assertSame(schedule, subject.get(created));
-        assertEquals(transactionBodyHashCode, subject.pendingTxHashCode);
     }
 
     @Test
@@ -381,7 +367,6 @@ public class HederaScheduleStoreTest {
         // and:
         assertNull(subject.pendingCreation);
         assertEquals(ScheduleID.getDefaultInstance(), subject.pendingId);
-        assertNull(subject.pendingTxHashCode);
     }
 
     @Test
@@ -405,7 +390,6 @@ public class HederaScheduleStoreTest {
         // and:
         assertNull(subject.pendingCreation);
         assertEquals(ScheduleID.getDefaultInstance(), subject.pendingId);
-        assertNull(subject.pendingTxHashCode);
     }
 
     @Test
@@ -429,7 +413,6 @@ public class HederaScheduleStoreTest {
         // and:
         assertNull(subject.pendingCreation);
         assertEquals(ScheduleID.getDefaultInstance(), subject.pendingId);
-        assertNull(subject.pendingTxHashCode);
     }
 
     @Test
@@ -453,7 +436,6 @@ public class HederaScheduleStoreTest {
         // and:
         assertNull(subject.pendingCreation);
         assertEquals(ScheduleID.getDefaultInstance(), subject.pendingId);
-        assertNull(subject.pendingTxHashCode);
     }
 
     @Test
@@ -463,7 +445,7 @@ public class HederaScheduleStoreTest {
         given(subject.get(created)).willReturn(schedule);
 
         // when:
-        var scheduleId = subject.getScheduleID(transactionBody, payerId);
+        var scheduleId = subject.lookupScheduleId(transactionBody, payerId);
 
         assertEquals(Optional.of(created), scheduleId);
     }
@@ -473,10 +455,9 @@ public class HederaScheduleStoreTest {
         // given:
         subject.pendingCreation = schedule;
         subject.pendingId = created;
-        subject.pendingTxHashCode = transactionBodyHashCode;
 
         // when:
-        var scheduleId = subject.getScheduleID(transactionBody, payerId);
+        var scheduleId = subject.lookupScheduleId(transactionBody, payerId);
 
         assertEquals(Optional.of(created), scheduleId);
     }
@@ -484,7 +465,7 @@ public class HederaScheduleStoreTest {
     @Test
     public void failsToGetScheduleID() {
         // when:
-        var scheduleId = subject.getScheduleID(transactionBody, payerId);
+        var scheduleId = subject.lookupScheduleId(transactionBody, payerId);
 
         assertTrue(scheduleId.isEmpty());
     }
@@ -539,5 +520,53 @@ public class HederaScheduleStoreTest {
         var key = new CompositeKey(transactionBodyHashCode, payerId);
 
         assertNotEquals(key, new Object());
+    }
+
+    @Test
+    public void rejectsExecutionMissingSchedule() {
+        // given:
+        given(schedules.containsKey(fromScheduleId(created))).willReturn(false);
+
+        // when:
+        var outcome = subject.markAsExecuted(created);
+
+        // then:
+        assertEquals(INVALID_SCHEDULE_ID, outcome);
+    }
+
+    @Test
+    public void executesAsExpected() {
+        // given:
+        given(schedules.getForModify(fromScheduleId(created))).willReturn(schedule);
+
+        // when:
+        var outcome = subject.markAsExecuted(created);
+
+        // then:
+        assertEquals(OK, outcome);
+    }
+
+    @Test
+    public void rejectsDeletionScheduleAlreadyDeleted() {
+        // given:
+        given(schedule.isDeleted()).willReturn(true);
+
+        // when:
+        var outcome = subject.delete(created);
+
+        // expect:
+        assertEquals(SCHEDULE_WAS_DELETED, outcome);
+    }
+
+    @Test
+    public void rejectsExecutionAlreadyDeleted() {
+        // given:
+        given(schedule.isDeleted()).willReturn(true);
+
+        // when:
+        var outcome = subject.markAsExecuted(created);
+
+        // expect:
+        assertEquals(SCHEDULE_WAS_DELETED, outcome);
     }
 }

@@ -25,7 +25,6 @@ import com.hedera.services.fees.FeeCalculator;
 import com.hedera.services.fees.HbarCentExchange;
 import com.hedera.services.keys.HederaKeyTraversal;
 import com.hedera.services.legacy.core.jproto.JKey;
-import com.hedera.services.utils.SignedTxnAccessor;
 import com.hedera.services.utils.TxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -34,17 +33,15 @@ import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.ResponseType;
 import com.hederahashgraph.api.proto.java.Timestamp;
-import com.hederahashgraph.exception.InvalidTxBodyException;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.fee.FeeBuilder;
 import com.hederahashgraph.fee.FeeObject;
 import com.hederahashgraph.fee.SigValueObj;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 

@@ -30,6 +30,7 @@ import com.hedera.services.state.merkle.MerkleSchedule;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.CreationResult;
 import com.hedera.services.store.schedule.ScheduleStore;
+import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.factories.txns.SignedTxnFactory;
 import com.hedera.test.utils.IdUtils;
@@ -92,12 +93,14 @@ public class ScheduleCreateTransitionLogicTest {
 	private final Key invalidKey = Key.newBuilder().build();
 	private Optional<JKey> jAdminKey;
 
+	private OptionValidator validator;
 	private ScheduleStore store;
 	private PlatformTxnAccessor accessor;
 	private TransactionContext txnCtx;
 
 	private AccountID payer = IdUtils.asAccount("1.2.3");
 	private ScheduleID schedule = IdUtils.asSchedule("2.4.6");
+	private String memo = "some cool memo?";
 
 	private TransactionBody scheduleCreateTxn;
 	private InHandleActivationHelper activationHelper;
@@ -112,6 +115,7 @@ public class ScheduleCreateTransitionLogicTest {
 
 	@BeforeEach
 	private void setup() {
+		validator = mock(OptionValidator.class);
 		store = mock(ScheduleStore.class);
 		accessor = mock(PlatformTxnAccessor.class);
 		activationHelper = mock(InHandleActivationHelper.class);
@@ -138,7 +142,7 @@ public class ScheduleCreateTransitionLogicTest {
 		txnCtx = mock(TransactionContext.class);
 		given(txnCtx.activePayer()).willReturn(payer);
 
-		subject = new ScheduleCreateTransitionLogic(store, txnCtx, activationHelper);
+		subject = new ScheduleCreateTransitionLogic(store, txnCtx, activationHelper, validator);
 	}
 
 	@Test
@@ -162,6 +166,7 @@ public class ScheduleCreateTransitionLogicTest {
         given(store.lookupScheduleId(transactionBody, payer)).willReturn(EMPTY_SCHEDULE);
         given(store.createProvisionally(
                 eq(transactionBody),
+                argThat(memo -> true),
                 eq(payer),
                 eq(payer),
                 eq(RichInstant.fromJava(now)),
@@ -177,6 +182,7 @@ public class ScheduleCreateTransitionLogicTest {
 		// and:
 		verify(store).createProvisionally(
 				eq(transactionBody),
+				argThat(memo -> true),
 				eq(payer),
 				eq(payer),
 				eq(RichInstant.fromJava(now)),
@@ -210,7 +216,9 @@ public class ScheduleCreateTransitionLogicTest {
 		// then:
 		verify(store).lookupScheduleId(transactionBody, payer);
 		// and:
-		verify(store, never()).createProvisionally(eq(transactionBody),
+		verify(store, never()).createProvisionally(
+				eq(transactionBody),
+				argThat(memo -> true),
 				eq(payer),
 				eq(payer),
 				eq(RichInstant.fromJava(now)),
@@ -229,6 +237,7 @@ public class ScheduleCreateTransitionLogicTest {
 		given(store.lookupScheduleId(transactionBody, payer)).willReturn(EMPTY_SCHEDULE);
 		given(store.createProvisionally(
 				eq(transactionBody),
+				argThat(memo -> true),
 				eq(payer),
 				eq(payer),
 				eq(RichInstant.fromJava(now)),
@@ -243,6 +252,7 @@ public class ScheduleCreateTransitionLogicTest {
 		// and:
 		verify(store).createProvisionally(
 				eq(transactionBody),
+				argThat(memo -> true),
 				eq(payer),
 				eq(payer),
 				eq(RichInstant.fromJava(now)),
@@ -271,6 +281,7 @@ public class ScheduleCreateTransitionLogicTest {
 	public void failsOnInvalidAdminKey() {
 		givenCtx(
 				true,
+				false,
 				false);
 
 		// expect:
@@ -280,7 +291,9 @@ public class ScheduleCreateTransitionLogicTest {
     @Test
     public void failsOnInvalidMemo() {
         givenCtx(
-                false, true);
+                false,
+				false,
+				true);
 
         // expect:
         assertEquals(MEMO_TOO_LONG, subject.validate(scheduleCreateTxn));
@@ -295,7 +308,10 @@ public class ScheduleCreateTransitionLogicTest {
 
     @Test
     public void rejectsInvalidAdminKey() {
-        givenCtx(true, false);
+        givenCtx(
+        		true,
+				false,
+				false);
 
         assertEquals(INVALID_ADMIN_KEY, subject.syntaxCheck().apply(scheduleCreateTxn));
     }
@@ -340,7 +356,6 @@ public class ScheduleCreateTransitionLogicTest {
             e.printStackTrace();
         }
 
-        var memo = "some memo";
         var builder = TransactionBody.newBuilder();
         var scheduleCreate = ScheduleCreateTransactionBody.newBuilder()
                 .setSigMap(sigMap)
@@ -353,11 +368,7 @@ public class ScheduleCreateTransitionLogicTest {
             scheduleCreate.setAdminKey(invalidKey);
         }
 
-
-
-
         builder.setScheduleCreate(scheduleCreate);
-
         this.scheduleCreateTxn = builder.build();
 
         given(validator.isValidEntityMemo(memo)).willReturn(!invalidMemo);

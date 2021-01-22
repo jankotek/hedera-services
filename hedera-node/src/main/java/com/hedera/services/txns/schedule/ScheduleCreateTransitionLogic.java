@@ -91,6 +91,7 @@ public class ScheduleCreateTransitionLogic extends ScheduleReadyForExecution imp
 		} else {
 			var result = store.createProvisionally(
 					op.getTransactionBody().toByteArray(),
+					Optional.of(op.getMemo()),
 					scheduledPayer,
 					txnCtx.activePayer(),
 					fromJava(txnCtx.consensusTime()),

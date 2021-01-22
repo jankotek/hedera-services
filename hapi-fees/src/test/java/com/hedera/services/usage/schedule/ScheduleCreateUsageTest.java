@@ -58,7 +58,7 @@ public class ScheduleCreateUsageTest {
 
 	Key adminKey = KeyUtils.A_THRESHOLD_KEY;
 	byte[] transactionBody = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
-	Optional<byte[]> memo = Optional.empty();
+	String memo = "Just some memo!";
 	long now = 1_000L;
 	int scheduledTXExpiry = 1000;
 	AccountID payer = IdUtils.asAccount("0.0.2");
@@ -170,9 +170,9 @@ public class ScheduleCreateUsageTest {
 	@Test
 	public void createsExpectedDeltaForMemo() {
 		// setup:
+		var expectedTxBytes = transactionBody.length + memo.length();
+		var expectedRamBytes = baseRamBytesWithMemo();
 		givenOpWithMemo();
-		var expectedTxBytes = transactionBody.length + memo.get().length;
-		var expectedRamBytes = baseRamBytes();
 
 		// and:
 		subject = ScheduleCreateUsage.newEstimate(txn, sigUsage)
@@ -214,7 +214,11 @@ public class ScheduleCreateUsageTest {
 	}
 
 	private long baseRamBytes() {
-		return SCHEDULE_ENTITY_SIZES.bytesInBaseReprGiven(transactionBody, memo);
+		return SCHEDULE_ENTITY_SIZES.bytesInBaseReprGiven(transactionBody, ByteString.EMPTY);
+	}
+
+	private long baseRamBytesWithMemo() {
+		return SCHEDULE_ENTITY_SIZES.bytesInBaseReprGiven(transactionBody, ByteString.copyFromUtf8(memo));
 	}
 
 	private void givenBaseOp() {
@@ -249,10 +253,9 @@ public class ScheduleCreateUsageTest {
 	}
 
 	private void givenOpWithMemo() {
-		memo = Optional.of(new byte[]{0x01, 0x02});
 		op = ScheduleCreateTransactionBody.newBuilder()
 				.setTransactionBody(ByteString.copyFrom(transactionBody))
-				.setMemo(ByteString.copyFrom(memo.get()))
+				.setMemo(memo)
 				.build();
 		setTxn();
 	}

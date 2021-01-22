@@ -33,6 +33,7 @@ import com.swirlds.common.io.SerializableDataOutputStream;
 import com.swirlds.common.io.SerializedObjectProvider;
 import com.swirlds.common.merkle.utility.AbstractMerkleLeaf;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.Strings;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -51,6 +52,7 @@ import static com.swirlds.common.CommonUtils.hex;
 public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
     static final int MERKLE_VERSION = 1;
 
+    static final int UPPER_BOUND_MEMO_UTF8_BYTES = 1024;
     static final long RUNTIME_CONSTRUCTABLE_ID = 0x8d2b7d9e673285fcL;
     static DomainSerdes serdes = new DomainSerdes();
 
@@ -58,7 +60,7 @@ public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
     public static final EntityId UNUSED_PAYER = null;
 
     private byte[] transactionBody;
-    private byte[] memo;
+    private String memo;
     private JKey adminKey = UNUSED_KEY;
     private EntityId payer = UNUSED_PAYER;
     private EntityId schedulingAccount;
@@ -102,7 +104,7 @@ public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
         var that = (MerkleSchedule) o;
         return this.deleted == that.deleted &&
                 Arrays.areEqual(this.transactionBody, that.transactionBody) &&
-                Arrays.areEqual(this.memo, that.memo) &&
+                Objects.equals(this.memo, that.memo) &&
                 Objects.equals(this.payer, that.payer) &&
                 Objects.equals(this.schedulingAccount, that.schedulingAccount) &&
                 Objects.equals(this.schedulingTXValidStart, that.schedulingTXValidStart) &&
@@ -128,7 +130,7 @@ public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
         return MoreObjects.toStringHelper(MerkleSchedule.class)
                 .add("deleted", deleted)
                 .add("transactionBody", hex(transactionBody))
-                .add("memo", hex(memo))
+                .add("memo", memo)
                 .add("payer", readablePayer())
                 .add("schedulingAccount", schedulingAccount)
                 .add("schedulingTXValidStart", schedulingTXValidStart)
@@ -144,10 +146,9 @@ public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
     @Override
     public void deserialize(SerializableDataInputStream in, int version) throws IOException {
         deleted = in.readBoolean();
-        int txMemo = in.readInt();
-        memo = in.readByteArray(txMemo);
         int txBodyLength = in.readInt();
         transactionBody = in.readByteArray(txBodyLength);
+        memo = in.readNormalisedString(UPPER_BOUND_MEMO_UTF8_BYTES);
         payer = serdes.readNullableSerializable(in);
         schedulingAccount = in.readSerializable();
         schedulingTXValidStart = RichInstant.from(in);
@@ -158,10 +159,9 @@ public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
     @Override
     public void serialize(SerializableDataOutputStream out) throws IOException {
         out.writeBoolean(deleted);
-        out.writeInt(memo.length);
-        out.writeByteArray(memo);
         out.writeInt(transactionBody.length);
         out.writeByteArray(transactionBody);
+        out.writeNormalisedString(memo);
         serdes.writeNullableSerializable(payer, out);
         out.writeSerializable(schedulingAccount, true);
         schedulingTXValidStart.serialize(out);
@@ -204,9 +204,9 @@ public class MerkleSchedule extends AbstractMerkleLeaf implements FCMValue {
 
     public byte[] transactionBody() { return this.transactionBody; }
 
-    public byte[] memo() { return this.memo; }
+    public String memo() { return this.memo; }
 
-    public void setMemo(byte[] memo) { this.memo = memo; }
+    public void setMemo(String memo) { this.memo = memo; }
 
     public boolean hasAdminKey() {
         return adminKey != UNUSED_KEY;

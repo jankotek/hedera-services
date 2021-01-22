@@ -89,7 +89,7 @@ public class HederaScheduleStoreTest {
 
     byte[] transactionBody;
     int transactionBodyHashCode;
-    byte[] txMemo;
+    String entityMemo;
     RichInstant schedulingTXValidStart;
     Key adminKey;
     JKey adminJKey;
@@ -109,7 +109,7 @@ public class HederaScheduleStoreTest {
     @BeforeEach
     public void setup() {
         transactionBody = TxnUtils.randomUtf8Bytes(SIGNATURE_BYTES);
-        txMemo = TxnUtils.randomUtf8Bytes(SIGNATURE_BYTES / 2);
+        entityMemo = "Some memo here";
         transactionBodyHashCode = Arrays.hashCode(transactionBody);
         schedulingTXValidStart = new RichInstant(123, 456);
         adminKey = SCHEDULE_ADMIN_KT.asKey();
@@ -312,12 +312,12 @@ public class HederaScheduleStoreTest {
         var expected = new MerkleSchedule(transactionBody, entitySchedulingAccount, schedulingTXValidStart);
         expected.setAdminKey(adminJKey);
         expected.setPayer(entityPayer);
-        expected.setMemo(txMemo);
+        expected.setMemo(entityMemo);
         // when:
         var outcome = subject
                 .createProvisionally(
                         transactionBody,
-                        Optional.of(txMemo),
+                        Optional.of(entityMemo),
                         payerId,
                         schedulingAccount,
                         schedulingTXValidStart,
@@ -337,7 +337,7 @@ public class HederaScheduleStoreTest {
         var outcome = subject
                 .createProvisionally(
                         transactionBody,
-                        Optional.of(txMemo),
+                        Optional.of(entityMemo),
                         null,
                         schedulingAccount,
                         schedulingTXValidStart,
@@ -369,7 +369,7 @@ public class HederaScheduleStoreTest {
         var outcome = subject
                 .createProvisionally(
                         transactionBody,
-                        Optional.of(txMemo),
+                        Optional.of(entityMemo),
                         payerId,
                         schedulingAccount,
                         schedulingTXValidStart,
@@ -393,7 +393,7 @@ public class HederaScheduleStoreTest {
         var outcome = subject
                 .createProvisionally(
                         transactionBody,
-                        Optional.of(txMemo),
+                        Optional.of(entityMemo),
                         payerId,
                         schedulingAccount,
                         schedulingTXValidStart,
@@ -417,7 +417,7 @@ public class HederaScheduleStoreTest {
         var outcome = subject
                 .createProvisionally(
                         transactionBody,
-                        Optional.of(txMemo),
+                        Optional.of(entityMemo),
                         payerId,
                         schedulingAccount,
                         schedulingTXValidStart,
@@ -441,7 +441,7 @@ public class HederaScheduleStoreTest {
         var outcome = subject
                 .createProvisionally(
                         transactionBody,
-                        Optional.of(txMemo),
+                        Optional.of(entityMemo),
                         payerId,
                         schedulingAccount,
                         schedulingTXValidStart,

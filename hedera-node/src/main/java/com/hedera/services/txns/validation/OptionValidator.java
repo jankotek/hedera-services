@@ -58,7 +58,6 @@ public interface OptionValidator {
 	ResponseCodeEnum queryableTopicStatus(TopicID id, FCMap<MerkleEntityId, MerkleTopic> topics);
 	ResponseCodeEnum tokenSymbolCheck(String symbol);
 	ResponseCodeEnum tokenNameCheck(String name);
-	ResponseCodeEnum entityMemoCheck(byte[] memo);
 	ResponseCodeEnum isAcceptableTokenTransfersLength(List<TokenTransferList> tokenTransferLists);
 
 	default ResponseCodeEnum queryableAccountStatus(AccountID id, FCMap<MerkleEntityId, MerkleAccount> accounts) {

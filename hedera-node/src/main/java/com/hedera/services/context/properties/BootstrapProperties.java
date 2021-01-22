@@ -211,8 +211,7 @@ public class BootstrapProperties implements PropertySource {
 			"rates.intradayChangeLimitPercent",
 			"tokens.maxPerAccount",
 			"tokens.maxSymbolUtf8Bytes",
-			"tokens.maxTokenNameUtf8Bytes",
-			"schedules.maxScheduleMemoBytes"
+			"tokens.maxTokenNameUtf8Bytes"
 	);
 
 	static final Set<String> NODE_PROPS = Set.of(
@@ -299,7 +298,6 @@ public class BootstrapProperties implements PropertySource {
 			entry("tokens.maxPerAccount", AS_INT),
 			entry("tokens.maxSymbolUtf8Bytes", AS_INT),
 			entry("tokens.maxTokenNameUtf8Bytes", AS_INT),
-			entry("schedules.maxScheduleMemoBytes", AS_INT),
 			entry("contracts.localCall.estRetBytes", AS_INT),
 			entry("contracts.maxStorageKb", AS_INT),
 			entry("contracts.defaultLifetime", AS_LONG),

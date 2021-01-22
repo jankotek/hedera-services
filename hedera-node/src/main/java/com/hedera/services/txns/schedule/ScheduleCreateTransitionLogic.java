@@ -16,6 +16,7 @@ import java.util.function.Predicate;
 
 import static com.hedera.services.txns.validation.ScheduleChecks.checkAdminKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MEMO_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 
 public class ScheduleCreateTransitionLogic implements TransitionLogic {
@@ -81,9 +82,8 @@ public class ScheduleCreateTransitionLogic implements TransitionLogic {
             return validity;
         }
 
-        validity = validator.entityMemoCheck(op.getMemo().toByteArray());
-        if (validity != OK) {
-            return validity;
+        if (!validator.isValidEntityMemo(op.getMemo())) {
+            return MEMO_TOO_LONG;
         }
 
         return validity;

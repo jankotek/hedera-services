@@ -20,6 +20,7 @@ package com.hedera.services.usage.schedule;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.usage.QueryUsage;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
@@ -53,8 +54,8 @@ public class ScheduleGetInfoUsage extends QueryUsage {
 		return this;
 	}
 
-	public ScheduleGetInfoUsage givenMemo(Optional<byte[]> memo) {
-		this.updateRb(memo.get().length);
+	public ScheduleGetInfoUsage givenMemo(ByteString memo) {
+		this.updateRb(memo.size());
 		return this;
 	}
 

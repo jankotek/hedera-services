@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.hedera.services.legacy.core.jproto.JKey.equalUpToDecodability;
+import static com.hedera.services.state.merkle.MerkleSchedule.UPPER_BOUND_MEMO_UTF8_BYTES;
 import static com.hedera.services.state.merkle.MerkleTopic.serdes;
 import static com.hedera.services.utils.MiscUtils.describe;
 import static com.swirlds.common.CommonUtils.hex;
@@ -63,8 +64,9 @@ import static org.mockito.Mockito.mock;
 @RunWith(JUnitPlatform.class)
 public class MerkleScheduleTest {
     final int TX_BYTES = 64;
-    final int TX_МЕМО_BYTES = 99;
-    byte[] transactionBody, otherTransactionBody, txMemo, otherTxMemo;
+
+    byte[] transactionBody, otherTransactionBody;
+    String entityMemo, otherEntityMemo;
     EntityId payer, otherPayer;
     EntityId schedulingAccount, otherSchedulingAccount;
     RichInstant schedulingTXValidStart, otherSchedulingTXValidStart;
@@ -83,8 +85,8 @@ public class MerkleScheduleTest {
         transactionBody = TxnUtils.randomUtf8Bytes(TX_BYTES * 2);
         otherTransactionBody = TxnUtils.randomUtf8Bytes(TX_BYTES);
 
-        txMemo = TxnUtils.randomUtf8Bytes(TX_МЕМО_BYTES);
-        otherTxMemo = TxnUtils.randomUtf8Bytes(TX_МЕМО_BYTES + 3);
+        entityMemo = "Just some memo again";
+        otherEntityMemo = "Yet another memo";
 
         payer = new EntityId(4, 5, 6);
         otherPayer = new EntityId(4, 5, 5);
@@ -132,7 +134,7 @@ public class MerkleScheduleTest {
     public void validGetters() {
         // expect:
         assertEquals(transactionBody, subject.transactionBody());
-        assertEquals(txMemo, subject.memo());
+        assertEquals(entityMemo, subject.memo());
         assertEquals(isDeleted, subject.isDeleted());
         assertEquals(signers, subject.signers());
         assertEquals(payer, subject.payer());
@@ -171,10 +173,9 @@ public class MerkleScheduleTest {
 
         // then:
         inOrder.verify(out).writeBoolean(isDeleted);
-        inOrder.verify(out).writeInt(txMemo.length);
-        inOrder.verify(out).writeByteArray(txMemo);
         inOrder.verify(out).writeInt(transactionBody.length);
         inOrder.verify(out).writeByteArray(transactionBody);
+        inOrder.verify(out).writeNormalisedString(entityMemo);
         inOrder.verify(serdes).writeNullableSerializable(payer, out);
         inOrder.verify(out).writeSerializable(schedulingAccount, true);
         inOrder.verify(out).writeLong(schedulingTXValidStart.getSeconds());
@@ -200,12 +201,11 @@ public class MerkleScheduleTest {
         given(fin.readLong())
                 .willReturn(schedulingTXValidStart.getSeconds());
         given(fin.readInt())
-                .willReturn(txMemo.length)
                 .willReturn(transactionBody.length)
                 .willReturn(schedulingTXValidStart.getNanos())
                 .willReturn(signers.size());
-        given(fin.readByteArray(txMemo.length))
-                .willReturn(txMemo);
+        given(fin.readNormalisedString(UPPER_BOUND_MEMO_UTF8_BYTES))
+                .willReturn(entityMemo);
         given(fin.readByteArray(transactionBody.length))
                 .willReturn(transactionBody);
         given(serdes.deserializeKey(fin))
@@ -243,7 +243,7 @@ public class MerkleScheduleTest {
         // given:
         other = new MerkleSchedule(transactionBody, schedulingAccount, schedulingTXValidStart);
         setOptionalElements(other);
-        other.setMemo(otherTxMemo);
+        other.setMemo(otherEntityMemo);
 
         // expect:
         assertNotEquals(subject, other);
@@ -357,7 +357,7 @@ public class MerkleScheduleTest {
         assertEquals("MerkleSchedule{" +
                     "deleted=" + isDeleted + ", " +
                     "transactionBody=" + hex(transactionBody) + ", " +
-                    "memo=" + hex(txMemo) + ", " +
+                    "memo=" + entityMemo + ", " +
                     "payer=" + payer.toAbbrevString() + ", " +
                     "schedulingAccount=" + schedulingAccount + ", " +
                     "schedulingTXValidStart=" + schedulingTXValidStart + ", " +
@@ -429,7 +429,7 @@ public class MerkleScheduleTest {
     }
 
     private void setOptionalElements(MerkleSchedule schedule) {
-        schedule.setMemo(txMemo);
+        schedule.setMemo(entityMemo);
         schedule.setSigners(signers);
         schedule.setPayer(payer);
         schedule.setDeleted(isDeleted);

@@ -44,7 +44,7 @@ public class GetScheduleInfoResourceUsageTest {
     Key randomKey = new KeyFactory().newEd25519();
     ScheduleInfo info = ScheduleInfo.newBuilder()
             .setTransactionBody(ByteString.copyFrom(new byte[]{0x01, 0x02, 0x03, 0x04}))
-            .setMemo(ByteString.copyFrom(new byte[]{0x01, 0x02}))
+            .setMemo("Some memo here")
             .setAdminKey(TxnHandlingScenario.COMPLEX_KEY_ACCOUNT_KT.asKey())
             .setPayerAccountID(TxnHandlingScenario.COMPLEX_KEY_ACCOUNT)
             .setSigners(KeyList.newBuilder().addKeys(randomKey))
@@ -65,7 +65,7 @@ public class GetScheduleInfoResourceUsageTest {
 
 
         given(estimator.givenTransaction(info.getTransactionBody().toByteArray())).willReturn(estimator);
-        given(estimator.givenTransaction(info.getMemo().toByteArray())).willReturn(estimator);
+        given(estimator.givenMemo(info.getMemoBytes())).willReturn(estimator);
         given(estimator.givenCurrentAdminKey(any())).willReturn(estimator);
         given(estimator.givenSigners(any())).willReturn(estimator);
         given(estimator.get()).willReturn(MOCK_SCHEDULE_GET_INFO_USAGE);

@@ -61,7 +61,7 @@ public enum ExceptionalScheduleStore implements ScheduleStore {
 	}
 
 	@Override
-	public CreationResult<ScheduleID> createProvisionally(byte[] bodyBytes, Optional<byte[]> txMemo, AccountID payer, AccountID schedulingAccount, RichInstant schedulingTXValidStart, Optional<JKey> adminKey) {
+	public CreationResult<ScheduleID> createProvisionally(byte[] bodyBytes, Optional<String> txMemo, AccountID payer, AccountID schedulingAccount, RichInstant schedulingTXValidStart, Optional<JKey> adminKey) {
 		throw new UnsupportedOperationException();
 	}
 

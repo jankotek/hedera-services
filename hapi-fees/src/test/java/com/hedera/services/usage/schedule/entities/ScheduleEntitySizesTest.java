@@ -20,6 +20,7 @@ package com.hedera.services.usage.schedule.entities;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.runner.JUnitPlatform;
 import org.junit.runner.RunWith;
@@ -57,15 +58,15 @@ public class ScheduleEntitySizesTest {
 	public void bytesInBaseReprGivenAsExpected() {
 		// setup:
 		var transactionBody = new byte[]{0x00, 0x01, 0x02, 0x03};
-		var memo = Optional.of(new byte[]{0x00, 0x01});
+		var memo = "memo";
 		long expected = NUM_FLAGS_IN_BASE_SCHEDULE_REPRESENTATION * BOOL_SIZE
 				+ NUM_ENTITY_ID_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_ENTITY_ID_SIZE
 				+ NUM_RICH_INSTANT_FIELDS_IN_BASE_SCHEDULE_REPRESENTATION * BASIC_RICH_INSTANT_SIZE
 				+ transactionBody.length
-				+ memo.get().length;
+				+ memo.length();
 
 		// given:
-		long actual = subject.bytesInBaseReprGiven(transactionBody, memo);
+		long actual = subject.bytesInBaseReprGiven(transactionBody, ByteString.copyFromUtf8(memo));
 
 		// expect:
 		assertEquals(expected, actual);

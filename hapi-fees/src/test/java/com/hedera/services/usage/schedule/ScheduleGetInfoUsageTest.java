@@ -20,6 +20,7 @@ package com.hedera.services.usage.schedule;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.test.IdUtils;
 import com.hedera.services.test.KeyUtils;
 import com.hederahashgraph.api.proto.java.Key;
@@ -46,7 +47,7 @@ public class ScheduleGetInfoUsageTest {
 	Optional<KeyList> signers = Optional.of(KeyUtils.DUMMY_KEY_LIST);
 	ScheduleID id = IdUtils.asSchedule("0.0.1");
 	byte[] transactionBody = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
-	Optional<byte[]> memo = Optional.of(new byte[]{0x01, 0x02});
+	ByteString memo = ByteString.copyFromUtf8("This is just a memo?");
 	ScheduleGetInfoUsage subject;
 
 	@BeforeEach

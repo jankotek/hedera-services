@@ -44,7 +44,6 @@ import java.util.Optional;
 
 import static com.hedera.services.legacy.core.jproto.JKey.mapKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.EMPTY_TOKEN_TRANSFER_ACCOUNT_AMOUNTS;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ENTITY_MEMO_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOPIC_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MISSING_TOKEN_NAME;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MISSING_TOKEN_SYMBOL;
@@ -166,14 +165,6 @@ public class ContextOptionValidator implements OptionValidator {
 		}
 		if (numUtf8Bytes > properties.maxTokenNameUtf8Bytes()) {
 			return TOKEN_NAME_TOO_LONG;
-		}
-		return OK;
-	}
-
-	@Override
-	public ResponseCodeEnum entityMemoCheck(byte[] memo) {
-		if (memo.length > properties.maxMemoBytes()) {
-			return ENTITY_MEMO_TOO_LONG;
 		}
 		return OK;
 	}

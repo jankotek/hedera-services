@@ -26,6 +26,7 @@ import com.hedera.services.fees.HbarCentExchange;
 import com.hedera.services.keys.HederaKeyTraversal;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.utils.SignedTxnAccessor;
+import com.hedera.services.utils.TxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.FeeData;
@@ -33,17 +34,15 @@ import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.ResponseType;
 import com.hederahashgraph.api.proto.java.Timestamp;
-import com.hederahashgraph.exception.InvalidTxBodyException;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.fee.FeeBuilder;
 import com.hederahashgraph.fee.FeeObject;
 import com.hederahashgraph.fee.SigValueObj;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -113,18 +112,23 @@ public class UsageBasedFeeCalculator implements FeeCalculator {
 			Timestamp at,
 			Function<QueryResourceUsageEstimator, FeeData> usageFn
 	) {
-		var usageEstimator = getQueryUsageEstimator(query);
-		var queryUsage = usageFn.apply(usageEstimator);
-		return FeeBuilder.getFeeObject(usagePrices, queryUsage, exchange.rate(at));
+		try {
+			var usageEstimator = getQueryUsageEstimator(query);
+			var queryUsage = usageFn.apply(usageEstimator);
+			return FeeBuilder.getFeeObject(usagePrices, queryUsage, exchange.rate(at));
+		} catch (Exception illegal) {
+			log.warn("Unexpected failure for {}!", query, illegal);
+			throw new IllegalArgumentException("UsageBasedFeeCalculator#computeGiven");
+		}
 	}
 
 	@Override
-	public FeeObject computeFee(SignedTxnAccessor accessor, JKey payerKey, StateView view) {
+	public FeeObject computeFee(TxnAccessor accessor, JKey payerKey, StateView view) {
 		return feeGiven(accessor, payerKey, view, usagePrices.activePrices(), exchange.activeRate());
 	}
 
 	@Override
-	public FeeObject estimateFee(SignedTxnAccessor accessor, JKey payerKey, StateView view, Timestamp at) {
+	public FeeObject estimateFee(TxnAccessor accessor, JKey payerKey, StateView view, Timestamp at) {
 		FeeData prices = uncheckedPricesGiven(accessor, at);
 
 		return feeGiven(accessor, payerKey, view, prices, exchange.rate(at));
@@ -143,7 +147,7 @@ public class UsageBasedFeeCalculator implements FeeCalculator {
 	}
 
 	@Override
-	public long estimatedNonFeePayerAdjustments(SignedTxnAccessor accessor, Timestamp at) {
+	public long estimatedNonFeePayerAdjustments(TxnAccessor accessor, Timestamp at) {
 		switch (accessor.getFunction()) {
 			case CryptoCreate:
 				var cryptoCreateOp = accessor.getTxn().getCryptoCreateAccount();
@@ -178,7 +182,7 @@ public class UsageBasedFeeCalculator implements FeeCalculator {
 		return Math.max(priceInTinyBars, 1L);
 	}
 
-	private FeeData uncheckedPricesGiven(SignedTxnAccessor accessor, Timestamp at) {
+	private FeeData uncheckedPricesGiven(TxnAccessor accessor, Timestamp at) {
 		try {
 			return usagePrices.pricesGiven(accessor.getFunction(), at);
 		} catch (Exception e) {
@@ -188,23 +192,20 @@ public class UsageBasedFeeCalculator implements FeeCalculator {
 	}
 
 	private FeeObject feeGiven(
-			SignedTxnAccessor accessor,
+			TxnAccessor accessor,
 			JKey payerKey,
 			StateView view,
 			FeeData prices,
 			ExchangeRate rate
 	) {
-		var sigUsage = getSigUsage(accessor, payerKey);
-		var usageEstimator = getTxnUsageEstimator(accessor);
 		try {
-			FeeData metrics = usageEstimator.usageGiven(accessor.getTxn(), sigUsage, view);
+			var sigUsage = getSigUsage(accessor, payerKey);
+			var usageEstimator = getTxnUsageEstimator(accessor);
+			var metrics = usageEstimator.usageGiven(accessor.getTxn(), sigUsage, view);
 			return FeeBuilder.getFeeObject(prices, metrics, rate);
-		} catch (InvalidTxBodyException e) {
-			log.warn(
-					"Argument accessor={} malformed for implied estimator {}!",
-					accessor.getSignedTxn4Log(),
-					usageEstimator);
-			throw new IllegalArgumentException(e);
+		} catch (Exception illegal) {
+			var msg = String.format("Unable to compute fee for %s, key %s!", accessor.getSignedTxn4Log(), payerKey);
+			throw new IllegalArgumentException(msg, illegal);
 		}
 	}
 
@@ -216,26 +217,31 @@ public class UsageBasedFeeCalculator implements FeeCalculator {
 		if (usageEstimator.isPresent()) {
 			return usageEstimator.get();
 		}
-		throw new NoSuchElementException("No estimator exists for the given query");
+		throw new IllegalArgumentException("Missing query usage estimator!");
 	}
 
-	private TxnResourceUsageEstimator getTxnUsageEstimator(SignedTxnAccessor accessor) {
-		var txn = accessor.getTxn();
-		var estimators = Optional
-				.ofNullable(txnUsageEstimators.apply(accessor.getFunction()))
-				.orElse(Collections.emptyList());
-		for (TxnResourceUsageEstimator estimator : estimators) {
-			if (estimator.applicableTo(txn)) {
-				return estimator;
+	private TxnResourceUsageEstimator getTxnUsageEstimator(TxnAccessor accessor) {
+		var usageEstimator = Optional.ofNullable(txnUsageEstimators.apply(accessor.getFunction()))
+				.map(estimators -> from(estimators, accessor.getTxn()));
+		if (usageEstimator.isPresent()) {
+			return usageEstimator.get();
+		}
+		throw new IllegalArgumentException("Missing txn usage estimator!");
+	}
+
+	private TxnResourceUsageEstimator from(List<TxnResourceUsageEstimator> estimators, TransactionBody txn) {
+		for (TxnResourceUsageEstimator candidate : estimators) {
+			if (candidate.applicableTo(txn)) {
+				return candidate;
 			}
 		}
-		throw new NoSuchElementException("No estimator exists for the given transaction");
+		throw new IllegalArgumentException("Missing txn usage estimator!");
 	}
 
-	private SigValueObj getSigUsage(SignedTxnAccessor accessor, JKey payerKey) {
+	private SigValueObj getSigUsage(TxnAccessor accessor, JKey payerKey) {
 		return new SigValueObj(
-				FeeBuilder.getSignatureCount(accessor.getSignedTxn()),
+				FeeBuilder.getSignatureCount(accessor.getBackwardCompatibleSignedTxn()),
 				HederaKeyTraversal.numSimpleKeys(payerKey),
-				FeeBuilder.getSignatureSize(accessor.getSignedTxn()));
+				FeeBuilder.getSignatureSize(accessor.getBackwardCompatibleSignedTxn()));
 	}
 }

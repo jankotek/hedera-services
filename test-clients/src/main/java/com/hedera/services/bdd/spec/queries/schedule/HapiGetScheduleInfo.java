@@ -56,6 +56,7 @@ public class HapiGetScheduleInfo extends HapiQueryOp<HapiGetScheduleInfo> {
     Optional<Boolean> expectValidTxBytes = Optional.empty();
     Optional<String> expectedAdminKey = Optional.empty();
     Optional<String> expectedEntityMemo = Optional.empty();
+    Optional<List<String>> expectedSignatories = Optional.empty();
 
     public HapiGetScheduleInfo hasScheduleId(String s) {
         expectedScheduleId = Optional.of(s);
@@ -87,6 +88,11 @@ public class HapiGetScheduleInfo extends HapiQueryOp<HapiGetScheduleInfo> {
         return this;
     }
 
+    public HapiGetScheduleInfo hasSignatories(List<String> s) {
+        expectedSignatories = Optional.of(s);
+        return this;
+    }
+
     @Override
     protected void assertExpectationsGiven(HapiApiSpec spec) throws Throwable {
         var actualInfo = response.getScheduleGetInfo().getScheduleInfo();
@@ -105,6 +111,7 @@ public class HapiGetScheduleInfo extends HapiQueryOp<HapiGetScheduleInfo> {
                 "Wrong memo!",
                 s,
                 actualInfo.getMemo()));
+
 
         // TODO compare signatories once added
 

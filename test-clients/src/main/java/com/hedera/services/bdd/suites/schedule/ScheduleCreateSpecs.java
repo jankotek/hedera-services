@@ -58,6 +58,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNRESOLVABLE_R
 
 public class ScheduleCreateSpecs extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(ScheduleCreateSpecs.class);
+	private final List<String> DEFAULT_SIGNATORIES = List.of("signer1", "signer2", "signer3");
 
 	public static void main(String... args) {
 		new ScheduleCreateSpecs().runSuiteSync();
@@ -79,6 +80,13 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 				onlySchedulesWithMissingReqSimpleSigs(),
 				preservesRevocationServiceSemanticsForFileDelete(),
 				detectsKeysChangedBetweenExpandSigsAndHandleTxn());
+	}
+
+	private List<String> signers() {
+		newKeyNamed("signer1");
+		newKeyNamed("signer2");
+		newKeyNamed("signer3");
+		return DEFAULT_SIGNATORIES;
 	}
 
 	private HapiApiSpec bodyOnlyCreation() {
@@ -135,6 +143,21 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						getScheduleInfo("onlyBodyAndPayer")
 								.hasScheduleId("onlyBodyAndPayer")
 								.hasPayerAccountID("payer")
+								.hasValidTxBytes()
+				);
+	}
+
+	private HapiApiSpec bodyAndSignatoriesCreation() {
+		return defaultHapiSpec("BodyAndSignatoriesCreation")
+				.given(
+						cryptoCreate("payer")
+				).when(
+						scheduleCreate("onlyBodyAndSignatories", cryptoCreate("secondary"))
+								.signatories(signers())
+				).then(
+						getScheduleInfo("onlyBodyAndPayer")
+								.hasScheduleId("onlyBodyAndPayer")
+								.hasSignatories(DEFAULT_SIGNATORIES)
 								.hasValidTxBytes()
 				);
 	}

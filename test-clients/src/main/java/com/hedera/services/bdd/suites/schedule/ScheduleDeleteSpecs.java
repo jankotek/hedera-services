@@ -30,8 +30,11 @@ import java.util.List;
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getScheduleInfo;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleDelete;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
+import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SCHEDULE_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_IS_IMMUTABLE;
@@ -54,11 +57,11 @@ public class ScheduleDeleteSpecs extends HapiApiSuite {
     @Override
     protected List<HapiApiSpec> getSpecsInSuite() {
         return List.of(new HapiApiSpec[] {
-                    followsHappyPath(),
-                    deleteWithNoAdminKeyFails(),
-                    unauthorizedDeletionFails(),
+//                    followsHappyPath(),
+//                    deleteWithNoAdminKeyFails(),
+//                    unauthorizedDeletionFails(),
                     deletingADeletedTxnFails(),
-                    deletingNonExistingFails()
+//                    deletingNonExistingFails()
                 }
         );
     }
@@ -113,8 +116,14 @@ public class ScheduleDeleteSpecs extends HapiApiSuite {
     private HapiApiSpec deletingADeletedTxnFails() {
         return defaultHapiSpec("DeletingADeletedTxnFails")
                 .given(
+                        cryptoCreate("sender"),
+                        cryptoCreate("receiver"),
                         newKeyNamed("admin"),
-                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                        newKeyNamed("signer4"),
+                        newKeyNamed("someone"),
+                        scheduleCreate("validScheduledTxn",
+                                    cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1)).signedBy("someone")
+                                )
                                 .adminKey("admin"),
                         scheduleDelete("validScheduledTxn")
                                 .signedBy("admin", DEFAULT_PAYER))

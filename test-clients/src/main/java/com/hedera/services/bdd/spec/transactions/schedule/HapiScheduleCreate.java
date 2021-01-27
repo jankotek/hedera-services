@@ -102,8 +102,8 @@ public class HapiScheduleCreate<T extends HapiTxnOp<T>> extends HapiTxnOp<HapiSc
 		return this;
 	}
 
-	public HapiScheduleCreate<T> signatories(List<String> s) {
-		signatories = s;
+	public HapiScheduleCreate<T> signatories(String... s) {
+		signatories = List.of(s);
 		return this;
 	}
 

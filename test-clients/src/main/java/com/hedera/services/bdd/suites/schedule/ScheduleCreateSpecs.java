@@ -68,7 +68,7 @@ import static org.junit.Assert.assertNotEquals;
 
 public class ScheduleCreateSpecs extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(ScheduleCreateSpecs.class);
-	private final List<String> DEFAULT_SIGNATORIES = List.of("signer1", "signer2", "signer3");
+	private final String[] DEFAULT_SIGNATORIES = new String[]{"signer1", "signer2", "signer3"};
 
 	public static void main(String... args) {
 		new ScheduleCreateSpecs().runSuiteSync();

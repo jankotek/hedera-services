@@ -88,8 +88,8 @@ public class HapiGetScheduleInfo extends HapiQueryOp<HapiGetScheduleInfo> {
         return this;
     }
 
-    public HapiGetScheduleInfo hasSignatories(List<String> s) {
-        expectedSignatories = Optional.of(s);
+    public HapiGetScheduleInfo hasSignatories(String... s) {
+        expectedSignatories = Optional.of(List.of(s));
         return this;
     }
 

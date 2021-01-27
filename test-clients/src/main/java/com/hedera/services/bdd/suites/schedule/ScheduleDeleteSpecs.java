@@ -27,6 +27,18 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
+import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getScheduleInfo;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleDelete;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SCHEDULE_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_IS_IMMUTABLE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_WAS_DELETED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNAUTHORIZED;
+
 public class ScheduleDeleteSpecs extends HapiApiSuite {
     private static final Logger log = LogManager.getLogger(ScheduleDeleteSpecs.class);
 
@@ -42,7 +54,87 @@ public class ScheduleDeleteSpecs extends HapiApiSuite {
     @Override
     protected List<HapiApiSpec> getSpecsInSuite() {
         return List.of(new HapiApiSpec[] {
+                    followsHappyPath(),
+                    deleteWithNoAdminKeyFails(),
+                    unauthorizedDeletionFails(),
+                    deletingADeletedTxnFails(),
+                    deletingNonExistingFails()
                 }
         );
+    }
+
+    private HapiApiSpec followsHappyPath() {
+        return defaultHapiSpec("FollowsHappyPath")
+                .given(
+                        newKeyNamed("admin"),
+                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                                .adminKey("admin")
+                )
+                .when(
+                        scheduleDelete("validScheduledTxn")
+                                .signedBy("admin", DEFAULT_PAYER)
+                                .hasKnownStatus(SUCCESS)
+                )
+                .then(
+                        getScheduleInfo("validScheduledTxn")
+                                .logged().hasAnswerOnlyPrecheck(SCHEDULE_WAS_DELETED)
+                );
+    }
+
+    private HapiApiSpec deleteWithNoAdminKeyFails() {
+        return defaultHapiSpec("DeleteWithNoAdminKeyFails")
+                .given(
+                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                )
+                .when(
+                        scheduleDelete("validScheduledTxn")
+                                .hasKnownStatus(SCHEDULE_IS_IMMUTABLE)
+                )
+                .then(
+                );
+    }
+
+    private HapiApiSpec unauthorizedDeletionFails() {
+        return defaultHapiSpec("UnauthorizedDeletionFails")
+                .given(
+                        newKeyNamed("admin"),
+                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                                .adminKey("admin")
+                )
+                .when(
+                        scheduleDelete("validScheduledTxn")
+                                .signedBy(DEFAULT_PAYER)
+                                .hasKnownStatus(UNAUTHORIZED)
+                )
+                .then(
+                );
+    }
+
+    private HapiApiSpec deletingADeletedTxnFails() {
+        return defaultHapiSpec("DeletingADeletedTxnFails")
+                .given(
+                        newKeyNamed("admin"),
+                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                                .adminKey("admin"),
+                        scheduleDelete("validScheduledTxn")
+                                .signedBy("admin", DEFAULT_PAYER))
+                .when(
+                        scheduleDelete("validScheduledTxn")
+                                .signedBy("admin", DEFAULT_PAYER)
+                                .hasKnownStatus(SCHEDULE_WAS_DELETED)
+                )
+                .then(
+                );
+    }
+
+    private HapiApiSpec deletingNonExistingFails() {
+        return defaultHapiSpec("DeletingNonExistingFails")
+                .given()
+                .when(
+                        scheduleDelete("0.0.534")
+                                .hasKnownStatus(INVALID_SCHEDULE_ID)
+                )
+                .then(
+                );
     }
 }

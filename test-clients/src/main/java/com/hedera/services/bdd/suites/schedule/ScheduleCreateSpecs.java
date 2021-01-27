@@ -31,6 +31,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.keys.ControlForKey.forKey;
@@ -53,6 +55,8 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleCreateN
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SCHEDULE_PAYER_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MEMO_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNPARSEABLE_SCHEDULED_TRANSACTION;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNRESOLVABLE_REQUIRED_SIGNERS;
 
@@ -69,7 +73,7 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 		return List.of(
 				bodyOnlyCreation(),
 				onlyBodyAndAdminCreation(),
-				onlyBodyAndMemoCreation(),
+				bodyAndSignatoriesCreation(),
 				bodyAndPayerCreation(),
 				allowsScheduledTransactionsWithDuplicatingBody(),
 				allowsScheduledTransactionsWithDuplicatingBodyAndAdmin(),
@@ -79,14 +83,9 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 				triggersImmediatelyWithBothReqSimpleSigs(),
 				onlySchedulesWithMissingReqSimpleSigs(),
 				preservesRevocationServiceSemanticsForFileDelete(),
-				detectsKeysChangedBetweenExpandSigsAndHandleTxn());
-	}
-
-	private List<String> signers() {
-		newKeyNamed("signer1");
-		newKeyNamed("signer2");
-		newKeyNamed("signer3");
-		return DEFAULT_SIGNATORIES;
+				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
+				failsWithNonExistingPayerAccountId()
+		);
 	}
 
 	private HapiApiSpec bodyOnlyCreation() {
@@ -118,20 +117,6 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 				);
 	}
 
-	private HapiApiSpec onlyBodyAndMemoCreation() {
-		return defaultHapiSpec("OnlyBodyAndMemoCreation")
-				.given(
-				).when(
-						scheduleCreate("onlyBodyAndMemo", cryptoCreate("forth"))
-								.withEntityMemo("sample memo")
-				).then(
-						getScheduleInfo("onlyBodyAndMemo")
-								.hasScheduleId("onlyBodyAndMemo")
-								.hasEntityMemo("sample memo")
-								.hasValidTxBytes()
-				);
-	}
-
 	private HapiApiSpec bodyAndPayerCreation() {
 		return defaultHapiSpec("BodyAndPayerCreation")
 				.given(
@@ -147,19 +132,69 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 				);
 	}
 
-	private HapiApiSpec bodyAndSignatoriesCreation() {
-		return defaultHapiSpec("BodyAndSignatoriesCreation")
+	private HapiApiSpec bodyAndMemoCreation() {
+		return defaultHapiSpec("BodyAndMemoCreation")
 				.given(
 						cryptoCreate("payer")
 				).when(
-						scheduleCreate("onlyBodyAndSignatories", cryptoCreate("secondary"))
-								.signatories(signers())
+						scheduleCreate("onlyBodyAndMemo", cryptoCreate("secondary"))
+								.withEntityMemo("some memo")
 				).then(
-						getScheduleInfo("onlyBodyAndPayer")
-								.hasScheduleId("onlyBodyAndPayer")
+						getScheduleInfo("onlyBodyAndMemo")
+								.hasScheduleId("onlyBodyAndMemo")
+								.hasEntityMemo("some memo")
+								.hasValidTxBytes()
+				);
+	}
+
+	private HapiApiSpec bodyAndSignatoriesCreation() {
+		return defaultHapiSpec("BodyAndSignatoriesCreation")
+				.given(
+						newKeyNamed("signer1"),
+						newKeyNamed("signer2"),
+						newKeyNamed("signer3"),
+						cryptoCreate("payer")
+				).when(
+						scheduleCreate("onlyBodyAndSignatories", cryptoCreate("secondary"))
+								.signatories(DEFAULT_SIGNATORIES)
+				).then(
+						getScheduleInfo("onlyBodyAndSignatories")
+								.hasScheduleId("onlyBodyAndSignatories")
 								.hasSignatories(DEFAULT_SIGNATORIES)
 								.hasValidTxBytes()
 				);
+	}
+
+	private HapiApiSpec failsWithNonExistingPayerAccountId() {
+		return defaultHapiSpec("FailsWithNonExistingPayerAccountId")
+				.given(
+				)
+				.when(
+						scheduleCreate("invalidPayer", cryptoCreate("secondary"))
+								.payer("0.1.12")
+								.hasKnownStatus(INVALID_SCHEDULE_PAYER_ID)
+				)
+				.then(
+
+				);
+	}
+
+	private HapiApiSpec failsWithTooLongMemo() {
+		return defaultHapiSpec("FailsWithTooLongMemo")
+				.given(
+				)
+				.when(
+						scheduleCreate("invalidMemo", cryptoCreate("secondary"))
+								.withEntityMemo(nAscii(101))
+								.hasKnownStatus(MEMO_TOO_LONG)
+				)
+				.then(
+
+				);
+	}
+
+	private String nAscii(int n) {
+		return IntStream.range(0, n).mapToObj(ignore -> "A").collect(Collectors.joining());
 	}
 
 	private HapiApiSpec allowsScheduledTransactionsWithDuplicatingBody() {
@@ -266,6 +301,18 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						getScheduleInfo("second")
 								.hasAdminKey("admin2")
 								.hasPayerAccountID("payer")
+				);
+	}
+
+	private HapiApiSpec nestedScheduleCreateFails() {
+		var txnBody = cryptoCreate("primaryCrypto");
+		return defaultHapiSpec("NestedScheduleCreateFails")
+				.given(
+				).when(
+
+						scheduleCreate("first", scheduleCreate("second", txnBody))
+//								.hasKnownStatus(NESTED_SCHEDULED_TX_NOT_ALLOWED)
+				).then(
 				);
 	}
 

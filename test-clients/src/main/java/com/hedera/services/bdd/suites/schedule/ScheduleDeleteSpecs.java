@@ -33,14 +33,13 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleDelete;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SCHEDULE_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SIGNATURE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_IS_IMMUTABLE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_WAS_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNAUTHORIZED;
 
 public class ScheduleDeleteSpecs extends HapiApiSuite {
     private static final Logger log = LogManager.getLogger(ScheduleDeleteSpecs.class);
@@ -57,20 +56,44 @@ public class ScheduleDeleteSpecs extends HapiApiSuite {
     @Override
     protected List<HapiApiSpec> getSpecsInSuite() {
         return List.of(new HapiApiSpec[] {
-//                    followsHappyPath(),
-//                    deleteWithNoAdminKeyFails(),
-//                    unauthorizedDeletionFails(),
+                    followsHappyPath(),
+                    deleteWithNoAdminKeyFails(),
+                    unauthorizedDeletionFails(),
                     deletingADeletedTxnFails(),
-//                    deletingNonExistingFails()
+                    deletingNonExistingFails(),
+                    deletingExecutedFails(),
                 }
         );
+    }
+
+    private HapiApiSpec deletingExecutedFails() {
+        return defaultHapiSpec("DeletingExpiredFails")
+                .given(
+                        newKeyNamed("admin"),
+                        scheduleCreate("validScheduledTxn",
+                                cryptoCreate("newImmediate"))
+                                .adminKey("admin")
+                )
+                .when(
+                        scheduleDelete("validScheduledTxn")
+                                .signedBy("admin", DEFAULT_PAYER)
+                                .hasKnownStatus(SCHEDULE_WAS_DELETED)
+                )
+                .then(
+                        getScheduleInfo("validScheduledTxn")
+                                .logged()
+                );
     }
 
     private HapiApiSpec followsHappyPath() {
         return defaultHapiSpec("FollowsHappyPath")
                 .given(
+                        cryptoCreate("sender"),
+                        cryptoCreate("receiver"),
+                        newKeyNamed("someone"),
                         newKeyNamed("admin"),
-                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                        scheduleCreate("validScheduledTxn",
+                                cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1)).signedBy("someone"))
                                 .adminKey("admin")
                 )
                 .when(
@@ -80,14 +103,18 @@ public class ScheduleDeleteSpecs extends HapiApiSuite {
                 )
                 .then(
                         getScheduleInfo("validScheduledTxn")
-                                .logged().hasAnswerOnlyPrecheck(SCHEDULE_WAS_DELETED)
+                                .logged()
                 );
     }
 
     private HapiApiSpec deleteWithNoAdminKeyFails() {
         return defaultHapiSpec("DeleteWithNoAdminKeyFails")
                 .given(
-                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                        cryptoCreate("sender"),
+                        cryptoCreate("receiver"),
+                        newKeyNamed("someone"),
+                        scheduleCreate("validScheduledTxn",
+                                cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1)).signedBy("someone"))
                 )
                 .when(
                         scheduleDelete("validScheduledTxn")
@@ -101,13 +128,18 @@ public class ScheduleDeleteSpecs extends HapiApiSuite {
         return defaultHapiSpec("UnauthorizedDeletionFails")
                 .given(
                         newKeyNamed("admin"),
-                        scheduleCreate("validScheduledTxn", cryptoCreate("secondary"))
+                        newKeyNamed("non-admin-key"),
+                        cryptoCreate("sender"),
+                        cryptoCreate("receiver"),
+                        newKeyNamed("someone"),
+                        scheduleCreate("validScheduledTxn",
+                                cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1)).signedBy("someone"))
                                 .adminKey("admin")
                 )
                 .when(
                         scheduleDelete("validScheduledTxn")
-                                .signedBy(DEFAULT_PAYER)
-                                .hasKnownStatus(UNAUTHORIZED)
+                                .signedBy(DEFAULT_PAYER, "non-admin-key")
+                                .hasKnownStatus(INVALID_SIGNATURE)
                 )
                 .then(
                 );
@@ -118,9 +150,9 @@ public class ScheduleDeleteSpecs extends HapiApiSuite {
                 .given(
                         cryptoCreate("sender"),
                         cryptoCreate("receiver"),
+                        newKeyNamed("someone"),
                         newKeyNamed("admin"),
                         newKeyNamed("signer4"),
-                        newKeyNamed("someone"),
                         scheduleCreate("validScheduledTxn",
                                     cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1)).signedBy("someone")
                                 )

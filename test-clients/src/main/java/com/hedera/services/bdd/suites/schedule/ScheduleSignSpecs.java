@@ -33,22 +33,21 @@ import java.util.List;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.assertions.AccountInfoAsserts.changeFromSnapshot;
-import static com.hedera.services.bdd.spec.keys.KeyShape.listOf;
-import static com.hedera.services.bdd.spec.keys.KeyShape.threshOf;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getScheduleInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoUpdate;
-import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileDelete;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.mintToken;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleSign;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenUpdate;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
-import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.balanceSnapshot;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyListNamed;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
-import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withOpContext;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 
 public class ScheduleSignSpecs extends HapiApiSuite {
@@ -66,8 +65,103 @@ public class ScheduleSignSpecs extends HapiApiSuite {
 						scheduleSigIrrelevantToSchedulingTxn(),
 						overlappingKeysTreatedAsExpected(),
 						retestsActivationOnSignWithEmptySigMap(),
+						basicSignatureCollectionWorks(), // 19
+						addingSignaturesToExecutedTxFails(), // 20
+						addingSignaturesToNonExistingTxFails(), // 21
+//						addingInvalidEd25519Fails(), // 22
+//						addingEd25519WithInvalidFormatFails(), // 23
+						addingSignatureByNonRequiredSignerFails(), // 24
+						addingSignatureByNonRequiredSignerFails2(), // 25
+
 				}
 		);
+	}
+
+	private HapiApiSpec basicSignatureCollectionWorks() {
+		var txnBody = cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1)).signedBy("somebody");
+
+		return defaultHapiSpec("BasicSignatureCollectionWorks")
+				.given(
+						cryptoCreate("sender"),
+						cryptoCreate("receiver"),
+						newKeyNamed("somebody"),
+						scheduleCreate("basicXfer", txnBody)
+				)
+				.when(
+						scheduleSign("basicXfer").withSignatories("somebody", "sender")
+				)
+				.then(
+						getScheduleInfo("basicXfer")
+								.hasSignatories("somebody", "sender")
+				);
+	}
+
+	private HapiApiSpec addingSignatureByNonRequiredSignerFails() {
+		var txnBody = cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1)).signedBy("somebody");
+
+		return defaultHapiSpec("AddingSignatureByNonRequiredSignerFails")
+				.given(
+						cryptoCreate("sender"),
+						cryptoCreate("receiver"),
+						newKeyNamed("somebody"),
+						newKeyNamed("somebodyelse"),
+						scheduleCreate("basicXfer", txnBody)
+				)
+				.when(
+						scheduleSign("basicXfer").withSignatories("somebodyelse").hasKnownStatus(SOME_SIGNATURES_WERE_INVALID)
+				)
+				.then(
+				);
+	}
+
+	private HapiApiSpec addingSignatureByNonRequiredSignerFails2() {
+		var txnBody = mintToken("tokenA", 50000000L);
+
+		return defaultHapiSpec("AddingSignatureByNonRequiredSignerFails")
+				.given(
+						cryptoCreate("sender"),
+						cryptoCreate("receiver"),
+						newKeyNamed("somebody"),
+						newKeyNamed("admin"),
+						newKeyNamed("mint"),
+						newKeyNamed("newMint"),
+						tokenCreate("tokenA").adminKey("admin").supplyKey("mint"),
+						scheduleCreate("tokenMintScheduled", txnBody)
+				)
+				.when(
+						tokenUpdate("tokenA").supplyKey("newMint"),
+						scheduleSign("tokenMintScheduled").withSignatories("mint").hasKnownStatus(SOME_SIGNATURES_WERE_INVALID)
+				)
+				.then(
+				);
+	}
+
+	private HapiApiSpec addingSignaturesToNonExistingTxFails() {
+		return defaultHapiSpec("AddingSignaturesToNonExistingTxFails")
+				.given(
+						cryptoCreate("sender"),
+						newKeyNamed("somebody")
+				)
+				.when(
+						scheduleSign("non-existing").withSignatories("somebody", "sender").hasKnownStatus(INVALID_SCHEDULE_ID)
+				)
+				.then(
+				);
+	}
+
+	private HapiApiSpec addingSignaturesToExecutedTxFails() {
+		var txnBody = cryptoCreate("somebody");
+
+		return defaultHapiSpec("AddingSignaturesToExecutedTxFails")
+				.given(
+						cryptoCreate("somesigner"),
+						scheduleCreate("basicCryptoCreate", txnBody)
+				)
+				.when(
+						scheduleSign("basicCryptoCreate").withSignatories("somesigner").hasKnownStatus(SCHEDULE_WAS_DELETED)
+				)
+				.then(
+				);
 	}
 
 	public HapiApiSpec triggersUponAdditionalNeededSig() {

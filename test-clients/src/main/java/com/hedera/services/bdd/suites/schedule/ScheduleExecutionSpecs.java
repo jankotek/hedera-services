@@ -14,7 +14,6 @@ import org.junit.Assert;
 import java.util.List;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
-import static com.hedera.services.bdd.spec.queries.QueryVerbs.getScheduleInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnUtils.asId;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
@@ -24,6 +23,7 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.scheduleSign;
 import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withOpContext;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 public class ScheduleExecutionSpecs extends HapiApiSuite {
@@ -43,7 +43,8 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
         return List.of(new HapiApiSpec[] {
                 executionWithDefaultPayerWorks(),
                 executionWithCustomPayerWorks(),
-                executionWithDefaultPayerButNoFundsFails()
+                executionWithDefaultPayerButNoFundsFails(), // TODO: Not working yet, check what is going on with the fee() property
+                executionWithCustomPayerButNoFundsFails()
         });
     }
 
@@ -96,9 +97,8 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
     }
 
     public HapiApiSpec executionWithDefaultPayerButNoFundsFails() {
-        long balance = 10000000000L;
+        long balance = 10_000_000L;
         long transferAmount = 1;
-        long fee = 1000000000;
         return defaultHapiSpec("ExecutionWithDefaultPayerButNoFundsFails")
                 .given(
                         cryptoCreate("payingAccount").balance(balance),
@@ -110,42 +110,45 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
                                 cryptoTransfer(
                                         tinyBarsFromTo("sender", "receiver", transferAmount)
                                 )
-                        ).fee(fee).payingWith("payingAccount").via("createTx"),
-                        getScheduleInfo("basicXfer").logged(),
-                        cryptoTransfer(tinyBarsFromTo("payingAccount", "luckyReceiver", balance - fee))
+                        ).fee(ONE_HBAR).payingWith("payingAccount").via("createTx")
                 ).when(
-//                        scheduleSign("basicXfer").withSignatories("sender").via("signTx").hasKnownStatus(SUCCESS)
+                        scheduleSign("basicXfer").withSignatories("sender").via("signTx").hasKnownStatus(SUCCESS)
                 ).then(
-//                        withOpContext((spec, opLog) -> {
-//                            var signTx = getTxnRecord("signTx");
-//                            var createTx = getTxnRecord("createTx");
-//                            var triggeredTx = createTx.scheduled();
-//
-//                            allRunFor(spec, signTx, triggeredTx);
-//                            Assert.assertEquals("Wrong consensus timestamp!",
-//                                    signTx.getResponseRecord().getConsensusTimestamp().getNanos() + 1,
-//                                    triggeredTx.getResponseRecord().getConsensusTimestamp().getNanos());
-//
-//                            Assert.assertEquals("Wrong transaction valid start!",
-//                                    createTx.getResponseRecord().getTransactionID().getTransactionValidStart(),
-//                                    triggeredTx.getResponseRecord().getTransactionID().getTransactionValidStart());
-//
-//                            Assert.assertEquals("Wrong record account ID!",
-//                                    createTx.getResponseRecord().getTransactionID().getAccountID(),
-//                                    triggeredTx.getResponseRecord().getTransactionID().getAccountID());
-//
-//                            Assert.assertTrue("Transaction not scheduled!",triggeredTx.getResponseRecord().getTransactionID().getScheduled());
-//
-//                            Assert.assertEquals("Wrong triggered transaction nonce!",
-//                                    ByteString.EMPTY,
-//                                    triggeredTx.getResponseRecord().getTransactionID().getNonce());
-//
-//                            Assert.assertEquals("Wrong schedule ID!",
-//                                    createTx.getResponseRecord().getScheduleRef(),
-//                                    triggeredTx.getResponseRecord().getScheduleRef());
-//
-//                            Assert.assertTrue("Wrong transfer list!", transferListCheck(triggeredTx, createTx.getResponseRecord().getTransactionID().getAccountID()));
-//                        })
+                        withOpContext((spec, opLog) -> {
+                            var triggeredTx = getTxnRecord("createTx").scheduled();
+
+                            allRunFor(spec, triggeredTx);
+
+                            Assert.assertEquals("Scheduled transaction should not be successful!", INSUFFICIENT_PAYER_BALANCE, triggeredTx.getResponseRecord().getReceipt().getStatus());
+                        })
+                );
+    }
+
+    public HapiApiSpec executionWithCustomPayerButNoFundsFails() {
+        long balance = 0L;
+        long transferAmount = 1;
+        return defaultHapiSpec("ExecutionWithCustomPayerButNoFundsFails")
+                .given(
+                        cryptoCreate("payingAccount").balance(balance),
+                        cryptoCreate("luckyReceiver"),
+                        cryptoCreate("sender"),
+                        cryptoCreate("receiver"),
+                        scheduleCreate(
+                                "basicXfer",
+                                cryptoTransfer(
+                                        tinyBarsFromTo("sender", "receiver", transferAmount)
+                                )
+                        ).payer("payingAccount").via("createTx")
+                ).when(
+                        scheduleSign("basicXfer").withSignatories("sender").via("signTx").hasKnownStatus(SUCCESS)
+                ).then(
+                        withOpContext((spec, opLog) -> {
+                            var triggeredTx = getTxnRecord("createTx").scheduled();
+
+                            allRunFor(spec, triggeredTx);
+
+                            Assert.assertEquals("Scheduled transaction should not be successful!", INSUFFICIENT_PAYER_BALANCE, triggeredTx.getResponseRecord().getReceipt().getStatus());
+                        })
                 );
     }
 
@@ -171,6 +174,9 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
                             var triggeredTx = createTx.scheduled();
 
                             allRunFor(spec, signTx, triggeredTx);
+
+                            Assert.assertEquals("Scheduled transaction be successful!", SUCCESS, triggeredTx.getResponseRecord().getReceipt().getStatus());
+
                             Assert.assertEquals("Wrong consensus timestamp!",
                                     signTx.getResponseRecord().getConsensusTimestamp().getNanos() + 1,
                                     triggeredTx.getResponseRecord().getConsensusTimestamp().getNanos());

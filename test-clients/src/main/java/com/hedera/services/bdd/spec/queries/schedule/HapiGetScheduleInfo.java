@@ -25,6 +25,7 @@ import com.hedera.services.bdd.spec.infrastructure.HapiSpecRegistry;
 import com.hedera.services.bdd.spec.queries.HapiQueryOp;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
+import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.Response;
 import com.hederahashgraph.api.proto.java.ScheduleGetInfoQuery;
@@ -112,10 +113,17 @@ public class HapiGetScheduleInfo extends HapiQueryOp<HapiGetScheduleInfo> {
                 s,
                 actualInfo.getMemo()));
 
-
-        // TODO compare signatories once added
-
         var registry = spec.registry();
+
+        expectedSignatories.ifPresent(s -> {
+            var expect = KeyList.newBuilder();
+            for (String signatory : s) {
+                var key = registry.getKey(signatory);
+                expect.addKeys(key);
+            }
+            Assert.assertEquals("Wrong signatories!", expect.build(), actualInfo.getSigners());
+        });
+
         if (expectValidTxBytes) {
             Assert.assertArrayEquals(
                     "Wrong transaction bytes!",

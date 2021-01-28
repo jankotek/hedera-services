@@ -84,6 +84,7 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 				onlyBodyAndMemoCreation(),
 				bodyAndSignatoriesCreation(),
 				bodyAndPayerCreation(),
+				bodyAndMemoCreation(),
 				nestedScheduleCreateFails(),
 				nestedScheduleSignFails(),
 				allowsScheduledTransactionsWithDuplicatingBody(),
@@ -99,7 +100,7 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 				failsWithTooLongMemo(),
 				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
 				retestsActivationOnCreateWithEmptySigMap(),
-				allowsDoublingScheduledCreates(),
+				allowsDoublingScheduledCreates(), // TODO: Signatories not implemented yet, so this fails
 				allowsDoublingScheduledCreatesAfterIdenticalExecution(),
 		});
 	}
@@ -241,27 +242,22 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						cryptoCreate("receiver"),
 						cryptoCreate("payingAccount"),
 						newKeyNamed("adminKey"),
-						newKeyNamed("signer1"),
-						newKeyNamed("signer2"),
-						newKeyNamed("signer3"),
-						newKeyNamed("additionalSigner"),
 						scheduleCreate("toBeCreated", txnBody)
 								.adminKey("adminKey")
 								.payer("payingAccount")
-								.signatories(DEFAULT_SIGNATORIES)
 				)
 				.when(
-						scheduleCreate("toBeCreated2", txnBody)
+						scheduleCreate("toBeCreated2", txnBody.signedBy("sender"))
 								.adminKey("adminKey")
 								.payer("payingAccount")
-								.signatories("additionalSigner")
+								.inheritingScheduledSigs()
 				)
 				.then(
-						getScheduleInfo("toBeCreated2")
+						getScheduleInfo("toBeCreated")
 								.hasScheduleId("toBeCreated")
 								.hasPayerAccountID("payingAccount")
 								.hasAdminKey("adminKey")
-								.hasSignatories(Arrays.append(DEFAULT_SIGNATORIES, "additionalSigner"))
+								.hasSignatories("sender")
 				);
 	}
 
@@ -277,14 +273,13 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						newKeyNamed("signer1"),
 						newKeyNamed("signer2"),
 						newKeyNamed("signer3"),
-						newKeyNamed("additionalSigner"),
 						scheduleCreate("toBeCreated", txnBody)
 								.adminKey("adminKey")
 								.payer("payingAccount")
 								.via("first")
 				)
 				.when(
-						scheduleSign("toBeCreated").withSignatories("sender").hasKnownStatus(SUCCESS),
+						scheduleSign("toBeCreated").withSignatories("sender", "receiver").hasKnownStatus(SUCCESS),
 
 						scheduleCreate("toBeCreated2", txnBody)
 								.adminKey("adminKey")
@@ -302,8 +297,8 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 							allRunFor(spec, firstCreateTx, secondCreateTx);
 							Assert.assertNotEquals(
 									"Schedule Ids should not be the same!",
-									firstCreateTx.getResponseRecord().getScheduleRef(),
-									secondCreateTx.getResponseRecord().getScheduleRef());
+									firstCreateTx.getResponseRecord().getReceipt().getScheduleID(),
+									secondCreateTx.getResponseRecord().getReceipt().getScheduleID());
 						})
 				);
 	}
@@ -400,11 +395,13 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						scheduleCreate("first", txnBody)
 								.adminKey("admin")
 								.payer("payer")
+								.inheritingScheduledSigs()
 								.via("first")
 				).when(
 						scheduleCreate("second", txnBody)
 								.adminKey("admin2")
 								.payer("payer")
+								.inheritingScheduledSigs()
 								.via("second")
 				).then(
 						withOpContext((spec, opLog) -> {

@@ -112,6 +112,11 @@ public class HapiScheduleCreate<T extends HapiTxnOp<T>> extends HapiTxnOp<HapiSc
 		return this;
 	}
 
+	public HapiScheduleCreate<T> withInvalidSignature(Key key, HapiTxnOp op) {
+//		this.entityMemo = Optional.of(entityMemo);
+		return this;
+	}
+
 	@Override
 	protected HapiScheduleCreate<T> self() {
 		return this;

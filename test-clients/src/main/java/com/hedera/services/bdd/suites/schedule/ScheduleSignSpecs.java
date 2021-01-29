@@ -65,7 +65,7 @@ public class ScheduleSignSpecs extends HapiApiSuite {
 						scheduleSigIrrelevantToSchedulingTxn(),
 						overlappingKeysTreatedAsExpected(),
 						retestsActivationOnSignWithEmptySigMap(),
-						basicSignatureCollectionWorks(), // 19
+						basicSignatureCollectionWorks(), // 19 TODO: Signatories not implemented yet
 						addingSignaturesToExecutedTxFails(), // 20
 						addingSignaturesToNonExistingTxFails(), // 21
 //						addingInvalidEd25519Fails(), // 22
@@ -143,7 +143,7 @@ public class ScheduleSignSpecs extends HapiApiSuite {
 						newKeyNamed("somebody")
 				)
 				.when(
-						scheduleSign("non-existing").withSignatories("somebody", "sender").hasKnownStatus(INVALID_SCHEDULE_ID)
+						scheduleSign("0.0.123321").withSignatories("somebody", "sender").hasPrecheck(INVALID_SCHEDULE_ID)
 				)
 				.then(
 				);

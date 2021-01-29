@@ -92,7 +92,7 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
                                     createTx.getResponseRecord().getScheduleRef(),
                                     triggeredTx.getResponseRecord().getScheduleRef());
 
-                            Assert.assertTrue("Wrong transfer list!", transferListCheck(triggeredTx, asId("sender", spec)));
+                            Assert.assertTrue("Wrong transfer list!", transferListCheck(triggeredTx, asId("sender", spec), asId("receiver", spec), transferAmount));
                         })
                 );
     }
@@ -217,17 +217,27 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
                                     createTx.getResponseRecord().getScheduleRef(),
                                     triggeredTx.getResponseRecord().getScheduleRef());
 
-                            Assert.assertTrue("Wrong transfer list!", transferListCheck(triggeredTx, asId("payingAccount", spec)));
+                            Assert.assertTrue("Wrong transfer list!", transferListCheck(triggeredTx, asId("sender", spec), asId("receiver", spec), transferAmount));
                         })
                 );
     }
 
-    private boolean transferListCheck(HapiGetTxnRecord triggered, AccountID accountID) {
-        for (AccountAmount accountAmount : triggered.getResponseRecord().getTransferList().getAccountAmountsList()) {
-            if (accountAmount.getAccountID().equals(accountID)) {
-                return true;
-            }
-        }
-        return false;
+    private boolean transferListCheck(HapiGetTxnRecord triggered, AccountID givingAccountID, AccountID receivingAccountID, Long amount) {
+        AccountAmount givingAmount = AccountAmount.newBuilder()
+                .setAccountID(givingAccountID)
+                .setAmount(-amount)
+                .build();
+
+        AccountAmount receivingAmount = AccountAmount.newBuilder()
+                .setAccountID(receivingAccountID)
+                .setAmount(amount)
+                .build();
+
+        var accountAmountList = triggered.getResponseRecord()
+                .getTransferList()
+                .getAccountAmountsList();
+
+        return accountAmountList.contains(givingAmount) &&
+                accountAmountList.contains(receivingAmount);
     }
 }

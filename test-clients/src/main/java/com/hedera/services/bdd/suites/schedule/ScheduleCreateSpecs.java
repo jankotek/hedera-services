@@ -89,7 +89,7 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 				nestedScheduleSignFails(),
 				allowsScheduledTransactionsWithDuplicatingBody(),
 				allowsScheduledTransactionsWithDuplicatingBodyAndAdmin(),
-				allowsScheduledTransactionsWithDuplicatingBodyAndPayer(),
+				allowsScheduledTransactionsWithDuplicatingBodyAndPayer(), // TODO: Revise when admin is added to CompositeKey
 				rejectsUnparseableTxn(),
 				rejectsUnresolvableReqSigners(),
 				triggersImmediatelyWithBothReqSimpleSigs(),
@@ -257,6 +257,11 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 								.hasScheduleId("toBeCreated")
 								.hasPayerAccountID("payingAccount")
 								.hasAdminKey("adminKey")
+								.hasSignatories("sender"),
+						getScheduleInfo("toBeCreated2")
+								.hasScheduleId("toBeCreated")
+								.hasPayerAccountID("payingAccount")
+								.hasAdminKey("adminKey")
 								.hasSignatories("sender")
 				);
 	}
@@ -270,9 +275,6 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						cryptoCreate("sender"),
 						cryptoCreate("receiver"),
 						newKeyNamed("adminKey"),
-						newKeyNamed("signer1"),
-						newKeyNamed("signer2"),
-						newKeyNamed("signer3"),
 						scheduleCreate("toBeCreated", txnBody)
 								.adminKey("adminKey")
 								.payer("payingAccount")
@@ -395,13 +397,11 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						scheduleCreate("first", txnBody)
 								.adminKey("admin")
 								.payer("payer")
-								.inheritingScheduledSigs()
 								.via("first")
 				).when(
 						scheduleCreate("second", txnBody)
 								.adminKey("admin2")
 								.payer("payer")
-								.inheritingScheduledSigs()
 								.via("second")
 				).then(
 						withOpContext((spec, opLog) -> {

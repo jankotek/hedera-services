@@ -31,7 +31,6 @@ class ExceptionalScheduleStoreTest {
     public void allButSetAreUse() {
         // expect:
         assertThrows(UnsupportedOperationException.class, () -> NOOP_SCHEDULE_STORE.createProvisionally(null, null,null, null, null, null));
-        assertThrows(UnsupportedOperationException.class, () -> NOOP_SCHEDULE_STORE.addSigners(null, null));
         assertThrows(UnsupportedOperationException.class, () -> NOOP_SCHEDULE_STORE.exists(null));
         assertThrows(UnsupportedOperationException.class, () -> NOOP_SCHEDULE_STORE.get(null));
         assertThrows(UnsupportedOperationException.class, () -> NOOP_SCHEDULE_STORE.delete(null));

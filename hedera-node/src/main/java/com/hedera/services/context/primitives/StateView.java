@@ -286,18 +286,19 @@ public class StateView {
 				return Optional.empty();
 			}
 			var schedule = scheduleStore.get(id);
-			var signers = schedule.signers();
-			KeyList signersList = KeyList.newBuilder().build();
-			signers.forEach(a -> signersList.getKeysList().add(Key.newBuilder().setEd25519(ByteString.copyFrom(a.getEd25519())).build()));
+			var signatories = schedule.signatories();
+			KeyList signatoriesList = KeyList.newBuilder().build();
+			for (byte[] key : signatories) {
+				signatoriesList.getKeysList().add(Key.newBuilder().setEd25519(ByteString.copyFrom(key)).build());
+			}
+
 			var info = ScheduleInfo.newBuilder()
 					.setScheduleID(id)
 					.setTransactionBody(ByteString.copyFrom(schedule.transactionBody()))
 					.setCreatorAccountID(schedule.schedulingAccount().toGrpcAccountId())
 					.setPayerAccountID(schedule.payer().toGrpcAccountId())
-					.setSigners(signersList);
+					.setSignatories(signatoriesList);
 			schedule.memo().ifPresent(info::setMemo);
-
-			// TODO add signatories once we remove signers completely
 
 			var adminCandidate = schedule.adminKey();
 			adminCandidate.ifPresent(k -> info.setAdminKey(asKeyUnchecked(k)));

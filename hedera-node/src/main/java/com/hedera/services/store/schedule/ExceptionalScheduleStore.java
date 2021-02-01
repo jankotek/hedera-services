@@ -66,11 +66,6 @@ public enum ExceptionalScheduleStore implements ScheduleStore {
 	}
 
 	@Override
-	public ResponseCodeEnum addSigners(ScheduleID sID, Set<JKey> key) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
 	public Optional<ScheduleID> lookupScheduleId(byte[] bodyBytes, AccountID scheduledTxPayer) {
 		throw new UnsupportedOperationException();
 	}

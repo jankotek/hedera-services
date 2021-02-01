@@ -90,8 +90,6 @@ public class HederaScheduleStoreTest {
     RichInstant schedulingTXValidStart;
     Key adminKey;
     JKey adminJKey;
-    JKey signer1, signer2;
-    Set<JKey> signers;
 
     ScheduleID created = IdUtils.asSchedule("1.2.333333");
     AccountID schedulingAccount = IdUtils.asAccount("1.2.333");
@@ -112,19 +110,12 @@ public class HederaScheduleStoreTest {
         adminKey = SCHEDULE_ADMIN_KT.asKey();
         adminJKey = SCHEDULE_ADMIN_KT.asJKeyUnchecked();
 
-        signer1 = SCHEDULE_SIGNER_ONE_KT.asJKeyUnchecked();
-        signer2 = SCHEDULE_SIGNER_TWO_KT.asJKeyUnchecked();
-        signers = new LinkedHashSet<>();
-        signers.add(signer1);
-        signers.add(signer2);
-
         schedule = mock(MerkleSchedule.class);
         anotherSchedule = mock(MerkleSchedule.class);
 
         given(schedule.transactionBody()).willReturn(transactionBody);
         given(schedule.hasAdminKey()).willReturn(true);
         given(schedule.adminKey()).willReturn(Optional.of(SCHEDULE_ADMIN_KT.asJKeyUnchecked()));
-        given(schedule.signers()).willReturn(signers);
         given(schedule.payer()).willReturn(EntityId.ofNullableAccountId(payerId));
 
         given(anotherSchedule.payer()).willReturn(EntityId.ofNullableAccountId(anotherPayerId));
@@ -149,42 +140,6 @@ public class HederaScheduleStoreTest {
         subject = new HederaScheduleStore(ids, () -> schedules);
         subject.setAccountsLedger(accountsLedger);
         subject.setHederaLedger(hederaLedger);
-    }
-
-    @Test
-    public void successfulAddSigner() {
-        // when:
-        var signers = new HashSet<JKey>();
-        signers.add(signer1);
-        var outcome = subject.addSigners(created, signers);
-
-        // expect:
-        assertEquals(OK, outcome);
-    }
-
-
-    @Test
-    public void failAddSignerNotExistingSchedule() {
-        // given:
-        given(schedules.containsKey(fromScheduleId(created))).willReturn(false);
-
-        // when:
-        var outcome = subject.addSigners(created, signers);
-
-        // expect:
-        assertEquals(INVALID_SCHEDULE_ID, outcome);
-    }
-
-    @Test
-    public void failAddSignerDeletedSchedule() {
-        // given:
-        given(schedule.isDeleted()).willReturn(true);
-
-        // when:
-        var outcome = subject.addSigners(created, signers);
-
-        // expect:
-        assertEquals(SCHEDULE_WAS_DELETED, outcome);
     }
 
     @Test

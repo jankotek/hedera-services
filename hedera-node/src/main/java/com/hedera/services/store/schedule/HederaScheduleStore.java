@@ -144,23 +144,6 @@ public class HederaScheduleStore extends HederaStore implements ScheduleStore {
 	}
 
 	@Override
-	public ResponseCodeEnum addSigners(ScheduleID sID, Set<JKey> signers) {
-		var id = resolve(sID);
-		if (id == MISSING_SCHEDULE) {
-			return INVALID_SCHEDULE_ID;
-		}
-
-		var schedule = get(id);
-		if (schedule.isDeleted()) {
-			return SCHEDULE_WAS_DELETED;
-		}
-
-		schedule.addSigners(signers);
-
-		return OK;
-	}
-
-	@Override
 	public ResponseCodeEnum delete(ScheduleID id){
 		var idRes = resolve(id);
 		if (idRes == MISSING_SCHEDULE) {

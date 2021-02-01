@@ -79,29 +79,29 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(new HapiApiSpec[] {
-				bodyOnlyCreation(),
-				onlyBodyAndAdminCreation(),
-				onlyBodyAndMemoCreation(),
-				bodyAndSignatoriesCreation(),
-				bodyAndPayerCreation(),
-				bodyAndMemoCreation(),
-				nestedScheduleCreateFails(),
-				nestedScheduleSignFails(),
-				allowsScheduledTransactionsWithDuplicatingBody(),
-				allowsScheduledTransactionsWithDuplicatingBodyAndAdmin(),
-				allowsScheduledTransactionsWithDuplicatingBodyAndPayer(), // TODO: Revise when admin is added to CompositeKey
-				rejectsUnparseableTxn(),
-				rejectsUnresolvableReqSigners(),
-				triggersImmediatelyWithBothReqSimpleSigs(),
-				onlySchedulesWithMissingReqSimpleSigs(),
-				preservesRevocationServiceSemanticsForFileDelete(),
-				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
-				failsWithNonExistingPayerAccountId(),
-				failsWithTooLongMemo(),
-				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
-				retestsActivationOnCreateWithEmptySigMap(),
+//				bodyOnlyCreation(),
+//				onlyBodyAndAdminCreation(),
+//				onlyBodyAndMemoCreation(),
+//				bodyAndSignatoriesCreation(),
+//				bodyAndPayerCreation(),
+//				bodyAndMemoCreation(),
+//				nestedScheduleCreateFails(),
+//				nestedScheduleSignFails(),
+//				allowsScheduledTransactionsWithDuplicatingBody(),
+//				allowsScheduledTransactionsWithDuplicatingBodyAndAdmin(),
+//				allowsScheduledTransactionsWithDuplicatingBodyAndPayer(), // TODO: Revise when admin is added to CompositeKey
+//				rejectsUnparseableTxn(),
+//				rejectsUnresolvableReqSigners(),
+//				triggersImmediatelyWithBothReqSimpleSigs(),
+//				onlySchedulesWithMissingReqSimpleSigs(),
+//				preservesRevocationServiceSemanticsForFileDelete(),
+//				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
+//				failsWithNonExistingPayerAccountId(),
+//				failsWithTooLongMemo(),
+//				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
+//				retestsActivationOnCreateWithEmptySigMap(),
 				allowsDoublingScheduledCreates(), // TODO: Signatories not implemented yet, so this fails
-				allowsDoublingScheduledCreatesAfterIdenticalExecution(),
+//				allowsDoublingScheduledCreatesAfterIdenticalExecution(),
 		});
 	}
 
@@ -238,16 +238,17 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 
 		return defaultHapiSpec("AllowsDoublingScheduledCreates")
 				.given(
-						cryptoCreate("sender"),
-						cryptoCreate("receiver"),
 						cryptoCreate("payingAccount"),
+						cryptoCreate("sender"),
+						cryptoCreate("receiver").receiverSigRequired(true),
 						newKeyNamed("adminKey"),
 						scheduleCreate("toBeCreated", txnBody)
 								.adminKey("adminKey")
-								.payer("payingAccount")
+								.payer("payingAccount"),
+						getScheduleInfo("toBeCreated").logged()
 				)
 				.when(
-						scheduleCreate("toBeCreated2", txnBody.signedBy("sender"))
+						scheduleCreate("toBeCreated2", txnBody.signedBy("receiver"))
 								.adminKey("adminKey")
 								.payer("payingAccount")
 								.inheritingScheduledSigs()
@@ -257,12 +258,12 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 								.hasScheduleId("toBeCreated")
 								.hasPayerAccountID("payingAccount")
 								.hasAdminKey("adminKey")
-								.hasSignatories("sender"),
+								.hasSignatories("receiver"),
 						getScheduleInfo("toBeCreated2")
 								.hasScheduleId("toBeCreated")
 								.hasPayerAccountID("payingAccount")
 								.hasAdminKey("adminKey")
-								.hasSignatories("sender")
+								.hasSignatories("receiver")
 				);
 	}
 
@@ -278,7 +279,8 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 						scheduleCreate("toBeCreated", txnBody)
 								.adminKey("adminKey")
 								.payer("payingAccount")
-								.via("first")
+								.via("first"),
+						getScheduleInfo("toBeCreated").logged()
 				)
 				.when(
 						scheduleSign("toBeCreated").withSignatories("sender", "receiver").hasKnownStatus(SUCCESS),

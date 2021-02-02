@@ -79,29 +79,28 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(new HapiApiSpec[] {
-//				bodyOnlyCreation(),
-//				onlyBodyAndAdminCreation(),
-//				onlyBodyAndMemoCreation(),
-//				bodyAndSignatoriesCreation(),
-//				bodyAndPayerCreation(),
-//				bodyAndMemoCreation(),
-//				nestedScheduleCreateFails(),
-//				nestedScheduleSignFails(),
-//				allowsScheduledTransactionsWithDuplicatingBody(),
-//				allowsScheduledTransactionsWithDuplicatingBodyAndAdmin(),
+				bodyOnlyCreation(),
+				onlyBodyAndAdminCreation(),
+				onlyBodyAndMemoCreation(),
+				bodyAndSignatoriesCreation(),
+				bodyAndPayerCreation(),
+				bodyAndMemoCreation(),
+				nestedScheduleCreateFails(),
+				nestedScheduleSignFails(),
+				allowsScheduledTransactionsWithDuplicatingBody(),
+				allowsScheduledTransactionsWithDuplicatingBodyAndAdmin(),
 //				allowsScheduledTransactionsWithDuplicatingBodyAndPayer(), // TODO: Revise when admin is added to CompositeKey
-//				rejectsUnparseableTxn(),
-//				rejectsUnresolvableReqSigners(),
-//				triggersImmediatelyWithBothReqSimpleSigs(),
-//				onlySchedulesWithMissingReqSimpleSigs(),
-//				preservesRevocationServiceSemanticsForFileDelete(),
-//				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
-//				failsWithNonExistingPayerAccountId(),
-//				failsWithTooLongMemo(),
-//				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
-//				retestsActivationOnCreateWithEmptySigMap(),
-				allowsDoublingScheduledCreates(), // TODO: Signatories not implemented yet, so this fails
-//				allowsDoublingScheduledCreatesAfterIdenticalExecution(),
+				rejectsUnparseableTxn(),
+				rejectsUnresolvableReqSigners(),
+				triggersImmediatelyWithBothReqSimpleSigs(),
+				onlySchedulesWithMissingReqSimpleSigs(),
+				preservesRevocationServiceSemanticsForFileDelete(),
+				failsWithNonExistingPayerAccountId(),
+				failsWithTooLongMemo(),
+				detectsKeysChangedBetweenExpandSigsAndHandleTxn(),
+				retestsActivationOnCreateWithEmptySigMap(),
+				allowsDoublingScheduledCreates(),
+				allowsDoublingScheduledCreatesAfterIdenticalExecution(),
 		});
 	}
 
@@ -184,19 +183,23 @@ public class ScheduleCreateSpecs extends HapiApiSuite {
 	}
 
 	private HapiApiSpec bodyAndSignatoriesCreation() {
+		var txnBody = cryptoTransfer(tinyBarsFromTo("sender", "receiver", 1));
+
 		return defaultHapiSpec("BodyAndSignatoriesCreation")
 				.given(
-						newKeyNamed("signer1"),
-						newKeyNamed("signer2"),
-						newKeyNamed("signer3"),
-						cryptoCreate("payer")
+						cryptoCreate("payingAccount"),
+						newKeyNamed("adminKey"),
+						cryptoCreate("sender"),
+						cryptoCreate("receiver").receiverSigRequired(true)
 				).when(
-						scheduleCreate("onlyBodyAndSignatories", cryptoCreate("secondary"))
-								.signatories(DEFAULT_SIGNATORIES)
+						scheduleCreate("onlyBodyAndSignatories", txnBody.signedBy("receiver"))
+								.adminKey("adminKey")
+								.payer("payingAccount")
+								.inheritingScheduledSigs()
 				).then(
 						getScheduleInfo("onlyBodyAndSignatories")
 								.hasScheduleId("onlyBodyAndSignatories")
-								.hasSignatories(DEFAULT_SIGNATORIES)
+								.hasSignatories("receiver")
 								.hasValidTxBytes()
 				);
 	}

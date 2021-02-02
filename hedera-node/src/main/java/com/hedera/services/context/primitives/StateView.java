@@ -287,10 +287,8 @@ public class StateView {
 			}
 			var schedule = scheduleStore.get(id);
 			var signatories = schedule.signatories();
-			KeyList signatoriesList = KeyList.newBuilder().build();
-			for (byte[] key : signatories) {
-				signatoriesList.getKeysList().add(Key.newBuilder().setEd25519(ByteString.copyFrom(key)).build());
-			}
+			var signatoriesList = KeyList.newBuilder();
+			signatories.forEach(a -> signatoriesList.addKeys(Key.newBuilder().setEd25519(ByteString.copyFrom(a))));
 
 			var info = ScheduleInfo.newBuilder()
 					.setScheduleID(id)

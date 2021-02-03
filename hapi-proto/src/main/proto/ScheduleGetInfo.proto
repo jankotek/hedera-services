@@ -55,7 +55,7 @@ message ScheduleInfo {
 }
 
 /*
-Response when the client sends the node ScheduleGetInfoQuery
+Response that gets returned, when the client sends the node a ScheduleGetInfoQuery
  */
 message ScheduleGetInfoResponse {
   ResponseHeader header = 1; // Standard response from node to client, including the requested fields: cost, or state proof, or both, or neither

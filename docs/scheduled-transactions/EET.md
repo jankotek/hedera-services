@@ -174,7 +174,7 @@ When creating the Scheduled Transaction, populate the `SignatureMap` with one or
 
 ## Deletion
 
-####  24. Deleting Scheduled Transactions
+#### 24. Deleting Scheduled Transactions
 **Given**: Scheduled Transaction created with `adminKey` set.\
 **When**: New Schedule Delete operation submitted for the deletion of the created scheduled transaction.\
 **Expect**: The `ScheduleDelete` operation to succeed. Once `ScheduledTransaction` is queried, it must resolve to `SCHEDULE_WAS_DELETED`.

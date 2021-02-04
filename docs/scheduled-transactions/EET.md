@@ -119,7 +119,7 @@ When creating the Scheduled Transaction, populate the `SignatureMap` with one or
 
 #### 13. Creating Scheduled Transaction with non-required signature must fail
 **When**: New Scheduled transaction created with `sigMap` providing signatures signed by a key(s) that are not required for the execution of the transaction body.\
-**Expect**: The `ScheduleCreate` operation to fail with `INVALID_SIGNATURE_PROVIDED`
+**Expect**: The `ScheduleCreate` operation to fail with `SOME_SIGNATURES_WERE_INVALID`
   
 #### 14. Creating Scheduled Transaction with too long `memo` must fail
 **When**: New Scheduled transaction created with `memo` populated with more than `100` bytes.\
@@ -127,7 +127,7 @@ When creating the Scheduled Transaction, populate the `SignatureMap` with one or
 
 #### 15. Creating Scheduled Transaction with invalid `ed25519` `signature` must fail
 **When**: New Scheduled transaction created with `sigMap` that does not have valid `ed25519` `signature` in one of the `SignaturePair`s\
-**Expect**: The `ScheduleCreate` operation to fail with `SCHEDULE_TX_SIGNATURE_INVALID`.
+**Expect**: The `ScheduleCreate` operation to fail with `SOME_SIGNATURES_WERE_INVALID`.
 
 #### 16. Creating nested Schedule Create must fail
 **When**: New Scheduled transaction scheduling `ScheduleCreate` operation.
@@ -156,12 +156,12 @@ When creating the Scheduled Transaction, populate the `SignatureMap` with one or
 #### 21. Adding invalid `ed25519` `signature` must fail
 **Given**: Scheduled Transaction created.\
 **When**: New Scheduled Sign operation submitted with `sigMap` that does not have valid `ed25519` `signature` in one of the `SignaturePair`s\
-**Expect**: The `ScheduleSign` operation to fail with `SCHEDULE_TX_SIGNATURE_INVALID`.
+**Expect**: The `ScheduleSign` operation to fail with `SOME_SIGNATURES_WERE_INVALID`.
 
 #### 22. Adding signature signed by non-required signer must fail
 **Given**: Scheduled Transaction created.\
 **When**: New Scheduled Sign operation submitted with `sigMap` providing signatures signed by a key(s) that are not required for the execution of the transaction body.\
-**Expect**: The `ScheduleSign` operation to fail with `INVALID_SIGNATURE_PROVIDED`
+**Expect**: The `ScheduleSign` operation to fail with `SOME_SIGNATURES_WERE_INVALID`
 
 #### 23. Adding signature signed by non-required signer must fail #2
 **Given**:
@@ -170,7 +170,7 @@ When creating the Scheduled Transaction, populate the `SignatureMap` with one or
  3. Token's mint key changed to new one. (`MintKey` changed to `NewMintKey`)
 
 **When**: New Schedule Sign operation submitted adding the signature of `MintKey`\
-**Expect**: The `ScheduleSign` operation to fail with `INVALID_SIGNATURE_PROVIDED` since the `mint` key has been set to `NewMintKey` and `MintKey` signature is not required.
+**Expect**: The `ScheduleSign` operation to fail with `SOME_SIGNATURES_WERE_INVALID` since the `mint` key has been set to `NewMintKey` and `MintKey` signature is not required.
 
 ## Deletion
 

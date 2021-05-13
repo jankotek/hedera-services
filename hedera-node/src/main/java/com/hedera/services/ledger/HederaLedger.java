@@ -36,6 +36,7 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.FileID;
@@ -212,7 +213,7 @@ public class HederaLedger {
 				purgeZeroAdjustments(netTransfersHere);
 				all.add(TokenTransferList.newBuilder()
 						.setToken(token)
-						.addAllTransfers(netTransfersHere.getAccountAmountsList())
+						.setTransfers(AccountAmounts.newBuilder().addAllTransfers(netTransfersHere.getAccountAmountsList()).build())
 						.build());
 			}
 		}
@@ -360,7 +361,7 @@ public class HederaLedger {
 				validity = INVALID_TOKEN_ID;
 			}
 			if (validity == OK) {
-				var adjustments = tokenTransfers.getTransfersList();
+				var adjustments = tokenTransfers.getTransfers().getTransfersList();
 				for (AccountAmount adjustment : adjustments) {
 					validity = adjustTokenBalance(adjustment.getAccountID(), id, adjustment.getAmount());
 					if (validity != OK) {

@@ -24,6 +24,7 @@ import com.google.protobuf.ByteString;
 import com.hedera.test.factories.keys.KeyTree;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
@@ -69,15 +70,15 @@ public class TxnUtils {
 		return List.of(
 				TokenTransferList.newBuilder()
 						.setToken(a)
-						.addTransfers(AccountAmount.newBuilder().setAccountID(aId).setAmount(A).build())
+						.setTransfers(AccountAmounts.newBuilder().addTransfers(AccountAmount.newBuilder().setAccountID(aId).setAmount(A).build()))
 						.build(),
 				TokenTransferList.newBuilder()
 						.setToken(b)
-						.addTransfers(AccountAmount.newBuilder().setAccountID(bId).setAmount(B).build())
+						.setTransfers(AccountAmounts.newBuilder().addTransfers(AccountAmount.newBuilder().setAccountID(bId).setAmount(B).build()))
 						.build(),
 				TokenTransferList.newBuilder()
 						.setToken(c)
-						.addTransfers(AccountAmount.newBuilder().setAccountID(cId).setAmount(C).build())
+						.setTransfers(AccountAmounts.newBuilder().addTransfers(AccountAmount.newBuilder().setAccountID(cId).setAmount(C).build()))
 						.build()
 		);
 	}
@@ -91,21 +92,24 @@ public class TxnUtils {
 		return List.of(
 				TokenTransferList.newBuilder()
 						.setToken(a)
-						.addTransfers(AccountAmount.newBuilder().setAccountID(aId).setAmount(A).build())
+						.setTransfers(AccountAmounts.newBuilder()
+							.addTransfers(AccountAmount.newBuilder().setAccountID(aId).setAmount(A).build())
+						)
 						.build(),
 				TokenTransferList.newBuilder()
 						.setToken(b)
-						.addTransfers(AccountAmount.newBuilder().setAccountID(bId).setAmount(B).build())
-						.addTransfers(AccountAmount.newBuilder().setAccountID(cId).setAmount(C).build())
-						.addTransfers(AccountAmount.newBuilder().setAccountID(aId).setAmount(A).build())
-						.build(),
+						.setTransfers(AccountAmounts.newBuilder()
+							.addTransfers(AccountAmount.newBuilder().setAccountID(bId).setAmount(B).build())
+							.addTransfers(AccountAmount.newBuilder().setAccountID(cId).setAmount(C).build())
+							.addTransfers(AccountAmount.newBuilder().setAccountID(aId).setAmount(A).build())
+						).build(),
 				TokenTransferList.newBuilder()
 						.setToken(c)
-						.addTransfers(AccountAmount.newBuilder().setAccountID(cId).setAmount(C).build())
+						.setTransfers(AccountAmounts.newBuilder().addTransfers(AccountAmount.newBuilder().setAccountID(cId).setAmount(C).build()))
 						.build(),
 				TokenTransferList.newBuilder()
 						.setToken(d)
-						.addTransfers(AccountAmount.newBuilder().setAccountID(dId).setAmount(D).build())
+						.setTransfers(AccountAmounts.newBuilder().addTransfers(AccountAmount.newBuilder().setAccountID(dId).setAmount(D).build()))
 						.build()
 		);
 	}

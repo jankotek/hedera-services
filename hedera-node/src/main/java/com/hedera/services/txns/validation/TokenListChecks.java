@@ -71,7 +71,7 @@ public class TokenListChecks {
             uniqueTokens.add(tokenTransferList.getToken());
 
             var uniqueAccounts = new HashSet<AccountID>();
-            for (AccountAmount adjustment : tokenTransferList.getTransfersList()) {
+            for (AccountAmount adjustment : tokenTransferList.getTransfers().getTransfersList()) {
                 if (!adjustment.hasAccountID()) {
                     return INVALID_ACCOUNT_ID;
                 }
@@ -84,7 +84,7 @@ public class TokenListChecks {
                 net += adjustment.getAmount();
             }
 
-            if (uniqueAccounts.size() < tokenTransferList.getTransfersCount()) {
+            if (uniqueAccounts.size() < tokenTransferList.getTransfers().getTransfersCount()) {
                 return ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS;
             }
 

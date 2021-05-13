@@ -28,6 +28,7 @@ import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -329,10 +330,10 @@ public class CryptoTransferTransitionLogicTest {
 					.build())
 			.addTokenTransfers(TokenTransferList.newBuilder()
 					.setToken(asToken("0.0.12345"))
-					.addAllTransfers(List.of(
+					.setTransfers(AccountAmounts.newBuilder().addAllTransfers(List.of(
 							adjustFrom(asAccount("0.0.2"), -1_000),
 							adjustFrom(asAccount("0.0.3"), +1_000)
-					)))
+					))))
 			.build();
 
 	private void givenDuplicateTokens() {
@@ -340,17 +341,20 @@ public class CryptoTransferTransitionLogicTest {
 				.addTokenTransfers(
 						TokenTransferList.newBuilder()
 								.setToken(asToken("0.0.12345"))
+								.setTransfers(AccountAmounts.newBuilder()
 								.addAllTransfers(List.of(
 										adjustFrom(asAccount("0.0.2"), -1_000),
 										adjustFrom(asAccount("0.0.3"), +1_000)
 								)))
+				)
 				.addTokenTransfers(
 						TokenTransferList.newBuilder()
 								.setToken(asToken("0.0.12345"))
+								.setTransfers(AccountAmounts.newBuilder()
 								.addAllTransfers(List.of(
 										adjustFrom(asAccount("0.0.2"), -1_000),
 										adjustFrom(asAccount("0.0.3"), +1_000)
-								))
+								)))
 				)
 				.build();
 
@@ -364,10 +368,11 @@ public class CryptoTransferTransitionLogicTest {
 				.addTokenTransfers(
 						TokenTransferList.newBuilder()
 								.setToken(asToken("0.0.12345"))
+								.setTransfers(AccountAmounts.newBuilder()
 								.addAllTransfers(List.of(
 										adjustFrom(asAccount("0.0.2"), -1_000),
 										adjustFrom(asAccount("0.0.2"), +1_000)
-								))
+								)))
 				)
 				.build();
 
@@ -381,10 +386,11 @@ public class CryptoTransferTransitionLogicTest {
 				.addTokenTransfers(
 						TokenTransferList.newBuilder()
 								.setToken(asToken("0.0.12345"))
+								.setTransfers(AccountAmounts.newBuilder()
 								.addAllTransfers(List.of(
 										adjustFrom(asAccount("0.0.2"), -1_000),
 										adjustFrom(asAccount("0.0.3"), -1_000)
-								))
+								)))
 				)
 				.build();
 
@@ -397,10 +403,11 @@ public class CryptoTransferTransitionLogicTest {
 		xfers = CryptoTransferTransactionBody.newBuilder()
 				.addTokenTransfers(
 						TokenTransferList.newBuilder()
+								.setTransfers(AccountAmounts.newBuilder()
 								.addAllTransfers(List.of(
 										adjustFrom(asAccount("0.0.2"), -1_000),
 										adjustFrom(asAccount("0.0.3"), +1_000)
-								))
+								)))
 				)
 				.build();
 
@@ -414,12 +421,12 @@ public class CryptoTransferTransitionLogicTest {
 				.addTokenTransfers(
 						TokenTransferList.newBuilder()
 								.setToken(asToken("0.0.12345"))
-								.addAllTransfers(List.of(
+								.setTransfers(AccountAmounts.newBuilder().addAllTransfers(List.of(
 										AccountAmount.newBuilder()
 												.setAmount(-1000)
 												.build(),
 										adjustFrom(asAccount("0.0.3"), +1_000)
-								))
+								)))
 				)
 				.build();
 
@@ -433,10 +440,10 @@ public class CryptoTransferTransitionLogicTest {
 				.addTokenTransfers(
 						TokenTransferList.newBuilder()
 								.setToken(asToken("0.0.12345"))
-								.addAllTransfers(List.of(
+								.setTransfers(AccountAmounts.newBuilder().addAllTransfers(List.of(
 										adjustFrom(asAccount("0.0.2"), 0),
 										adjustFrom(asAccount("0.0.3"), 0)
-								))
+								)))
 				)
 				.build();
 

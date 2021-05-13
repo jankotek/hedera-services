@@ -374,7 +374,7 @@ public class TxnUtils {
 		return tokenTransfers.stream()
 				.map(scopedXfers -> String.format("%s(%s)",
 						asTokenString(scopedXfers.getToken()),
-						readableTransferList(scopedXfers.getTransfersList())))
+						readableTransferList(scopedXfers.getTransfers().getTransfersList())))
 				.collect(joining(", "));
 	}
 

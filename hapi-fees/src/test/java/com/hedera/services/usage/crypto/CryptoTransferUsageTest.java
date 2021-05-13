@@ -26,6 +26,7 @@ import com.hedera.services.usage.SigUsage;
 import com.hedera.services.usage.TxnUsageEstimator;
 import com.hedera.services.usage.TxnUsage;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -117,22 +118,22 @@ public class CryptoTransferUsageTest {
 				.setTransfers(hbarAdjusts)
 				.addTokenTransfers(TokenTransferList.newBuilder()
 						.setToken(anotherId)
-						.addAllTransfers(List.of(
+						.setTransfers(AccountAmounts.newBuilder().addAllTransfers(List.of(
 								adjustFrom(a, -50),
 								adjustFrom(b, 25),
-								adjustFrom(c, 25)
+								adjustFrom(c, 25))
 						)))
 				.addTokenTransfers(TokenTransferList.newBuilder()
 						.setToken(anId)
-						.addAllTransfers(List.of(
+						.setTransfers(AccountAmounts.newBuilder().addAllTransfers(List.of(
 								adjustFrom(b, -100),
-								adjustFrom(c, 100)
+								adjustFrom(c, 100))
 						)))
 				.addTokenTransfers(TokenTransferList.newBuilder()
 						.setToken(anotherId)
-						.addAllTransfers(List.of(
+						.setTransfers(AccountAmounts.newBuilder().addAllTransfers(List.of(
 								adjustFrom(a, -15),
-								adjustFrom(b, 15)
+								adjustFrom(b, 15))
 						)))
 				.build();
 

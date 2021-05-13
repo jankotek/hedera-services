@@ -130,7 +130,7 @@ public class ContextOptionValidator implements OptionValidator {
 
 		int count = 0;
 		for (var tokenTransferList : tokenTransferLists) {
-			int transferCounts = tokenTransferList.getTransfersCount();
+			int transferCounts = tokenTransferList.getTransfers().getTransfersCount();
 			if (transferCounts == 0) {
 				return EMPTY_TOKEN_TRANSFER_ACCOUNT_AMOUNTS;
 			}

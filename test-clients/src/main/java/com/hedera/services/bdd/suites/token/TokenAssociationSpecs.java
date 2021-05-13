@@ -294,14 +294,14 @@ public class TokenAssociationSpecs extends HapiApiSuite {
 														assertEquals("Wrong token transferred!",
 																spec.registry().getTokenID(expiringToken),
 																xfers.getToken());
-														AccountAmount toTreasury = xfers.getTransfers(0);
+														AccountAmount toTreasury = xfers.getTransfers().getTransfers(0);
 														assertEquals("Treasury should come first!",
 																spec.registry().getAccountID(treasury),
 																toTreasury.getAccountID());
 														assertEquals("Treasury should get 100 tokens back!",
 																100L,
 																toTreasury.getAmount());
-														AccountAmount fromAccount = xfers.getTransfers(1);
+														AccountAmount fromAccount = xfers.getTransfers().getTransfers(1);
 														assertEquals("Account should come second!",
 																spec.registry().getAccountID(unfrozenAccount),
 																fromAccount.getAccountID());

@@ -60,7 +60,7 @@ public class CryptoTransferUsage extends CryptoTxnUsage<CryptoTransferUsage> {
 		long xferBytes = 0;
 		for (TokenTransferList transfer : op.getTokenTransfersList()) {
 			xferBytes += tokenMultiplier * BASIC_ENTITY_ID_SIZE;
-			tokenXfers += tokenMultiplier * transfer.getTransfersCount();
+			tokenXfers += tokenMultiplier * transfer.getTransfers().getTransfersCount();
 		}
 		xferBytes += (hbarXfers + tokenXfers) * usageProperties.accountAmountBytes();
 		usageEstimator.addBpt(xferBytes);

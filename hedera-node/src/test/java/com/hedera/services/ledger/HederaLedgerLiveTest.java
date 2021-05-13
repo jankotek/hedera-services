@@ -38,6 +38,7 @@ import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.mocks.TestContextValidator;
 import com.hedera.test.utils.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
@@ -280,7 +281,7 @@ public class HederaLedgerLiveTest extends BaseHederaLedgerTest {
 	private TokenTransferList construct(TokenID token, AccountAmount... xfers) {
 		return TokenTransferList.newBuilder()
 				.setToken(token)
-				.addAllTransfers(List.of(xfers))
+				.setTransfers(AccountAmounts.newBuilder().addAllTransfers(List.of(xfers)))
 				.build();
 	}
 

@@ -24,6 +24,8 @@ import com.google.common.base.MoreObjects;
 import com.google.protobuf.ByteString;
 import com.hedera.services.legacy.core.jproto.TxnReceipt;
 import com.hedera.services.state.serdes.DomainSerdes;
+import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import com.swirlds.common.crypto.Hash;
@@ -385,7 +387,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 			tokenAdjustments = new ArrayList<>();
 			for (TokenTransferList tokenTransfers : record.getTokenTransferListsList()) {
 				tokens.add(EntityId.fromGrpcTokenId(tokenTransfers.getToken()));
-				tokenAdjustments.add(CurrencyAdjustments.fromGrpc(tokenTransfers.getTransfersList()));
+				tokenAdjustments.add(CurrencyAdjustments.fromGrpc(tokenTransfers.getTransfers().getTransfersList()));
 			}
 
 		}
@@ -443,7 +445,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 			for (int i = 0, n = tokens.size(); i < n; i++) {
 				grpc.addTokenTransferLists(TokenTransferList.newBuilder()
 						.setToken(tokens.get(i).toGrpcTokenId())
-						.addAllTransfers(tokenAdjustments.get(i).toGrpc().getAccountAmountsList()));
+						.setTransfers(AccountAmounts.newBuilder().addAllTransfers(tokenAdjustments.get(i).toGrpc().getAccountAmountsList())).build());
 			}
 		}
 

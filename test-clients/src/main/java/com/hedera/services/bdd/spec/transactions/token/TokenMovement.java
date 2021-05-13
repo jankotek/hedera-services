@@ -24,6 +24,7 @@ import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 
@@ -117,26 +118,28 @@ public class TokenMovement {
 		var scopedTransfers = TokenTransferList.newBuilder();
 		var id = isTrulyToken() ? asTokenId(token, spec) : HBAR_SENTINEL_TOKEN_ID;
 		scopedTransfers.setToken(id);
+		var normalTransfers = AccountAmounts.newBuilder();
 		if (senderFn.isPresent()) {
 			var specialSender = senderFn.get().apply(spec);
 			sender = Optional.of(specialSender);
-			scopedTransfers.addTransfers(adjustment(specialSender, -amount, spec));
+			normalTransfers.addTransfers(adjustment(specialSender, -amount, spec));
 		} else if (sender.isPresent()) {
-			scopedTransfers.addTransfers(adjustment(sender.get(), -amount, spec));
+			normalTransfers.addTransfers(adjustment(sender.get(), -amount, spec));
 		}
 		if (receiverFn.isPresent()) {
 			var specialReceiver = receiverFn.get().apply(spec);
 			receiver = Optional.of(specialReceiver);
-			scopedTransfers.addTransfers(adjustment(specialReceiver, +amount, spec));
+			normalTransfers.addTransfers(adjustment(specialReceiver, +amount, spec));
 		} else if (receiver.isPresent()) {
-			scopedTransfers.addTransfers(adjustment(receiver.get(), +amount, spec));
+			normalTransfers.addTransfers(adjustment(receiver.get(), +amount, spec));
 		} else if (receivers.isPresent()) {
 			var targets = receivers.get();
 			var amountPerReceiver = amount / targets.size();
 			for (int i = 0, n = targets.size(); i < n; i++) {
-				scopedTransfers.addTransfers(adjustment(targets.get(i), +amountPerReceiver, spec));
+				normalTransfers.addTransfers(adjustment(targets.get(i), +amountPerReceiver, spec));
 			}
 		}
+		scopedTransfers.setTransfers(normalTransfers);
 		return scopedTransfers.build();
 	}
 

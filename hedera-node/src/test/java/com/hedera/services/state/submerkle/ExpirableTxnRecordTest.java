@@ -24,6 +24,7 @@ import com.google.protobuf.ByteString;
 import com.hedera.services.state.serdes.DomainSerdes;
 import com.hedera.services.state.serdes.DomainSerdesTest;
 import com.hedera.test.utils.IdUtils;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -70,13 +71,15 @@ class ExpirableTxnRecordTest {
 	AccountID magician = IdUtils.asAccount("1.2.7");
 	TokenTransferList aTokenTransfers = TokenTransferList.newBuilder()
 			.setToken(tokenA)
-			.addAllTransfers(
-					withAdjustments(sponsor, -1L, beneficiary, 1L, magician, 1000L).getAccountAmountsList())
+			.setTransfers(AccountAmounts.newBuilder()
+				.addAllTransfers(
+					withAdjustments(sponsor, -1L, beneficiary, 1L, magician, 1000L).getAccountAmountsList()))
 			.build();
 	TokenTransferList bTokenTransfers = TokenTransferList.newBuilder()
 			.setToken(tokenB)
-			.addAllTransfers(
-					withAdjustments(sponsor, -1L, beneficiary, 1L, magician, 1000L).getAccountAmountsList())
+			.setTransfers(AccountAmounts.newBuilder()
+				.addAllTransfers(
+					withAdjustments(sponsor, -1L, beneficiary, 1L, magician, 1000L).getAccountAmountsList()))
 			.build();
 	ScheduleID scheduleID = IdUtils.asSchedule("5.6.7");
 

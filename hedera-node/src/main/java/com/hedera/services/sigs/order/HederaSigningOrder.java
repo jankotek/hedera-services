@@ -550,7 +550,7 @@ public class HederaSigningOrder {
 
 		KeyOrderingFailure failure;
 		for (TokenTransferList xfers : op.getTokenTransfersList()) {
-			for (AccountAmount adjust : xfers.getTransfersList()) {
+			for (AccountAmount adjust : xfers.getTransfers().getTransfersList()) {
 				if ((failure = includeIfPresentAndNecessary(adjust, required)) != NONE) {
 					return accountFailure(adjust.getAccountID(), txnId, failure, factory);
 				}

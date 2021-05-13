@@ -32,6 +32,7 @@ import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -103,7 +104,7 @@ public class AwareTransactionContextTest {
 	private ScheduleID scheduleCreated = asSchedule("0.0.10");
 	private TokenTransferList tokenTransfers = TokenTransferList.newBuilder()
 			.setToken(tokenCreated)
-			.addAllTransfers(withAdjustments(payer, -2L, created, 1L, another, 1L).getAccountAmountsList())
+			.setTransfers(AccountAmounts.newBuilder().addAllTransfers(withAdjustments(payer, -2L, created, 1L, another, 1L).getAccountAmountsList()))
 			.build();
 	private FileID fileCreated = asFile("2.0.1");
 	private ContractID contractCreated = asContract("0.1.2");

@@ -26,6 +26,7 @@ import com.hedera.services.bdd.spec.transactions.token.TokenMovement;
 import com.hedera.services.legacy.proto.utils.CommonUtils;
 import com.hedera.services.usage.crypto.CryptoTransferUsage;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.FeeData;
@@ -202,7 +203,7 @@ public class HapiCryptoTransfer extends HapiTxnOp<HapiCryptoTransfer> {
 								for (TokenTransferList scopedXfers : xfers) {
 									if (scopedXfers.getToken() == HBAR_SENTINEL_TOKEN_ID) {
 										b.setTransfers(TransferList.newBuilder()
-												.addAllAccountAmounts(scopedXfers.getTransfersList())
+												.addAllAccountAmounts(scopedXfers.getTransfers().getTransfersList())
 												.build());
 									} else {
 										b.addTokenTransfers(scopedXfers);
@@ -232,19 +233,19 @@ public class HapiCryptoTransfer extends HapiTxnOp<HapiCryptoTransfer> {
 			var amount = extra.getRight();
 			var appendList = TokenTransferList.newBuilder()
 					.setToken(token)
-					.addTransfers(AccountAmount.newBuilder()
+					.setTransfers(AccountAmounts.newBuilder().addTransfers(AccountAmount.newBuilder()
 							.setAccountID(sender)
-							.setAmount(-amount))
-					.addTransfers(AccountAmount.newBuilder()
+							.setAmount(-amount)).addTransfers(AccountAmount.newBuilder()
 							.setAccountID(receiver)
-							.setAmount(+amount));
+							.setAmount(+amount)));
 			b.addTokenTransfers(appendList);
 		}
 		if (breakNetZeroTokenChangeInvariant && b.getTokenTransfersCount() > 0) {
 			for (int i = 0, n = b.getTokenTransfersCount(); i < n; i++) {
 				var changesHere = b.getTokenTransfersBuilder(i);
-				if (changesHere.getTransfersCount() > 0) {
-					var mutated = changesHere.getTransfersBuilder(0);
+				var generalTransfersBuilder = changesHere.getTransfersBuilder();
+				if (changesHere.getTransfers().getTransfersCount() > 0) {
+					var mutated = generalTransfersBuilder.getTransfersBuilder(0);
 					mutated.setAmount(mutated.getAmount() + 1_234);
 					b.setTokenTransfers(i, changesHere);
 					break;
@@ -335,11 +336,12 @@ public class HapiCryptoTransfer extends HapiTxnOp<HapiCryptoTransfer> {
 				.map(p -> p.specializedFor(spec))
 				.collect(groupingBy(
 						TokenTransferList::getToken,
-						flatMapping(xfers -> xfers.getTransfersList().stream(), toList())));
+						flatMapping(xfers -> xfers.getTransfers().getTransfersList().stream(), toList())));
+
 		return aggregated.entrySet().stream()
 				.map(entry -> TokenTransferList.newBuilder()
 						.setToken(entry.getKey())
-						.addAllTransfers(entry.getValue())
+						.setTransfers(AccountAmounts.newBuilder().addAllTransfers(entry.getValue()).build())
 						.build())
 				.collect(toList());
 	}

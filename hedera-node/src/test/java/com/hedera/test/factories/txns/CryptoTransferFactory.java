@@ -21,6 +21,7 @@ package com.hedera.test.factories.txns;
  */
 
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountAmounts;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -98,7 +99,7 @@ public class CryptoTransferFactory extends SignedTxnFactory<CryptoTransferFactor
 				adjustments.entrySet().stream()
 						.forEach(entry -> xfers.addTokenTransfers(TokenTransferList.newBuilder()
 								.setToken(entry.getKey())
-								.addAllTransfers(entry.getValue())
+								.setTransfers(AccountAmounts.newBuilder().addAllTransfers(entry.getValue()))
 								.build()));
 				xfers.setTransfers(TransferList.newBuilder().addAllAccountAmounts(hbarAdjustments));
 				adjustmentsAreSet = true;

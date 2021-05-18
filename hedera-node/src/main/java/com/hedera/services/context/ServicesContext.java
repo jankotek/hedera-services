@@ -1425,6 +1425,7 @@ public class ServicesContext {
 		return globalDynamicProperties;
 	}
 
+	// TODO make it CommonTokenStore
 	public TokenStore tokenStore() {
 		if (tokenStore == null) {
 			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
@@ -1444,6 +1445,9 @@ public class ServicesContext {
 		}
 		return tokenStore;
 	}
+
+	// uniqueTokenStore
+	// public UniqueTokenStore uniqueTokenStore() {
 
 	public ScheduleStore scheduleStore() {
 		if (scheduleStore == null) {

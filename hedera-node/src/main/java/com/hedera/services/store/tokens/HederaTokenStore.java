@@ -96,11 +96,19 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSO
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 
+// Common Fungible -> what we have now
+// Unique Non-fungible -> what we wanted to do with NFT
+// Unique Fungible -> not discussed
+
+// CF -> HTS, supply, amount
+// UF -> HTS
+
 /**
  * Provides a managing store for arbitrary tokens.
  *
  * @author Michael Tinker
  */
+// TODO make it abstract and `BaseTokenStore`. Use CommonTokenStore everywhere for now
 public class HederaTokenStore extends HederaStore implements TokenStore {
 	private static final Logger log = LogManager.getLogger(HederaTokenStore.class);
 
@@ -221,6 +229,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 					if (!isTokenDeleted && !isTokenExpired) {
 						return TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 					}
+					// TODO Works for common, but for UN should be a different type of transfer
 					if (!isTokenDeleted) {
 						/* Must be expired; return balance to treasury account. */
 						hederaLedger.doTokenTransfer(tId, aId, token.treasury().toGrpcAccountId(), balance);
@@ -314,11 +323,14 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 				MerkleToken::freezeKey);
 	}
 
+	// TODO Only works for common fungible
 	@Override
 	public ResponseCodeEnum adjustBalance(AccountID aId, TokenID tId, long adjustment) {
 		return sanityChecked(aId, tId, token -> tryAdjustment(aId, tId, adjustment));
 	}
 
+
+	// TODO Only works for common fungible
 	@Override
 	public ResponseCodeEnum wipe(AccountID aId, TokenID tId, long amount, boolean skipKeyCheck) {
 		return sanityChecked(aId, tId, token -> {
@@ -342,11 +354,13 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		});
 	}
 
+	// TODO Only works for common fungible
 	@Override
 	public ResponseCodeEnum burn(TokenID tId, long amount) {
 		return changeSupply(tId, amount, -1, INVALID_TOKEN_BURN_AMOUNT);
 	}
 
+	// TODO Only works for common fungible
 	@Override
 	public ResponseCodeEnum mint(TokenID tId, long amount) {
 		return changeSupply(tId, amount, +1, INVALID_TOKEN_MINT_AMOUNT);
@@ -381,6 +395,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		});
 	}
 
+	// Most probably will go directly to base
 	@Override
 	public CreationResult<TokenID> createProvisionally(
 			TokenCreateTransactionBody request,

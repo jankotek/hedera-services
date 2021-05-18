@@ -49,8 +49,11 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
 	private final TokenStore store;
+	// UniqueStore.mint
+	// CommonStore.mint
 	private final TransactionContext txnCtx;
 
+	// Todo add the 2 types of stores (their interfaces) here
 	public TokenMintTransitionLogic(
 			TokenStore store,
 			TransactionContext txnCtx

@@ -33,36 +33,18 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.store.CreationResult;
 import com.hedera.services.store.HederaStore;
 import com.hedera.services.txns.validation.OptionValidator;
-import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.Duration;
-import com.hederahashgraph.api.proto.java.Key;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.Timestamp;
-import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
-import com.hederahashgraph.api.proto.java.TokenID;
-import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
+import com.hederahashgraph.api.proto.java.*;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 import static com.hedera.services.ledger.accounts.BackingTokenRels.asTokenRel;
-import static com.hedera.services.ledger.properties.TokenRelProperty.IS_FROZEN;
-import static com.hedera.services.ledger.properties.TokenRelProperty.IS_KYC_GRANTED;
-import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
+import static com.hedera.services.ledger.properties.TokenRelProperty.*;
 import static com.hedera.services.state.merkle.MerkleEntityId.fromTokenId;
 import static com.hedera.services.state.merkle.MerkleToken.UNUSED_KEY;
 import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
@@ -71,30 +53,7 @@ import static com.hedera.services.store.CreationResult.success;
 import static com.hedera.services.utils.EntityIdUtils.readableId;
 import static com.hedera.services.utils.MiscUtils.asFcKeyUnchecked;
 import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_IS_TREASURY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_AMOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TREASURY_ACCOUNT_FOR_TOKEN;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING_AMOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_FREEZE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_KYC_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_WIPE_KEY;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABLE;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 
 // Common Fungible -> what we have now
 // Unique Non-fungible -> what we wanted to do with NFT
@@ -109,8 +68,8 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_RE
  * @author Michael Tinker
  */
 // TODO make it abstract and `BaseTokenStore`. Use CommonTokenStore everywhere for now
-public class HederaTokenStore extends HederaStore implements TokenStore {
-	private static final Logger log = LogManager.getLogger(HederaTokenStore.class);
+public abstract class BaseTokenStore extends HederaStore implements TokenStore {
+	private static final Logger log = LogManager.getLogger(BaseTokenStore.class);
 
 	static final TokenID NO_PENDING_ID = TokenID.getDefaultInstance();
 
@@ -128,7 +87,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 	TokenID pendingId = NO_PENDING_ID;
 	MerkleToken pendingCreation;
 
-	public HederaTokenStore(
+	public BaseTokenStore(
 			EntityIdSource ids,
 			OptionValidator validator,
 			GlobalDynamicProperties properties,
@@ -207,7 +166,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 					return TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 				}
 				if (!tokens.get().containsKey(fromTokenId(tId))) {
-					/* Expired tokens that have been removed from state (either because they
+					/* Expired tokens that have been reBaseTokenStoremoved from state (either because they
 					were also deleted, or their grace period ended) should be dissociated
 					with no additional checks. */
 					continue;
@@ -231,7 +190,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 					}
 					// TODO Works for common, but for UN should be a different type of transfer
 					if (!isTokenDeleted) {
-						/* Must be expired; return balance to treasury account. */
+						/* Must be expired; return balaBaseTokenStorence to treasury account. */
 						hederaLedger.doTokenTransfer(tId, aId, token.treasury().toGrpcAccountId(), balance);
 					}
 				}
@@ -346,8 +305,10 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 			if (amount > balance) {
 				return INVALID_WIPING_AMOUNT;
 			}
-			tokenRelsLedger.set(relationship, TOKEN_BALANCE, balance - amount);
-			hederaLedger.updateTokenXfers(tId, aId, -amount);
+			// TODO ask if those were the rows
+//			tokenRelsLedger.set(relationship, TOKEN_BALANCE, balance - amount);
+//			hederaLedger.updateTokenXfers(tId, aId, -amount);
+
 			apply(tId, t -> t.adjustTotalSupplyBy(-amount));
 
 			return OK;
@@ -722,7 +683,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		});
 	}
 
-	private ResponseCodeEnum sanityChecked(
+	protected ResponseCodeEnum sanityChecked(
 			AccountID aId,
 			TokenID tId,
 			Function<MerkleToken, ResponseCodeEnum> action
@@ -745,7 +706,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		return action.apply(token);
 	}
 
-	private ResponseCodeEnum tokenSanityCheck(
+	protected ResponseCodeEnum tokenSanityCheck(
 			TokenID tId,
 			Function<MerkleToken, ResponseCodeEnum> action
 	) {
@@ -758,6 +719,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		if (token.isDeleted()) {
 			return TOKEN_WAS_DELETED;
 		}
+
 
 		return action.apply(token);
 	}

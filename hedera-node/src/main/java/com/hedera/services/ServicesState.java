@@ -27,28 +27,15 @@ import com.hedera.services.context.properties.StandardizedPropertySources;
 import com.hedera.services.exceptions.ContextNotFoundException;
 import com.hedera.services.legacy.stream.RecordStream;
 import com.hedera.services.sigs.sourcing.ScopedSigBytesProvider;
-import com.hedera.services.state.merkle.MerkleAccount;
-import com.hedera.services.state.merkle.MerkleBlobMeta;
-import com.hedera.services.state.merkle.MerkleDiskFs;
-import com.hedera.services.state.merkle.MerkleEntityAssociation;
-import com.hedera.services.state.merkle.MerkleEntityId;
-import com.hedera.services.state.merkle.MerkleNetworkContext;
-import com.hedera.services.state.merkle.MerkleOptionalBlob;
-import com.hedera.services.state.merkle.MerkleSchedule;
-import com.hedera.services.state.merkle.MerkleToken;
-import com.hedera.services.state.merkle.MerkleTokenRelStatus;
-import com.hedera.services.state.merkle.MerkleTopic;
+import com.hedera.services.state.merkle.*;
 import com.hedera.services.state.submerkle.ExchangeRates;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.hedera.services.utils.PlatformTxnAccessor;
+import com.hedera.services.utils.invertible_fchashmap.FCInvertibleHashMap;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.swirlds.blob.BinaryObjectStore;
-import com.swirlds.common.AddressBook;
-import com.swirlds.common.NodeId;
-import com.swirlds.common.Platform;
-import com.swirlds.common.SwirldState;
-import com.swirlds.common.Transaction;
+import com.swirlds.common.*;
 import com.swirlds.common.crypto.DigestType;
 import com.swirlds.common.crypto.ImmutableHash;
 import com.swirlds.common.crypto.RunningHash;
@@ -59,7 +46,6 @@ import com.swirlds.fcmap.FCMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.File;
 import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.List;
@@ -116,6 +102,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		static final int NUM_0120_CHILDREN = 10;
 		static final int NUM_0130_CHILDREN = 10;
 		static final int NUM_0140_CHILDREN = 10;
+		static final int NFTOKENS = 11;
 	}
 
 	ServicesContext ctx;
@@ -410,6 +397,10 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 
 	public FCMap<MerkleEntityId, MerkleToken> tokens() {
 		return getChild(ChildIndices.TOKENS);
+	}
+
+	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, MerkleUniqueToken> nfTokens(){
+		return getChild(ChildIndices.NFTOKENS);
 	}
 
 	public FCMap<MerkleEntityAssociation, MerkleTokenRelStatus> tokenAssociations() {

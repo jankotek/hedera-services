@@ -24,6 +24,7 @@ import com.google.common.base.MoreObjects;
 import com.hedera.services.state.serdes.DomainSerdes;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
+import com.hedera.services.store.tokens.unique.OwnerIdentifier;
 import com.hedera.services.utils.invertible_fchashmap.Identifiable;
 import com.swirlds.common.FCMValue;
 import com.swirlds.common.io.SerializableDataInputStream;
@@ -35,7 +36,7 @@ import java.util.Objects;
 
 import static com.hedera.services.state.merkle.MerkleAccountState.DEFAULT_MEMO;
 
-public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, Identifiable<MerkleUniqueToken> {
+public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, Identifiable<OwnerIdentifier> {
 
 	static final int MERKLE_VERSION = 1;
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x899641dafcc39164L;
@@ -138,5 +139,10 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, I
 
 	public RichInstant getCreationTime() {
 		return creationTime;
+	}
+
+	@Override
+	public OwnerIdentifier getIdentity() {
+		return new OwnerIdentifier(this.owner);
 	}
 }

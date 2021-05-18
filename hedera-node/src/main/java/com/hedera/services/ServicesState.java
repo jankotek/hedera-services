@@ -30,6 +30,7 @@ import com.hedera.services.sigs.sourcing.ScopedSigBytesProvider;
 import com.hedera.services.state.merkle.*;
 import com.hedera.services.state.submerkle.ExchangeRates;
 import com.hedera.services.state.submerkle.SequenceNumber;
+import com.hedera.services.store.tokens.unique.OwnerIdentifier;
 import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.services.utils.invertible_fchashmap.FCInvertibleHashMap;
@@ -399,7 +400,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		return getChild(ChildIndices.TOKENS);
 	}
 
-	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, MerkleUniqueToken> nfTokens(){
+	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> nfTokens(){
 		return getChild(ChildIndices.NFTOKENS);
 	}
 

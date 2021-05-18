@@ -153,6 +153,7 @@ import com.hedera.services.store.schedule.ScheduleStore;
 import com.hedera.services.store.tokens.BaseTokenStore;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.store.tokens.common.CommonTokenStore;
+import com.hedera.services.store.tokens.unique.OwnerIdentifier;
 import com.hedera.services.store.tokens.unique.UniqueStore;
 import com.hedera.services.store.tokens.unique.UniqueTokenStore;
 import com.hedera.services.stream.RecordStreamManager;
@@ -1831,7 +1832,7 @@ public class ServicesContext {
 		return state.tokens();
 	}
 
-	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, MerkleUniqueToken> nfTokens(){
+	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> nfTokens(){
 		return state.nfTokens();
 	}
 

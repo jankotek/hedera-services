@@ -39,13 +39,14 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
-	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, MerkleUniqueToken>> nfTokens;
+
+	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> nfTokens;
 
 	public UniqueTokenStore(final EntityIdSource ids,
 							final OptionValidator validator,
 							final GlobalDynamicProperties properties,
 							final Supplier<FCMap<MerkleEntityId, MerkleToken>> tokens,
-							final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, MerkleUniqueToken>> uniqueTokens,
+							final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokens,
 							final TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger
 							) {
 		super(ids, validator, properties, tokens, tokenRelsLedger);
@@ -63,7 +64,6 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			final var eId = EntityId.fromGrpcTokenId(tId);
 			final var owner = this.get(tId).treasury(); // get next available serial num here as well
 			// TODO serialNum
-			//
 
 			final var nftId = new MerkleUniqueTokenId(eId, serialNum);
 			final var nft = new MerkleUniqueToken(owner, memo, creationTime);

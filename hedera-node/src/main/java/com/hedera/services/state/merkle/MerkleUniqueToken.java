@@ -24,6 +24,8 @@ import com.google.common.base.MoreObjects;
 import com.hedera.services.state.serdes.DomainSerdes;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
+import com.hedera.services.store.tokens.unique.OwnerIdentifier;
+import com.hedera.services.utils.invertible_fchashmap.Identifiable;
 import com.swirlds.common.FCMValue;
 import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
@@ -34,11 +36,13 @@ import java.util.Objects;
 
 import static com.hedera.services.state.merkle.MerkleAccountState.DEFAULT_MEMO;
 
-public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue {
+public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, Identifiable<OwnerIdentifier> {
 
-	public static final int UPPER_BOUND_MEMO_UTF8_BYTES = 1024;
 	static final int MERKLE_VERSION = 1;
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x899641dafcc39164L;
+
+	public static final int UPPER_BOUND_MEMO_UTF8_BYTES = 1024;
+
 	static DomainSerdes serdes = new DomainSerdes();
 
 	private EntityId owner;
@@ -119,6 +123,7 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue {
 	}
 
 	/* --- FastCopyable --- */
+
 	@Override
 	public MerkleUniqueToken copy() {
 		return new MerkleUniqueToken(owner, memo, creationTime);
@@ -134,5 +139,10 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue {
 
 	public RichInstant getCreationTime() {
 		return creationTime;
+	}
+
+	@Override
+	public OwnerIdentifier getIdentity() {
+		return new OwnerIdentifier(this.owner);
 	}
 }

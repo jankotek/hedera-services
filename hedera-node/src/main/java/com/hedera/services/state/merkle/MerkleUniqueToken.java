@@ -97,7 +97,6 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, I
 	}
 
 	/* --- MerkleLeaf --- */
-
 	@Override
 	public long getClassId() {
 		return RUNTIME_CONSTRUCTABLE_ID;
@@ -123,7 +122,6 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, I
 	}
 
 	/* --- FastCopyable --- */
-
 	@Override
 	public MerkleUniqueToken copy() {
 		return new MerkleUniqueToken(owner, memo, creationTime);

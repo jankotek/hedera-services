@@ -1,9 +1,10 @@
 package com.hedera.services.store.tokens.unique;
+
 /*
  * ‌
  * Hedera Services Node
  * ​
- * Copyright (C) 2018 - 2020 Hedera Hashgraph, LLC
+ * Copyright (C) 2018 - 2021 Hedera Hashgraph, LLC
  * ​
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +24,11 @@ import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.ledger.TransactionalLedger;
 import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.ledger.properties.TokenRelProperty;
-import com.hedera.services.state.merkle.*;
+import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.state.merkle.MerkleTokenRelStatus;
+import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.MerkleUniqueTokenId;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.BaseTokenStore;
@@ -35,22 +40,25 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
+
 public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
-	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> nfTokens;
+	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokensSupply;
 
 	public UniqueTokenStore(final EntityIdSource ids,
 							final OptionValidator validator,
 							final GlobalDynamicProperties properties,
 							final Supplier<FCMap<MerkleEntityId, MerkleToken>> tokens,
-							final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokens,
+							final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokensSupply,
 							final TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger
 							) {
 		super(ids, validator, properties, tokens, tokenRelsLedger);
-		this.nfTokens = uniqueTokens;
+		this.uniqueTokensSupply = uniqueTokensSupply;
 	}
 
 	@Override
@@ -59,28 +67,49 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 		// sanity check - does it exist?
 		// is it unique type token? * - not yet impl
 		return tokenSanityCheck(tId, (merkleToken -> {
+			if (!merkleToken.hasSupplyKey()) {
+				return TOKEN_HAS_NO_SUPPLY_KEY;
+			}
+
 			super.mint(tId, 1);
-			final var suppliedTokens = nfTokens.get();
+
+			final var suppliedTokens = uniqueTokensSupply.get();
 			final var eId = EntityId.fromGrpcTokenId(tId);
-			final var owner = this.get(tId).treasury(); // get next available serial num here as well
+			final var owner = get(tId).treasury(); // get next available serial num here as well
 			// TODO serialNum
+			// When a merkleUniqueToken is created, the next present serial number must be available as a method
 
 			final var nftId = new MerkleUniqueTokenId(eId, serialNum);
 			final var nft = new MerkleUniqueToken(owner, memo, creationTime);
-
 			final var putResult = suppliedTokens.putIfAbsent(nftId, nft);
 
 			return putResult == null ? ResponseCodeEnum.OK : ResponseCodeEnum.INVALID_TOKEN_ID;
 		}));
 
 	}
-	// When a merkleToken is created, the next present serial number must be available as a method
-	//
 
 	@Override
 	public MerkleUniqueToken getUnique(final EntityId eId, final int serialNum){
-		return nfTokens.get().get(new MerkleUniqueTokenId(eId, serialNum));
+		return uniqueTokensSupply.get().get(new MerkleUniqueTokenId(eId, serialNum));
 	}
+
+	@Override
+	public Iterator<MerkleUniqueTokenId> getByToken(final MerkleUniqueToken token) {
+		return uniqueTokensSupply.get().inverseGet(token);
+	}
+
+	@Override
+	public Iterator<MerkleUniqueTokenId> getByTokenFromIdx(final MerkleUniqueToken token, final int start) {
+		return uniqueTokensSupply.get().inverseGet(token, start);
+	}
+
+	@Override
+	public Iterator<MerkleUniqueTokenId> getByTokenFromIdxToIdx(final MerkleUniqueToken token, final int start, final int end) {
+		return uniqueTokensSupply.get().inverseGet(token, start, end);
+	}
+
+
+
 
 	// TODO does is it logical to burn such token?
 	@Override
@@ -108,8 +137,4 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
 
 
-	// merkleuniqueId -> merkleuniquetoken
-
-	// super.mint
-	// additional logic for unique representation
 }

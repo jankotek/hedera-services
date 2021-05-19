@@ -25,6 +25,7 @@ import com.hedera.services.state.merkle.MerkleUniqueTokenId;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
 
@@ -32,10 +33,11 @@ import java.util.Iterator;
 
 public interface UniqueStore extends TokenStore {
 
-	ResponseCodeEnum mint(final TokenID tId, int serialNum, String memo, RichInstant creationTime);
+	ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime);
 	MerkleUniqueToken getUnique(final EntityId eId, final int serialNum);
 	Iterator<MerkleUniqueTokenId> getByToken(final MerkleUniqueToken token);
 	Iterator<MerkleUniqueTokenId> getByTokenFromIdx(final MerkleUniqueToken token, final int start);
 	Iterator<MerkleUniqueTokenId> getByTokenFromIdxToIdx(final MerkleUniqueToken token, final int start, final int end);
+	Iterator<MerkleUniqueTokenId> getByAccountFromIdxToIdx(final AccountID aId, final int start, final int end);
 
 }

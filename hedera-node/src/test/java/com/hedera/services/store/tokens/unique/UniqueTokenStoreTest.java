@@ -154,7 +154,6 @@ class UniqueTokenStoreTest {
 	@Test
 	void getUnique() {
 		given(nfTokens.get(new MerkleUniqueTokenId(eId, 0))).willReturn(nft);
-//		nfTokens.put(nftId, nft);
 		var res = store.getUnique(eId, 0);
 		assertEquals(nft, res);
 		res = store.getUnique(eId, 1);

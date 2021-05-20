@@ -51,6 +51,11 @@ import java.util.stream.StreamSupport;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
 
+/**
+ * Provides functionality to work with Unique tokens
+ *
+ * @author Yoan Sredkov
+ */
 public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
 	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokensSupply;
@@ -68,26 +73,21 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
 	@Override
 	public ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime) {
-
 		// is it unique type token? * - not yet impl
 		return tokenSanityCheck(tId, (merkleToken -> {
 			if (!merkleToken.hasSupplyKey()) {
 				return TOKEN_HAS_NO_SUPPLY_KEY;
 			}
-
 			var mintResult = super.mint(tId, 1);
-
 			final var suppliedTokens = uniqueTokensSupply.get();
 			final var eId = EntityId.fromGrpcTokenId(tId);
 			final var owner = get(tId).treasury(); // get next available serial num here as well
 			final int serialNum = 0;
 			// TODO serialNum
 			// When a merkleUniqueToken is created, the next present serial number must be available as a method
-
 			final var nftId = new MerkleUniqueTokenId(eId, serialNum);
 			final var nft = new MerkleUniqueToken(owner, memo, creationTime);
 			final var putResult = suppliedTokens.putIfAbsent(nftId, nft);
-
 			return (putResult == null && mintResult == ResponseCodeEnum.OK) ? ResponseCodeEnum.OK : ResponseCodeEnum.INVALID_TOKEN_ID;
 		}));
 
@@ -105,11 +105,33 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
 	@Override
 	public Iterator<MerkleUniqueTokenId> getByTokenFromIdx(final MerkleUniqueToken token, final int start) {
+		if(start > uniqueTokensSupply.get().size()){
+			throw new IllegalArgumentException("Start index " + start + " is larger than size.");
+		}
+		if (start < 0){
+			throw new IllegalArgumentException("Start index cannot be negative");
+		}
+
 		return uniqueTokensSupply.get().inverseGet(token, start);
 	}
 
 	@Override
 	public Iterator<MerkleUniqueTokenId> getByTokenFromIdxToIdx(final MerkleUniqueToken token, final int start, final int end) {
+		if(start > uniqueTokensSupply.get().size())
+			throw new IllegalArgumentException("Start index " + start + " is larger than size.");
+
+		if (start < 0)
+			throw new IllegalArgumentException("Start index cannot be negative.");
+
+		if(end > uniqueTokensSupply.get().size())
+			throw new IllegalArgumentException("End index "+ end + " is larger than size.");
+
+		if (end < 0)
+			throw new IllegalArgumentException("End index cannot be negative.");
+
+		if (end < start)
+			throw new IllegalArgumentException("Start index cannot be bigger than end. "+ start + " > "+ end);
+
 		return uniqueTokensSupply.get().inverseGet(token, start, end);
 	}
 
@@ -118,14 +140,13 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 	public Iterator<MerkleUniqueTokenId> getByAccountFromIdxToIdx(final AccountID aId, final int start, final int end) {
 
 		if(end < 0 || start < 0)
-			throw new IllegalArgumentException("Neither start, neither end idx can be less than 0");
+			throw new IllegalArgumentException("Start or End index is negative. s- " + start + " e - "+ end);
 
 		if(end < start)
-			throw new IllegalArgumentException("End idx cannot be smaller than start idx");
+			throw new IllegalArgumentException("Start index cannot be bigger than end. "+ start + " > "+ end);
 
 		if (end > uniqueTokensSupply.get().size())
-			throw new IllegalArgumentException("End idx cannot be bigger than map size");
-
+			throw new IllegalArgumentException("End index "+ end + " is larger than size.");
 
 		final var eId = EntityId.fromGrpcAccountId(aId);
 		var tokenSupply = uniqueTokensSupply.get();
@@ -139,9 +160,6 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 					final var nftIds = tokenSupply.inverseGet(merkleUniqueToken);
 					// conversion: iterator -> spliterator -> stream -> set
 					var nftIdsSpliterator = Spliterators.spliteratorUnknownSize(nftIds, 0);
-					// TODO parallel
-					// Pros - utilizes multiple cores, faster
-					// Cons - does not take care of order, which we don't need anyway
 					// returns a stream of sets
 					return StreamSupport.stream(nftIdsSpliterator, true).collect(Collectors.toSet());
 				}).forEach(accountRelatedTokenIds::addAll);// adds all entries from each set into the local scope set
@@ -149,8 +167,6 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 		return List.copyOf(accountRelatedTokenIds).subList(start, end).iterator();
 	}
 
-
-	// TODO does is it logical to burn such token?
 	@Override
 	public ResponseCodeEnum burn(final TokenID tId, final long amount) {
 		return super.burn(tId, amount);
@@ -173,6 +189,7 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 	public ResponseCodeEnum adjustBalance(final AccountID aId, final TokenID tId, final long adjustment) {
 		return super.adjustBalance(aId, tId, adjustment);
 	}
+
 
 
 }

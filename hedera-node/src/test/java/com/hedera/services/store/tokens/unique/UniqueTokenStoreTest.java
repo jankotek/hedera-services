@@ -22,6 +22,7 @@ import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.TokenRelProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
+import com.hedera.services.state.merkle.MerkleAccountTokens;
 import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
@@ -37,7 +38,6 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -81,8 +81,8 @@ class UniqueTokenStoreTest {
 	AccountID newAutoRenewAccount = IdUtils.asAccount("1.2.6");
 	AccountID treasury = IdUtils.asAccount("1.2.3");
 	AccountID sponsor = IdUtils.asAccount("1.2.666");
-	Pair<AccountID, TokenID> sponsorMisc = asTokenRel(sponsor, tokenID);
-	Pair<AccountID, TokenID> treasuryMisc = asTokenRel(treasury, tokenID);
+	Pair<AccountID, TokenID> sponsorPair = asTokenRel(sponsor, tokenID);
+	Pair<AccountID, TokenID> treasuryPair = asTokenRel(treasury, tokenID);
 	long treasuryBalance = 50_000, sponsorBalance = 1_000;
 
 
@@ -92,6 +92,10 @@ class UniqueTokenStoreTest {
 		nftId = mock(MerkleUniqueTokenId.class);//new MerkleUniqueTokenId(eId, 1);
 		nft = mock(MerkleUniqueToken.class); //new MerkleUniqueToken(eId, "memo", RichInstant.fromJava(Instant.now()));
 		token = mock(MerkleToken.class);
+		given(token.isDeleted()).willReturn(false);
+		given(token.treasury()).willReturn(EntityId.fromGrpcAccountId(sponsor));
+		given(token.totalSupply()).willReturn(2000L);
+		given(token.hasSupplyKey()).willReturn(true);
 
 		properties = mock(GlobalDynamicProperties.class);
 
@@ -101,14 +105,17 @@ class UniqueTokenStoreTest {
 
 		tokens = (FCMap<MerkleEntityId, MerkleToken>) mock(FCMap.class);
 		given(tokens.containsKey(MerkleEntityId.fromTokenId(tokenID))).willReturn(true);
+		given(tokens.get(MerkleEntityId.fromTokenId(tokenID))).willReturn(token);
 		given(tokens.getForModify(any())).willReturn(token);
 
-		nfTokens =  mock(FCInvertibleHashMap.class);
+		nfTokens = mock(FCInvertibleHashMap.class);
 		given(nfTokens.containsKey(nftId)).willReturn(true);
 		given(nfTokens.get(nftId)).willReturn(nft);
 		given(nfTokens.inverseGet(any())).willReturn(Collections.singletonList(nftId).iterator());
 		given(nfTokens.inverseGet(any(), anyInt())).willReturn(Collections.singletonList(nftId).iterator());
 		given(nfTokens.inverseGet(any(), anyInt(), anyInt())).willReturn(Collections.singletonList(nftId).iterator());
+		given(nfTokens.size()).willReturn(10);
+
 
 		accountsLedger = (TransactionalLedger<AccountID, AccountProperty, MerkleAccount>) mock(TransactionalLedger.class);
 		given(accountsLedger.exists(treasury)).willReturn(true);
@@ -118,35 +125,24 @@ class UniqueTokenStoreTest {
 		given(accountsLedger.get(treasury, IS_DELETED)).willReturn(false);
 
 		tokenRelsLedger = mock(TransactionalLedger.class);
-		given(tokenRelsLedger.exists(sponsorMisc)).willReturn(true);
-		given(tokenRelsLedger.get(sponsorMisc, TOKEN_BALANCE)).willReturn(sponsorBalance);
-		given(tokenRelsLedger.get(sponsorMisc, IS_FROZEN)).willReturn(false);
-		given(tokenRelsLedger.get(sponsorMisc, IS_KYC_GRANTED)).willReturn(true);
-		given(tokenRelsLedger.exists(treasuryMisc)).willReturn(true);
-		given(tokenRelsLedger.get(treasuryMisc, TOKEN_BALANCE)).willReturn(treasuryBalance);
-		given(tokenRelsLedger.get(treasuryMisc, IS_FROZEN)).willReturn(false);
-		given(tokenRelsLedger.get(treasuryMisc, IS_KYC_GRANTED)).willReturn(true);
+		given(tokenRelsLedger.exists(sponsorPair)).willReturn(true);
+		given(tokenRelsLedger.exists(treasuryPair)).willReturn(true);
+		given(tokenRelsLedger.get(sponsorPair, TOKEN_BALANCE)).willReturn(sponsorBalance);
+		given(tokenRelsLedger.get(sponsorPair, IS_FROZEN)).willReturn(false);
+		given(tokenRelsLedger.get(sponsorPair, IS_KYC_GRANTED)).willReturn(true);
+		given(tokenRelsLedger.get(treasuryPair, TOKEN_BALANCE)).willReturn(treasuryBalance);
+		given(tokenRelsLedger.get(treasuryPair, IS_FROZEN)).willReturn(false);
+		given(tokenRelsLedger.get(treasuryPair, IS_KYC_GRANTED)).willReturn(true);
 
-		store = new UniqueTokenStore(ids, TestContextValidator.TEST_VALIDATOR, properties, ()->tokens,()-> nfTokens, tokenRelsLedger);
-	}
+		store = new UniqueTokenStore(ids, TestContextValidator.TEST_VALIDATOR, properties, () -> tokens, () -> nfTokens, tokenRelsLedger);
+		store.setHederaLedger(hederaLedger);
+		store.setAccountsLedger(accountsLedger);
+		given(store.get(tokenID)).willReturn(token);
 
-	@Test
-	void verifyInject(){
-		assertNotNull(hederaLedger);
-		assertNotNull(tokenRelsLedger);
 	}
 
 	@Test
 	void mint() {
-		store.setHederaLedger(hederaLedger);
-		given(store.exists(tokenID)).willReturn(true);
-		given(tokens.get(MerkleEntityId.fromTokenId(tokenID))).willReturn(token);
-		given(token.isDeleted()).willReturn(false);
-		given(token.hasSupplyKey()).willReturn(true);
-		given(token.treasury()).willReturn(EntityId.fromGrpcAccountId(sponsor));
-		given(token.totalSupply()).willReturn(2000L);
-
-
 		var res = store.mint(tokenID, "memo", RichInstant.fromJava(Instant.now()));
 		assertEquals(ResponseCodeEnum.OK, res);
 	}
@@ -155,6 +151,7 @@ class UniqueTokenStoreTest {
 	void getUnique() {
 		given(nfTokens.get(new MerkleUniqueTokenId(eId, 0))).willReturn(nft);
 		var res = store.getUnique(eId, 0);
+		assertNotNull(res);
 		assertEquals(nft, res);
 		res = store.getUnique(eId, 1);
 		assertNull(res);
@@ -164,43 +161,75 @@ class UniqueTokenStoreTest {
 	void getByToken() {
 		var res = store.getByToken(nft);
 		assertNotNull(res);
-		res.forEachRemaining(Assertions::assertNotNull);
+		res.forEachRemaining(e -> {
+			assertNotNull(e);
+			assertEquals(e, nftId);
+		});
 	}
 
 	@Test
 	void getByTokenFromIdx() {
-		given(nfTokens.size()).willReturn(10);
 		var res = store.getByTokenFromIdx(nft, 5);
 		assertNotNull(res);
+		res.forEachRemaining(e -> {
+			assertNotNull(e);
+			assertEquals(e, nftId);
+		});
+
+		assertThrows(IllegalArgumentException.class, () -> store.getByTokenFromIdx(nft, 15));
 	}
 
 	@Test
 	void getByTokenFromIdxToIdx() {
+
+		var res = store.getByAccountFromIdxToIdx(AccountID.getDefaultInstance(), 0, 0);
+		assertNotNull(res);
+		res.forEachRemaining(e -> {
+			assertNotNull(e);
+			assertEquals(nftId, e);
+		});
 	}
 
 	@Test
 	void getByAccountFromIdxToIdx() {
-		given(nfTokens.size()).willReturn(10);
 		var res = store.getByAccountFromIdxToIdx(AccountID.getDefaultInstance(), 0, 0);
 		assertNotNull(res);
-		assertThrows(IllegalArgumentException.class, ()->{
+		res.forEachRemaining(e -> {
+			assertNotNull(e);
+			assertEquals(nftId, e);
+		});
+		assertThrows(IllegalArgumentException.class, () -> {
 			store.getByAccountFromIdxToIdx(AccountID.getDefaultInstance(), -1, -1);
 		});
 	}
 
 	@Test
 	void burn() {
+
+		var resp = store.burn(tokenID, 1L);
+		assertEquals(resp, ResponseCodeEnum.OK);
 	}
 
 	@Test
 	void wipe() {
+		var res = store.wipe(sponsor, tokenID, 1L, true);
+		assertEquals(ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT, res);
+		given(token.treasury()).willReturn(new EntityId(5, 5, 5)); // other account
+		res = store.wipe(sponsor, tokenID, 1L, true);
+		assertEquals(ResponseCodeEnum.OK, res);
 	}
 
 	@Test
 	void dissociate() {
+		given(hederaLedger.getAssociatedTokens(sponsor)).willReturn(new MerkleAccountTokens(new long[]{1, 2, 3, 3, 2, 1}));
+
+		var res = store.dissociate(sponsor, Collections.singletonList(tokenID));
+		assertEquals(ResponseCodeEnum.OK, res);
 	}
 
 	@Test
 	void adjustBalance() {
+		var res = store.adjustBalance(sponsor, tokenID, 5);
+		assertEquals(ResponseCodeEnum.OK, res);
 	}
 }

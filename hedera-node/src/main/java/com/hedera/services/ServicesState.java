@@ -119,7 +119,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		static final int NUM_0120_CHILDREN = 10;
 		static final int NUM_0130_CHILDREN = 10;
 		static final int NUM_0140_CHILDREN = 10;
-		static final int NFTOKENS = 11;
+		static final int UNIQUE_TOKENS = 11;
 	}
 
 	ServicesContext ctx;
@@ -203,7 +203,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			setChild(ChildIndices.RECORD_STREAM_RUNNING_HASH, initialRecordsRunningHashLeaf);
 			log.info("Created RecordsRunningHashLeaf after <=0.11.0 state restoration");
 		}
-		if(nfTokens() == null) {
+		if(uniqueTokens() == null) {
 			// TODO
 //			setChild(ChildIndices.NFTOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
 			log.info("Created unique tokens FCInvertibleHashMap after <= 0.12 state restoration");
@@ -422,8 +422,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		return getChild(ChildIndices.TOKENS);
 	}
 
-	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> nfTokens() {
-		return getChild(ChildIndices.NFTOKENS);
+	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> uniqueTokens() {
+		return getChild(ChildIndices.UNIQUE_TOKENS);
 	}
 
 	public FCMap<MerkleEntityAssociation, MerkleTokenRelStatus> tokenAssociations() {

@@ -43,11 +43,11 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_WIPE_KEY;
 
-// Initially mostly empty
+/**
+ * Provides functionality to work with Common tokens.
+ */
 public class CommonTokenStore extends BaseTokenStore implements CommonStore {
 
-	// TODO Ask if this can become protected instead of private
-	private final TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger;
 
 	public CommonTokenStore(EntityIdSource ids,
 							OptionValidator validator,
@@ -56,7 +56,6 @@ public class CommonTokenStore extends BaseTokenStore implements CommonStore {
 							TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger
 	) {
 		super(ids, validator, properties, tokens, tokenRelsLedger);
-		this.tokenRelsLedger = tokenRelsLedger;
 	}
 
 	@Override
@@ -70,11 +69,11 @@ public class CommonTokenStore extends BaseTokenStore implements CommonStore {
 			}
 
 			var relationship = asTokenRel(aId, tId);
-			long balance = (long) tokenRelsLedger.get(relationship, TOKEN_BALANCE);
+			long balance = (long) super.getTokenRelsLedger().get(relationship, TOKEN_BALANCE);
 			if (amount > balance) {
 				return INVALID_WIPING_AMOUNT;
 			}
-			tokenRelsLedger.set(relationship, TOKEN_BALANCE, balance - amount);
+			super.getTokenRelsLedger().set(relationship, TOKEN_BALANCE, balance - amount);
 			hederaLedger.updateTokenXfers(tId, aId, -amount);
 
 			apply(tId, t -> t.adjustTotalSupplyBy(-amount));
@@ -82,4 +81,5 @@ public class CommonTokenStore extends BaseTokenStore implements CommonStore {
 			return OK;
 		});
 	}
+
 }

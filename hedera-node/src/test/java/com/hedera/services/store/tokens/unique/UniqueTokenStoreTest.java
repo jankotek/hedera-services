@@ -212,11 +212,7 @@ class UniqueTokenStoreTest {
 
 	@Test
 	void wipe() {
-		var res = store.wipe(sponsor, tokenID, 1L, true);
-		assertEquals(ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT, res);
-		given(token.treasury()).willReturn(new EntityId(5, 5, 5)); // other account
-		res = store.wipe(sponsor, tokenID, 1L, true);
-		assertEquals(ResponseCodeEnum.OK, res);
+
 	}
 
 	@Test

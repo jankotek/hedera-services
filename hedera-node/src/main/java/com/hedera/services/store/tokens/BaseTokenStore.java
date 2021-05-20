@@ -74,7 +74,6 @@ import static com.hedera.services.utils.MiscUtils.asUsableFcKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_IS_TREASURY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
@@ -83,7 +82,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TREASURY_ACCOUNT_FOR_TOKEN;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
@@ -96,19 +94,11 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSO
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 
-// Common Fungible -> what we have now
-// Unique Non-fungible -> what we wanted to do with NFT
-// Unique Fungible -> not discussed
-
-// CF -> HTS, supply, amount
-// UF -> HTS
-
 /**
  * Provides a managing store for arbitrary tokens.
  *
  * @author Michael Tinker
  */
-// TODO make it abstract and `BaseTokenStore`. Use CommonTokenStore everywhere for now
 public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 	private static final Logger log = LogManager.getLogger(BaseTokenStore.class);
 
@@ -329,33 +319,6 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		return sanityChecked(aId, tId, token -> tryAdjustment(aId, tId, adjustment));
 	}
 
-
-	// TODO Only works for common fungible
-	@Override
-	public ResponseCodeEnum wipe(AccountID aId, TokenID tId, long amount, boolean skipKeyCheck) {
-		return sanityChecked(aId, tId, token -> {
-			if (!skipKeyCheck && !token.hasWipeKey()) {
-				return TOKEN_HAS_NO_WIPE_KEY;
-			}
-			if (fromGrpcAccountId(aId).equals(token.treasury())) {
-				return CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
-			}
-
-			var relationship = asTokenRel(aId, tId);
-			long balance = (long) tokenRelsLedger.get(relationship, TOKEN_BALANCE);
-			if (amount > balance) {
-				return INVALID_WIPING_AMOUNT;
-			}
-			// TODO ask if those were the rows
-//			tokenRelsLedger.set(relationship, TOKEN_BALANCE, balance - amount);
-//			hederaLedger.updateTokenXfers(tId, aId, -amount);
-
-			apply(tId, t -> t.adjustTotalSupplyBy(-amount));
-
-			return OK;
-		});
-	}
-
 	// TODO Only works for common fungible
 	@Override
 	public ResponseCodeEnum burn(TokenID tId, long amount) {
@@ -397,7 +360,6 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		});
 	}
 
-	// Most probably will go directly to base
 	@Override
 	public CreationResult<TokenID> createProvisionally(
 			TokenCreateTransactionBody request,
@@ -775,5 +737,8 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 
 	Map<AccountID, Set<TokenID>> getKnownTreasuries() {
 		return knownTreasuries;
+	}
+	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> getTokenRelsLedger() {
+		return tokenRelsLedger;
 	}
 }

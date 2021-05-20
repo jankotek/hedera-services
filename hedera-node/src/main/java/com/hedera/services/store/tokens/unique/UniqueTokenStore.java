@@ -40,7 +40,6 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -151,8 +150,8 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 		final var eId = EntityId.fromGrpcAccountId(aId);
 		var tokenSupply = uniqueTokensSupply.get();
 		final var ownerIdentifier = new OwnerIdentifier(eId);
-		Set<MerkleUniqueTokenId> accountRelatedTokenIds = new HashSet<>();
-		tokenSupply.values()
+		return tokenSupply
+				.values()
 				.stream()
 				.filter(merkleUniqueToken -> merkleUniqueToken.getIdentity().equals(ownerIdentifier)) // filter by owner
 				.map(merkleUniqueToken -> {
@@ -162,9 +161,11 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 					var nftIdsSpliterator = Spliterators.spliteratorUnknownSize(nftIds, 0);
 					// returns a stream of sets
 					return StreamSupport.stream(nftIdsSpliterator, true).collect(Collectors.toSet());
-				}).forEach(accountRelatedTokenIds::addAll);// adds all entries from each set into the local scope set
-
-		return List.copyOf(accountRelatedTokenIds).subList(start, end).iterator();
+				})
+				.flatMap(Set::stream)
+				.collect(Collectors.toList())
+				.subList(start, end)
+				.iterator();
 	}
 
 	@Override
@@ -175,7 +176,8 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 	// TODO
 	@Override
 	public ResponseCodeEnum wipe(final AccountID aId, final TokenID tId, final long amount, final boolean skipKeyCheck) {
-		return super.wipe(aId, tId, amount, skipKeyCheck);
+//		super.wipe(aId, tId, amount, skipKeyCheck);
+		return null;
 	}
 
 	// TODO

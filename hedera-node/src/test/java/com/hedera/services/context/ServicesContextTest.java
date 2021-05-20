@@ -121,7 +121,7 @@ import com.hedera.services.stats.MiscSpeedometers;
 import com.hedera.services.stats.ServicesStatsManager;
 import com.hedera.services.store.schedule.ScheduleStore;
 import com.hedera.services.store.tokens.BaseTokenStore;
-import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.store.tokens.common.CommonStore;
 import com.hedera.services.stream.RecordStreamManager;
 import com.hedera.services.stream.RecordsRunningHashLeaf;
 import com.hedera.services.throttling.HapiThrottling;
@@ -367,7 +367,7 @@ public class ServicesContextTest {
 	void rebuildsStoreViewsIfNonNull() {
 		// setup:
 		ScheduleStore scheduleStore = mock(ScheduleStore.class);
-		TokenStore tokenStore = mock(TokenStore.class);
+		CommonStore tokenStore = mock(CommonStore.class);
 
 		// given:
 		ServicesContext ctx = new ServicesContext(nodeId, platform, state, propertySources);

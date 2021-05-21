@@ -51,8 +51,7 @@ import java.util.stream.StreamSupport;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
 
 /**
- * Provides functionality to work with Unique tokens
- *
+ * Provides functionality to work with Unique tokens.
  * @author Yoan Sredkov
  */
 public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {

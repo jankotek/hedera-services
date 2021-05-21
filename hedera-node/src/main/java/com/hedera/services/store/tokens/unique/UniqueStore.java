@@ -31,6 +31,10 @@ import com.hederahashgraph.api.proto.java.TokenID;
 
 import java.util.Iterator;
 
+/**
+ * An interface which defines methods for the UniqueTokenStore
+ * @author Yoan Sredkov
+ */
 public interface UniqueStore extends TokenStore {
 
 	ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime);

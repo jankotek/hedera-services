@@ -28,6 +28,10 @@ import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
 
 import java.util.List;
 
+/**
+ * Interface, defining the CommonTokenStore methods
+ * @author Yoan Sredkov
+ */
 public interface CommonStore extends TokenStore {
 	ResponseCodeEnum burn(TokenID tId, long amount);
 	ResponseCodeEnum mint(TokenID tId, long amount);

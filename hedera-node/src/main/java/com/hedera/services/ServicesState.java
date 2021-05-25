@@ -205,7 +205,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		}
 		if(uniqueTokens() == null) {
 			// TODO
-//			setChild(ChildIndices.NFTOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
+//			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
 			log.info("Created unique tokens FCInvertibleHashMap after <= 0.12 state restoration");
 		}
 	}
@@ -243,7 +243,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			setChild(ChildIndices.TOKEN_ASSOCIATIONS, new FCMap<>());
 			setChild(ChildIndices.DISK_FS, new MerkleDiskFs());
 			setChild(ChildIndices.SCHEDULE_TXS, new FCMap<>());
-//			setChild(ChildIndices.NFTOKENS, new FCMap<>());
+//			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
 		} else {
 			log.info("Init called on Services node {} WITH Merkle saved state", nodeId);
 

@@ -22,7 +22,6 @@ import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.TokenRelProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
-import com.hedera.services.state.merkle.MerkleAccountTokens;
 import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
@@ -50,9 +49,6 @@ import static com.hedera.services.ledger.properties.TokenRelProperty.IS_FROZEN;
 import static com.hedera.services.ledger.properties.TokenRelProperty.IS_KYC_GRANTED;
 import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
@@ -89,8 +85,8 @@ class UniqueTokenStoreTest {
 	@BeforeEach
 	void setUp() {
 		eId = mock(EntityId.class);
-		nftId = mock(MerkleUniqueTokenId.class);//new MerkleUniqueTokenId(eId, 1);
-		nft = mock(MerkleUniqueToken.class); //new MerkleUniqueToken(eId, "memo", RichInstant.fromJava(Instant.now()));
+		nftId = mock(MerkleUniqueTokenId.class);
+		nft = mock(MerkleUniqueToken.class);
 		token = mock(MerkleToken.class);
 		given(token.isDeleted()).willReturn(false);
 		given(token.treasury()).willReturn(EntityId.fromGrpcAccountId(sponsor));
@@ -144,88 +140,6 @@ class UniqueTokenStoreTest {
 	@Test
 	void mint() {
 		var res = store.mint(tokenID, "memo", RichInstant.fromJava(Instant.now()));
-		assertEquals(ResponseCodeEnum.OK, res);
-	}
-
-	@Test
-	void getUnique() {
-		given(nfTokens.get(new MerkleUniqueTokenId(eId, 0))).willReturn(nft);
-		var res = store.getUnique(eId, 0);
-		assertNotNull(res);
-		assertEquals(nft, res);
-		res = store.getUnique(eId, 1);
-		assertNull(res);
-	}
-
-	@Test
-	void getByToken() {
-		var res = store.getByToken(nft);
-		assertNotNull(res);
-		res.forEachRemaining(e -> {
-			assertNotNull(e);
-			assertEquals(e, nftId);
-		});
-	}
-
-	@Test
-	void getByTokenFromIdx() {
-		var res = store.getByTokenFromIdx(nft, 5);
-		assertNotNull(res);
-		res.forEachRemaining(e -> {
-			assertNotNull(e);
-			assertEquals(e, nftId);
-		});
-
-		assertThrows(IllegalArgumentException.class, () -> store.getByTokenFromIdx(nft, 15));
-	}
-
-	@Test
-	void getByTokenFromIdxToIdx() {
-
-		var res = store.getByAccountFromIdxToIdx(AccountID.getDefaultInstance(), 0, 0);
-		assertNotNull(res);
-		res.forEachRemaining(e -> {
-			assertNotNull(e);
-			assertEquals(nftId, e);
-		});
-	}
-
-	@Test
-	void getByAccountFromIdxToIdx() {
-		var res = store.getByAccountFromIdxToIdx(AccountID.getDefaultInstance(), 0, 0);
-		assertNotNull(res);
-		res.forEachRemaining(e -> {
-			assertNotNull(e);
-			assertEquals(nftId, e);
-		});
-		assertThrows(IllegalArgumentException.class, () -> {
-			store.getByAccountFromIdxToIdx(AccountID.getDefaultInstance(), -1, -1);
-		});
-	}
-
-	@Test
-	void burn() {
-
-		var resp = store.burn(tokenID, 1L);
-		assertEquals(resp, ResponseCodeEnum.OK);
-	}
-
-	@Test
-	void wipe() {
-
-	}
-
-	@Test
-	void dissociate() {
-		given(hederaLedger.getAssociatedTokens(sponsor)).willReturn(new MerkleAccountTokens(new long[]{1, 2, 3, 3, 2, 1}));
-
-		var res = store.dissociate(sponsor, Collections.singletonList(tokenID));
-		assertEquals(ResponseCodeEnum.OK, res);
-	}
-
-	@Test
-	void adjustBalance() {
-		var res = store.adjustBalance(sponsor, tokenID, 5);
 		assertEquals(ResponseCodeEnum.OK, res);
 	}
 }

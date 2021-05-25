@@ -1434,18 +1434,22 @@ public class ServicesContext {
 		}
 		return globalDynamicProperties;
 	}
+	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelationsLedger(){
+		TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
+				new TransactionalLedger<>(
+						TokenRelProperty.class,
+						MerkleTokenRelStatus::new,
+						backingTokenRels(),
+						new ChangeSummaryManager<>());
+		tokenRelsLedger.setKeyComparator(REL_CMP);
+		tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
+		return tokenRelsLedger;
+	}
 
-	// TODO make it CommonTokenStore
 	public TokenStore tokenStore() {
 		if (tokenStore == null) {
 			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
-					new TransactionalLedger<>(
-							TokenRelProperty.class,
-							MerkleTokenRelStatus::new,
-							backingTokenRels(),
-							new ChangeSummaryManager<>());
-			tokenRelsLedger.setKeyComparator(REL_CMP);
-			tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
+					tokenRelationsLedger();
 			tokenStore = new CommonTokenStore(
 					ids(),
 					validator(),
@@ -1456,18 +1460,11 @@ public class ServicesContext {
 		return tokenStore;
 	}
 
-	// uniqueTokenStore
 	public UniqueStore uniqueTokenStore() {
 		if (uniqueStore == null) {
 
 			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
-					new TransactionalLedger<>(
-							TokenRelProperty.class,
-							MerkleTokenRelStatus::new,
-							backingTokenRels(),
-							new ChangeSummaryManager<>());
-			tokenRelsLedger.setKeyComparator(REL_CMP);
-			tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
+					tokenRelationsLedger();
 
 			uniqueStore = new UniqueTokenStore(ids(), validator(), globalDynamicProperties(), this::tokens,
 					this::uniqueTokens, tokenRelsLedger);

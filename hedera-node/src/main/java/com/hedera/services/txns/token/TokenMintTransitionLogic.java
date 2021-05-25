@@ -34,7 +34,11 @@ import org.apache.logging.log4j.Logger;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 /**
  * Provides the state transition for token minting.
@@ -50,8 +54,7 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 	private final TokenStore uniqueStore;
 	private final TransactionContext txnCtx;
 
-	// Todo add the 2 types of stores (their interfaces) here
-	public TokenMintTransitionLogic(
+	public TokenMintTransitionLogic (
 			CommonStore commonStore,
 			UniqueStore uniqueStore,
 			TransactionContext txnCtx
@@ -61,7 +64,6 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 		this.txnCtx = txnCtx;
 	}
 
-	// TODO temporary fix
 	public TokenMintTransitionLogic(
 			TokenStore commonStore,
 			TransactionContext txnCtx

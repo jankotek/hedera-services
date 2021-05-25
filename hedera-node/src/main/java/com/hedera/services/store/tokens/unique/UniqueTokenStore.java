@@ -40,18 +40,13 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.Spliterators;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
 
 /**
  * Provides functionality to work with Unique tokens.
+ *
  * @author Yoan Sredkov
  */
 public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
@@ -79,7 +74,7 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			var mintResult = super.mint(tId, 1);
 			final var suppliedTokens = uniqueTokensSupply.get();
 			final var eId = EntityId.fromGrpcTokenId(tId);
-			final var owner = get(tId).treasury(); // get next available serial num here as well
+			final var owner = get(tId).treasury();
 			final int serialNum = 0;
 			// TODO serialNum
 			// When a merkleUniqueToken is created, the next present serial number must be available as a method
@@ -92,105 +87,12 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 	}
 
 	@Override
-	public MerkleUniqueToken getUnique(final EntityId eId, final int serialNum) {
-		return uniqueTokensSupply.get().get(new MerkleUniqueTokenId(eId, serialNum));
-	}
-
-	@Override
-	public Iterator<MerkleUniqueTokenId> getByToken(final MerkleUniqueToken token) {
-		return uniqueTokensSupply.get().inverseGet(token);
-	}
-
-	@Override
-	public Iterator<MerkleUniqueTokenId> getByTokenFromIdx(final MerkleUniqueToken token, final int start) {
-		if(start > uniqueTokensSupply.get().size()){
-			throw new IllegalArgumentException("Start index " + start + " is larger than size.");
-		}
-		if (start < 0){
-			throw new IllegalArgumentException("Start index cannot be negative");
-		}
-
-		return uniqueTokensSupply.get().inverseGet(token, start);
-	}
-
-	@Override
-	public Iterator<MerkleUniqueTokenId> getByTokenFromIdxToIdx(final MerkleUniqueToken token, final int start, final int end) {
-		if(start > uniqueTokensSupply.get().size())
-			throw new IllegalArgumentException("Start index " + start + " is larger than size.");
-
-		if (start < 0)
-			throw new IllegalArgumentException("Start index cannot be negative.");
-
-		if(end > uniqueTokensSupply.get().size())
-			throw new IllegalArgumentException("End index "+ end + " is larger than size.");
-
-		if (end < 0)
-			throw new IllegalArgumentException("End index cannot be negative.");
-
-		if (end < start)
-			throw new IllegalArgumentException("Start index cannot be bigger than end. "+ start + " > "+ end);
-
-		return uniqueTokensSupply.get().inverseGet(token, start, end);
-	}
-
-	// currently not taking care of start/end
-	@Override
-	public Iterator<MerkleUniqueTokenId> getByAccountFromIdxToIdx(final AccountID aId, final int start, final int end) {
-
-		if(end < 0 || start < 0)
-			throw new IllegalArgumentException("Start or End index is negative. s- " + start + " e - "+ end);
-
-		if(end < start)
-			throw new IllegalArgumentException("Start index cannot be bigger than end. "+ start + " > "+ end);
-
-		if (end > uniqueTokensSupply.get().size())
-			throw new IllegalArgumentException("End index "+ end + " is larger than size.");
-
-		final var eId = EntityId.fromGrpcAccountId(aId);
-		var tokenSupply = uniqueTokensSupply.get();
-		final var ownerIdentifier = new OwnerIdentifier(eId);
-		return tokenSupply
-				.values()
-				.stream()
-				.filter(merkleUniqueToken -> merkleUniqueToken.getIdentity().equals(ownerIdentifier)) // filter by owner
-				.map(merkleUniqueToken -> {
-					// fetch our iterators
-					final var nftIds = tokenSupply.inverseGet(merkleUniqueToken);
-					// conversion: iterator -> spliterator -> stream -> set
-					var nftIdsSpliterator = Spliterators.spliteratorUnknownSize(nftIds, 0);
-					// returns a stream of sets
-					return StreamSupport.stream(nftIdsSpliterator, true).collect(Collectors.toSet());
-				})
-				.flatMap(Set::stream)
-				.collect(Collectors.toList())
-				.subList(start, end)
-				.iterator();
-	}
-
-	@Override
-	public ResponseCodeEnum burn(final TokenID tId, final long amount) {
-		return super.burn(tId, amount);
-	}
-
-	// TODO
-	@Override
-	public ResponseCodeEnum wipe(final AccountID aId, final TokenID tId, final long amount, final boolean skipKeyCheck) {
-//		super.wipe(aId, tId, amount, skipKeyCheck);
+	public ResponseCodeEnum wipe(final AccountID aId, final TokenID tId, final long wipingAmount, final boolean skipKeyCheck) {
 		return null;
 	}
 
-	// TODO
 	@Override
-	public ResponseCodeEnum dissociate(final AccountID aId, final List<TokenID> targetTokens) {
-		return super.dissociate(aId, targetTokens);
+	public TokenID resolve(final TokenID id) {
+		return super.resolve(id);
 	}
-
-	// TODO
-	@Override
-	public ResponseCodeEnum adjustBalance(final AccountID aId, final TokenID tId, final long adjustment) {
-		return super.adjustBalance(aId, tId, adjustment);
-	}
-
-
-
 }

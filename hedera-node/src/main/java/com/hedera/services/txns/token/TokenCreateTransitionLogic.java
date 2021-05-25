@@ -55,8 +55,7 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
 	private final OptionValidator validator;
-	private final TokenStore store; // CommonTokenStore
-	// UniqueTokenStore
+	private final TokenStore store;
 	private final HederaLedger ledger;
 	private final TransactionContext txnCtx;
 

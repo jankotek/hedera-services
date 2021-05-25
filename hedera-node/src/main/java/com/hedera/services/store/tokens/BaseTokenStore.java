@@ -738,7 +738,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 	Map<AccountID, Set<TokenID>> getKnownTreasuries() {
 		return knownTreasuries;
 	}
-	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> getTokenRelsLedger() {
+	protected TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> getTokenRelsLedger() {
 		return tokenRelsLedger;
 	}
 }

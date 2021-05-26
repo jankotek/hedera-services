@@ -54,7 +54,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 	public static final int UPPER_BOUND_TOKEN_NAME_UTF8_BYTES = 1024;
 
 	private int decimals;
-	private long currentSerialNum = 1;
+	private long currentSerialNum;
 	private long expiry;
 	private long totalSupply;
 	private long autoRenewPeriod = UNUSED_AUTO_RENEW_PERIOD;

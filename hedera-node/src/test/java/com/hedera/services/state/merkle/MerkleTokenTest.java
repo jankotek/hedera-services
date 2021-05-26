@@ -65,7 +65,7 @@ class MerkleTokenTest {
 	long expiry = Instant.now().getEpochSecond() + 1_234_567, otherExpiry = expiry + 2_345_678;
 	long autoRenewPeriod = 1_234_567, otherAutoRenewPeriod = 2_345_678;
 	long totalSupply = 1_000_000, otherTotalSupply = 1_000_001;
-	long currentSerialNum = 1;
+	long currentSerialNum = 0;
 	boolean freezeDefault = true, otherFreezeDefault = false;
 	boolean accountsKycGrantedByDefault = true, otherAccountsKycGrantedByDefault = false;
 	EntityId treasury = new EntityId(1, 2, 3),

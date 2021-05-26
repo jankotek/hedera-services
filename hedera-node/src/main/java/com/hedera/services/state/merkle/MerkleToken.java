@@ -54,6 +54,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 	public static final int UPPER_BOUND_TOKEN_NAME_UTF8_BYTES = 1024;
 
 	private int decimals;
+	private int currentSerialNum;
 	private long expiry;
 	private long totalSupply;
 	private long autoRenewPeriod = UNUSED_AUTO_RENEW_PERIOD;
@@ -111,6 +112,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 				this.deleted == that.deleted &&
 				this.totalSupply == that.totalSupply &&
 				this.decimals == that.decimals &&
+				this.currentSerialNum == that.currentSerialNum &&
 				this.accountsFrozenByDefault == that.accountsFrozenByDefault &&
 				this.accountsKycGrantedByDefault == that.accountsKycGrantedByDefault &&
 				Objects.equals(this.symbol, that.symbol) &&
@@ -132,6 +134,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 				deleted,
 				totalSupply,
 				decimals,
+				currentSerialNum,
 				adminKey,
 				freezeKey,
 				kycKey,
@@ -159,6 +162,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 				.add("treasury", treasury.toAbbrevString())
 				.add("totalSupply", totalSupply)
 				.add("decimals", decimals)
+				.add("currentSerialNum", currentSerialNum)
 				.add("autoRenewAccount", readableAutoRenewAccount())
 				.add("autoRenewPeriod", autoRenewPeriod)
 				.add("adminKey", describe(adminKey))
@@ -197,6 +201,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		treasury = in.readSerializable();
 		totalSupply = in.readLong();
 		decimals = in.readInt();
+		currentSerialNum = in.readInt();
 		accountsFrozenByDefault = in.readBoolean();
 		accountsKycGrantedByDefault = in.readBoolean();
 		adminKey = serdes.readNullable(in, serdes::deserializeKey);
@@ -220,6 +225,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		out.writeSerializable(treasury, true);
 		out.writeLong(totalSupply);
 		out.writeInt(decimals);
+		out.writeInt(currentSerialNum);
 		out.writeBoolean(accountsFrozenByDefault);
 		out.writeBoolean(accountsKycGrantedByDefault);
 		serdes.writeNullable(adminKey, out, serdes::serializeKey);
@@ -246,6 +252,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		fc.setDeleted(deleted);
 		fc.setAutoRenewPeriod(autoRenewPeriod);
 		fc.setAutoRenewAccount(autoRenewAccount);
+		fc.setCurrentSerialNum(currentSerialNum);
 		if (adminKey != UNUSED_KEY) {
 			fc.setAdminKey(adminKey);
 		}
@@ -418,4 +425,17 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 	public void setMemo(String memo) {
 		this.memo = memo;
 	}
+
+	public int getCurrentSerialNum() {
+		return currentSerialNum;
+	}
+
+	public void setCurrentSerialNum(final int currentSerialNum) {
+		this.currentSerialNum = currentSerialNum;
+	}
+
+	public void incrementSerialNum(){
+		this.currentSerialNum++;
+	}
+
 }

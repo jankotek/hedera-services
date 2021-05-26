@@ -54,6 +54,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class UniqueTokenStoreTest {
 
@@ -142,10 +143,7 @@ class UniqueTokenStoreTest {
 	void mint() {
 		var res = store.mint(tokenID, "memo", RichInstant.fromJava(Instant.now()));
 		assertEquals(ResponseCodeEnum.OK, res);
-		given(token.incrementSerialNum()).willReturn(1L);
-		given(store.get(tokenID)).willReturn(token);
-		var r = store.get(tokenID);
-		assertEquals(1, r.getCurrentSerialNum());
+		verify(token).incrementSerialNum();
 	}
 
 	@Test

@@ -27,6 +27,7 @@ import com.hederahashgraph.api.proto.java.TokenID;
 
 /**
  * An interface which defines methods for the UniqueTokenStore
+ *
  * @author Yoan Sredkov
  */
 public interface UniqueStore extends TokenStore {

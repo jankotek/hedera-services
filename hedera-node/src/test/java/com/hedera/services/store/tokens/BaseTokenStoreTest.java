@@ -29,12 +29,23 @@ import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.TokenRelProperty;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.sigs.utils.ImmutableKeyUtils;
-import com.hedera.services.state.merkle.*;
+import com.hedera.services.state.merkle.MerkleAccount;
+import com.hedera.services.state.merkle.MerkleAccountTokens;
+import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.tokens.common.CommonTokenStore;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.utils.IdUtils;
-import com.hederahashgraph.api.proto.java.*;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.Duration;
+import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
+import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,37 +54,83 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static com.hedera.services.ledger.accounts.BackingTokenRels.asTokenRel;
 import static com.hedera.services.ledger.properties.AccountProperty.IS_DELETED;
-import static com.hedera.services.ledger.properties.TokenRelProperty.*;
+import static com.hedera.services.ledger.properties.TokenRelProperty.IS_FROZEN;
+import static com.hedera.services.ledger.properties.TokenRelProperty.IS_KYC_GRANTED;
+import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
 import static com.hedera.services.state.merkle.MerkleEntityId.fromTokenId;
-import static com.hedera.test.factories.scenarios.TxnHandlingScenario.*;
+import static com.hedera.test.factories.scenarios.TxnHandlingScenario.COMPLEX_KEY_ACCOUNT_KT;
+import static com.hedera.test.factories.scenarios.TxnHandlingScenario.MISC_ACCOUNT_KT;
+import static com.hedera.test.factories.scenarios.TxnHandlingScenario.TOKEN_ADMIN_KT;
+import static com.hedera.test.factories.scenarios.TxnHandlingScenario.TOKEN_FREEZE_KT;
+import static com.hedera.test.factories.scenarios.TxnHandlingScenario.TOKEN_KYC_KT;
+import static com.hedera.test.factories.scenarios.TxnHandlingScenario.TOKEN_TREASURY_KT;
 import static com.hedera.test.mocks.TestContextValidator.CONSENSUS_NOW;
 import static com.hedera.test.mocks.TestContextValidator.TEST_VALIDATOR;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_DELETED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_IS_TREASURY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING_AMOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKENS_PER_ACCOUNT_LIMIT_EXCEEDED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_FREEZE_KEY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_KYC_KEY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_WIPE_KEY;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABLE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.longThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.mock;
+import static org.mockito.BDDMockito.never;
+import static org.mockito.BDDMockito.verify;
+import static org.mockito.BDDMockito.willCallRealMethod;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 
 class BaseTokenStoreTest {
+	private static EnumSet<KeyType> NO_KEYS = EnumSet.noneOf(KeyType.class);
+	private static EnumSet<KeyType> ALL_KEYS = EnumSet.complementOf(EnumSet.of(KeyType.EMPTY_ADMIN));
 	EntityIdSource ids;
 	GlobalDynamicProperties properties;
 	FCMap<MerkleEntityId, MerkleToken> tokens;
 	TransactionalLedger<AccountID, AccountProperty, MerkleAccount> accountsLedger;
 	TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger;
 	HederaLedger hederaLedger;
-
 	MerkleToken token;
 	MerkleToken modifiableToken;
 	MerkleAccount account;
-
 	Key newKey = TxnHandlingScenario.TOKEN_REPLACE_KT.asKey();
 	JKey newFcKey = TxnHandlingScenario.TOKEN_REPLACE_KT.asJKeyUnchecked();
 	Key adminKey, kycKey, freezeKey, supplyKey, wipeKey;
@@ -107,7 +164,6 @@ class BaseTokenStoreTest {
 	int MAX_TOKEN_NAME_UTF8_BYTES = 100;
 	Pair<AccountID, TokenID> sponsorMisc = asTokenRel(sponsor, misc);
 	Pair<AccountID, TokenID> treasuryMisc = asTokenRel(treasury, misc);
-
 	BaseTokenStore subject;
 
 	@BeforeEach
@@ -168,7 +224,9 @@ class BaseTokenStoreTest {
 		subject = new CommonTokenStore(ids, TEST_VALIDATOR, properties, () -> tokens, tokenRelsLedger);
 		subject.setAccountsLedger(accountsLedger);
 		subject.setHederaLedger(hederaLedger);
-		subject.knownTreasuries.put(treasury, new HashSet<>() {{ add(misc); }});
+		subject.knownTreasuries.put(treasury, new HashSet<>() {{
+			add(misc);
+		}});
 	}
 
 	@Test
@@ -184,7 +242,7 @@ class BaseTokenStoreTest {
 		// then:
 		verify(tokens, times(2)).forEach(captor.capture());
 		// and:
-		BiConsumer<MerkleEntityId,  MerkleToken> visitor = captor.getAllValues().get(1);
+		BiConsumer<MerkleEntityId, MerkleToken> visitor = captor.getAllValues().get(1);
 
 		// and when:
 		visitor.accept(fromTokenId(misc), token);
@@ -891,7 +949,6 @@ class BaseTokenStoreTest {
 		assertEquals(INVALID_TOKEN_ID, outcome);
 	}
 
-
 	@Test
 	public void updateRejectsInappropriateKycKey() {
 		given(tokens.getForModify(fromTokenId(misc))).willReturn(token);
@@ -1009,7 +1066,7 @@ class BaseTokenStoreTest {
 	public void isTreasuryForTokenReturnsFalse() {
 		// setup:
 		subject.knownTreasuries.clear();
-		
+
 		// expect:
 		assertFalse(subject.isTreasuryForToken(treasury, misc));
 	}
@@ -1028,7 +1085,6 @@ class BaseTokenStoreTest {
 		// expect:
 		assertThrows(IllegalArgumentException.class, () -> subject.removeKnownTreasuryForToken(treasury, misc));
 	}
-
 
 	@Test
 	public void updateHappyPathIgnoresZeroExpiry() {
@@ -1154,13 +1210,6 @@ class BaseTokenStoreTest {
 		verify(token).setAutoRenewAccount(EntityId.fromGrpcAccountId(newAutoRenewAccount));
 		verify(token).setAutoRenewPeriod(newAutoRenewPeriod);
 	}
-
-	enum KeyType {
-		WIPE, FREEZE, SUPPLY, KYC, ADMIN, EMPTY_ADMIN
-	}
-
-	private static EnumSet<KeyType> NO_KEYS = EnumSet.noneOf(KeyType.class);
-	private static EnumSet<KeyType> ALL_KEYS = EnumSet.complementOf(EnumSet.of(KeyType.EMPTY_ADMIN));
 
 	private TokenUpdateTransactionBody updateWith(
 			EnumSet<KeyType> keys,
@@ -1392,7 +1441,7 @@ class BaseTokenStoreTest {
 		given(token.isDeleted()).willReturn(true);
 
 		// when:
-		var status = subject.wipe(sponsor, misc, adjustment,false);
+		var status = subject.wipe(sponsor, misc, adjustment, false);
 
 		// then:
 		assertEquals(ResponseCodeEnum.TOKEN_WAS_DELETED, status);
@@ -1794,5 +1843,9 @@ class BaseTokenStoreTest {
 
 	private Duration enduring(long secs) {
 		return Duration.newBuilder().setSeconds(secs).build();
+	}
+
+	enum KeyType {
+		WIPE, FREEZE, SUPPLY, KYC, ADMIN, EMPTY_ADMIN
 	}
 }

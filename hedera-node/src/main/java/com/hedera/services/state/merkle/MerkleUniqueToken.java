@@ -38,11 +38,9 @@ import static com.hedera.services.state.merkle.MerkleAccountState.DEFAULT_MEMO;
 
 public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, Identifiable<OwnerIdentifier> {
 
+	public static final int UPPER_BOUND_MEMO_UTF8_BYTES = 1024;
 	static final int MERKLE_VERSION = 1;
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x899641dafcc39164L;
-
-	public static final int UPPER_BOUND_MEMO_UTF8_BYTES = 1024;
-
 	static DomainSerdes serdes = new DomainSerdes();
 
 	private EntityId owner;

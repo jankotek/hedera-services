@@ -54,7 +54,7 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 	private final TokenStore uniqueStore;
 	private final TransactionContext txnCtx;
 
-	public TokenMintTransitionLogic (
+	public TokenMintTransitionLogic(
 			CommonStore commonStore,
 			UniqueStore uniqueStore,
 			TransactionContext txnCtx
@@ -84,7 +84,7 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 				// if token.getType .... then decide how to mint
 				var outcome = commonStore.mint(id, op.getAmount());
 				txnCtx.setStatus((outcome == OK) ? SUCCESS : outcome);
-				if(outcome == OK) {
+				if (outcome == OK) {
 					txnCtx.setNewTotalSupply(commonStore.get(id).totalSupply());
 				}
 			}

@@ -1,3 +1,5 @@
+package com.hedera.services.store.tokens.unique;
+
 /*
  * ‌
  * Hedera Services Node
@@ -13,8 +15,6 @@
  * limitations under the License.
  */
 
-package com.hedera.services.store.tokens.unique;
-
 
 import com.hedera.services.state.submerkle.EntityId;
 import org.junit.jupiter.api.Test;
@@ -29,17 +29,17 @@ class OwnerIdentifierTest {
 	OwnerIdentifier oid2 = new OwnerIdentifier(new EntityId(1, 2, 3));
 
 	@Test
-	void testRawEquality(){
+	void testRawEquality() {
 		assertEquals(oid1, oid2);
 	}
 
 	@Test
-	void testEqualityWithEquals(){
+	void testEqualityWithEquals() {
 		assertTrue(oid1.equals(oid2));
 	}
 
 	@Test
-	void testEqualityWithHashCode(){
+	void testEqualityWithHashCode() {
 		assertEquals(oid1.hashCode(), oid2.hashCode());
 	}
 }

@@ -149,13 +149,13 @@ class UniqueTokenStoreTest {
 	}
 
 	@Test
-	void wipe(){
+	void wipe() {
 		var res = store.wipe(treasury, tokenID, 1, true);
 		assertNull(res);
 	}
 
 	@Test
-	void resolve(){
+	void resolve() {
 		var res = store.resolve(tokenID);
 		assertEquals(tokenID, res);
 	}

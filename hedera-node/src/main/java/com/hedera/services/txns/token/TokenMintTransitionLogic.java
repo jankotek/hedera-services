@@ -22,6 +22,8 @@ package com.hedera.services.txns.token;
 
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.store.tokens.common.CommonStore;
+import com.hedera.services.store.tokens.unique.UniqueStore;
 import com.hedera.services.txns.TransitionLogic;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
@@ -48,32 +50,42 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
-	private final TokenStore store;
-	// UniqueStore.mint
-	// CommonStore.mint
+	private final TokenStore commonStore;
+	private final TokenStore uniqueStore;
 	private final TransactionContext txnCtx;
 
-	// Todo add the 2 types of stores (their interfaces) here
 	public TokenMintTransitionLogic(
-			TokenStore store,
+			CommonStore commonStore,
+			UniqueStore uniqueStore,
 			TransactionContext txnCtx
 	) {
-		this.store = store;
+		this.commonStore = commonStore;
+		this.uniqueStore = uniqueStore;
 		this.txnCtx = txnCtx;
+	}
+
+	public TokenMintTransitionLogic(
+			TokenStore commonStore,
+			TransactionContext txnCtx
+	) {
+		this.commonStore = commonStore;
+		this.txnCtx = txnCtx;
+		this.uniqueStore = null;
 	}
 
 	@Override
 	public void doStateTransition() {
 		try {
 			var op = txnCtx.accessor().getTxn().getTokenMint();
-			var id = store.resolve(op.getToken());
+			var id = commonStore.resolve(op.getToken());
 			if (id == TokenStore.MISSING_TOKEN) {
 				txnCtx.setStatus(INVALID_TOKEN_ID);
 			} else {
-				var outcome = store.mint(id, op.getAmount());
+				// if token.getType .... then decide how to mint
+				var outcome = commonStore.mint(id, op.getAmount());
 				txnCtx.setStatus((outcome == OK) ? SUCCESS : outcome);
-				if(outcome == OK) {
-					txnCtx.setNewTotalSupply(store.get(id).totalSupply());
+				if (outcome == OK) {
+					txnCtx.setNewTotalSupply(commonStore.get(id).totalSupply());
 				}
 			}
 		} catch (Exception e) {

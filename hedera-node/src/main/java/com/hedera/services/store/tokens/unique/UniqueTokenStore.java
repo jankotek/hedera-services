@@ -1,8 +1,10 @@
-package com.hedera.services.store.tokens.unique;/*
+package com.hedera.services.store.tokens.unique;
+
+/*
  * ‌
  * Hedera Services Node
  * ​
- * Copyright (C) 2018 - 2020 Hedera Hashgraph, LLC
+ * Copyright (C) 2018 - 2021 Hedera Hashgraph, LLC
  * ​
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +20,78 @@ package com.hedera.services.store.tokens.unique;/*
  * ‍
  */
 
-public class UniqueTokenStore {
+import com.hedera.services.context.properties.GlobalDynamicProperties;
+import com.hedera.services.ledger.TransactionalLedger;
+import com.hedera.services.ledger.ids.EntityIdSource;
+import com.hedera.services.ledger.properties.TokenRelProperty;
+import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.state.merkle.MerkleTokenRelStatus;
+import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.MerkleUniqueTokenId;
+import com.hedera.services.state.submerkle.EntityId;
+import com.hedera.services.state.submerkle.RichInstant;
+import com.hedera.services.store.tokens.BaseTokenStore;
+import com.hedera.services.txns.validation.OptionValidator;
+import com.hedera.services.utils.invertible_fchashmap.FCInvertibleHashMap;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.TokenID;
+import com.swirlds.fcmap.FCMap;
+import org.apache.commons.lang3.tuple.Pair;
 
-	// merkleuniqueId -> merkleuniquetoken
+import java.util.function.Supplier;
 
-	// super.mint
-	// additional logic for unique representation
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
+
+/**
+ * Provides functionality to work with Unique tokens.
+ *
+ * @author Yoan Sredkov
+ */
+public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
+
+	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokensSupply;
+
+	public UniqueTokenStore(final EntityIdSource ids,
+							final OptionValidator validator,
+							final GlobalDynamicProperties properties,
+							final Supplier<FCMap<MerkleEntityId, MerkleToken>> tokens,
+							final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokensSupply,
+							final TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger
+	) {
+		super(ids, validator, properties, tokens, tokenRelsLedger);
+		this.uniqueTokensSupply = uniqueTokensSupply;
+	}
+
+	@Override
+	public ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime) {
+		// is it unique type token? * - not yet impl
+		return tokenSanityCheck(tId, (merkleToken -> {
+			if (!merkleToken.hasSupplyKey()) {
+				return TOKEN_HAS_NO_SUPPLY_KEY;
+			}
+			var mintResult = super.mint(tId, 1);
+			final var suppliedTokens = uniqueTokensSupply.get();
+			final var eId = EntityId.fromGrpcTokenId(tId);
+			final var owner = merkleToken.treasury();
+			final long serialNum = merkleToken.incrementSerialNum();
+
+			final var nftId = new MerkleUniqueTokenId(eId, Long.valueOf(serialNum).intValue());
+			final var nft = new MerkleUniqueToken(owner, memo, creationTime);
+			final var putResult = suppliedTokens.putIfAbsent(nftId, nft);
+			return (putResult == null && mintResult == ResponseCodeEnum.OK) ? ResponseCodeEnum.OK : ResponseCodeEnum.INVALID_TOKEN_ID;
+		}));
+
+	}
+
+	@Override
+	public ResponseCodeEnum wipe(final AccountID aId, final TokenID tId, final long wipingAmount, final boolean skipKeyCheck) {
+		return null;
+	}
+
+	@Override
+	public TokenID resolve(final TokenID id) {
+		return super.resolve(id);
+	}
 }

@@ -1,8 +1,10 @@
-package com.hedera.services.store.tokens.unique;/*
+package com.hedera.services.store.tokens.unique;
+
+/*
  * ‌
  * Hedera Services Node
  * ​
- * Copyright (C) 2018 - 2020 Hedera Hashgraph, LLC
+ * Copyright (C) 2018 - 2021 Hedera Hashgraph, LLC
  * ​
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +20,23 @@ package com.hedera.services.store.tokens.unique;/*
  * ‍
  */
 
+import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.TokenID;
 
+/**
+ * An interface which defines methods for the UniqueTokenStore
+ *
+ * @author Yoan Sredkov
+ */
 public interface UniqueStore extends TokenStore {
+
+	ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime);
+//	MerkleUniqueToken getUnique(final EntityId eId, final int serialNum);
+//	Iterator<MerkleUniqueTokenId> getByToken(final MerkleUniqueToken token);
+//	Iterator<MerkleUniqueTokenId> getByTokenFromIdx(final MerkleUniqueToken token, final int start);
+//	Iterator<MerkleUniqueTokenId> getByTokenFromIdxToIdx(final MerkleUniqueToken token, final int start, final int end);
+//	Iterator<MerkleUniqueTokenId> getByAccountFromIdxToIdx(final AccountID aId, final int start, final int end);
+
 }

@@ -33,14 +33,10 @@ import com.hedera.services.state.merkle.MerkleAccountTokens;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
-import com.hedera.services.store.tokens.HederaTokenStore;
+import com.hedera.services.store.tokens.BaseTokenStore;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.test.utils.IdUtils;
-import com.hederahashgraph.api.proto.java.AccountAmount;
-import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.FileID;
-import com.hederahashgraph.api.proto.java.ScheduleID;
-import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.*;
 import com.swirlds.fcqueue.FCQueue;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -48,12 +44,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.hedera.services.ledger.properties.AccountProperty.BALANCE;
-import static com.hedera.services.ledger.properties.AccountProperty.EXPIRY;
-import static com.hedera.services.ledger.properties.AccountProperty.IS_DELETED;
-import static com.hedera.services.ledger.properties.AccountProperty.IS_SMART_CONTRACT;
-import static com.hedera.services.ledger.properties.AccountProperty.RECORDS;
-import static com.hedera.services.ledger.properties.AccountProperty.TOKENS;
+import static com.hedera.services.ledger.properties.AccountProperty.*;
 import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static org.mockito.BDDMockito.given;
@@ -67,7 +58,7 @@ public class BaseHederaLedgerTest {
 
 	protected HederaLedger subject;
 
-	protected HederaTokenStore tokenStore;
+	protected BaseTokenStore tokenStore;
 	protected EntityIdSource ids;
 	protected ExpiringCreations creator;
 	protected AccountRecordsHistorian historian;
@@ -197,7 +188,7 @@ public class BaseHederaLedgerTest {
 		addDeletedAccountToLedger(deleted, noopCustomizer);
 		given(tokenRelsLedger.isInTransaction()).willReturn(true);
 
-		tokenStore = mock(HederaTokenStore.class);
+		tokenStore = mock(BaseTokenStore.class);
 		given(tokenStore.exists(frozenId)).willReturn(true);
 		given(tokenStore.exists(tokenId)).willReturn(true);
 		given(tokenStore.exists(missingId)).willReturn(false);

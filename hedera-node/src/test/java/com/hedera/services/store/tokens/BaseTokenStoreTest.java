@@ -35,6 +35,7 @@ import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.submerkle.EntityId;
+import com.hedera.services.store.tokens.common.CommonTokenStore;
 import com.hedera.test.factories.scenarios.TxnHandlingScenario;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -118,18 +119,18 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 
-class HederaTokenStoreTest {
+class BaseTokenStoreTest {
+	private static EnumSet<KeyType> NO_KEYS = EnumSet.noneOf(KeyType.class);
+	private static EnumSet<KeyType> ALL_KEYS = EnumSet.complementOf(EnumSet.of(KeyType.EMPTY_ADMIN));
 	EntityIdSource ids;
 	GlobalDynamicProperties properties;
 	FCMap<MerkleEntityId, MerkleToken> tokens;
 	TransactionalLedger<AccountID, AccountProperty, MerkleAccount> accountsLedger;
 	TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger;
 	HederaLedger hederaLedger;
-
 	MerkleToken token;
 	MerkleToken modifiableToken;
 	MerkleAccount account;
-
 	Key newKey = TxnHandlingScenario.TOKEN_REPLACE_KT.asKey();
 	JKey newFcKey = TxnHandlingScenario.TOKEN_REPLACE_KT.asJKeyUnchecked();
 	Key adminKey, kycKey, freezeKey, supplyKey, wipeKey;
@@ -163,8 +164,7 @@ class HederaTokenStoreTest {
 	int MAX_TOKEN_NAME_UTF8_BYTES = 100;
 	Pair<AccountID, TokenID> sponsorMisc = asTokenRel(sponsor, misc);
 	Pair<AccountID, TokenID> treasuryMisc = asTokenRel(treasury, misc);
-
-	HederaTokenStore subject;
+	BaseTokenStore subject;
 
 	@BeforeEach
 	public void setup() {
@@ -221,10 +221,12 @@ class HederaTokenStoreTest {
 		given(properties.maxTokenSymbolUtf8Bytes()).willReturn(MAX_TOKEN_SYMBOL_UTF8_BYTES);
 		given(properties.maxTokenNameUtf8Bytes()).willReturn(MAX_TOKEN_NAME_UTF8_BYTES);
 
-		subject = new HederaTokenStore(ids, TEST_VALIDATOR, properties, () -> tokens, tokenRelsLedger);
+		subject = new CommonTokenStore(ids, TEST_VALIDATOR, properties, () -> tokens, tokenRelsLedger);
 		subject.setAccountsLedger(accountsLedger);
 		subject.setHederaLedger(hederaLedger);
-		subject.knownTreasuries.put(treasury, new HashSet<>() {{ add(misc); }});
+		subject.knownTreasuries.put(treasury, new HashSet<>() {{
+			add(misc);
+		}});
 	}
 
 	@Test
@@ -240,7 +242,7 @@ class HederaTokenStoreTest {
 		// then:
 		verify(tokens, times(2)).forEach(captor.capture());
 		// and:
-		BiConsumer<MerkleEntityId,  MerkleToken> visitor = captor.getAllValues().get(1);
+		BiConsumer<MerkleEntityId, MerkleToken> visitor = captor.getAllValues().get(1);
 
 		// and when:
 		visitor.accept(fromTokenId(misc), token);
@@ -393,7 +395,7 @@ class HederaTokenStoreTest {
 	@Test
 	public void existenceCheckUnderstandsPendingIdOnlyAppliesIfCreationPending() {
 		// expect:
-		assertFalse(subject.exists(HederaTokenStore.NO_PENDING_ID));
+		assertFalse(subject.exists(BaseTokenStore.NO_PENDING_ID));
 	}
 
 	@Test
@@ -947,7 +949,6 @@ class HederaTokenStoreTest {
 		assertEquals(INVALID_TOKEN_ID, outcome);
 	}
 
-
 	@Test
 	public void updateRejectsInappropriateKycKey() {
 		given(tokens.getForModify(fromTokenId(misc))).willReturn(token);
@@ -1065,7 +1066,7 @@ class HederaTokenStoreTest {
 	public void isTreasuryForTokenReturnsFalse() {
 		// setup:
 		subject.knownTreasuries.clear();
-		
+
 		// expect:
 		assertFalse(subject.isTreasuryForToken(treasury, misc));
 	}
@@ -1084,7 +1085,6 @@ class HederaTokenStoreTest {
 		// expect:
 		assertThrows(IllegalArgumentException.class, () -> subject.removeKnownTreasuryForToken(treasury, misc));
 	}
-
 
 	@Test
 	public void updateHappyPathIgnoresZeroExpiry() {
@@ -1210,13 +1210,6 @@ class HederaTokenStoreTest {
 		verify(token).setAutoRenewAccount(EntityId.fromGrpcAccountId(newAutoRenewAccount));
 		verify(token).setAutoRenewPeriod(newAutoRenewPeriod);
 	}
-
-	enum KeyType {
-		WIPE, FREEZE, SUPPLY, KYC, ADMIN, EMPTY_ADMIN
-	}
-
-	private static EnumSet<KeyType> NO_KEYS = EnumSet.noneOf(KeyType.class);
-	private static EnumSet<KeyType> ALL_KEYS = EnumSet.complementOf(EnumSet.of(KeyType.EMPTY_ADMIN));
 
 	private TokenUpdateTransactionBody updateWith(
 			EnumSet<KeyType> keys,
@@ -1448,7 +1441,7 @@ class HederaTokenStoreTest {
 		given(token.isDeleted()).willReturn(true);
 
 		// when:
-		var status = subject.wipe(sponsor, misc, adjustment,false);
+		var status = subject.wipe(sponsor, misc, adjustment, false);
 
 		// then:
 		assertEquals(ResponseCodeEnum.TOKEN_WAS_DELETED, status);
@@ -1638,7 +1631,7 @@ class HederaTokenStoreTest {
 		verify(tokens, never()).put(fromTokenId(created), token);
 		verify(ids).reclaimLastId();
 		// and:
-		assertSame(subject.pendingId, HederaTokenStore.NO_PENDING_ID);
+		assertSame(subject.pendingId, BaseTokenStore.NO_PENDING_ID);
 		assertNull(subject.pendingCreation);
 	}
 
@@ -1661,7 +1654,7 @@ class HederaTokenStoreTest {
 		// then:
 		verify(tokens).put(fromTokenId(created), token);
 		// and:
-		assertSame(subject.pendingId, HederaTokenStore.NO_PENDING_ID);
+		assertSame(subject.pendingId, BaseTokenStore.NO_PENDING_ID);
 		assertNull(subject.pendingCreation);
 		// and:
 		assertTrue(subject.isKnownTreasury(treasury));
@@ -1850,5 +1843,9 @@ class HederaTokenStoreTest {
 
 	private Duration enduring(long secs) {
 		return Duration.newBuilder().setSeconds(secs).build();
+	}
+
+	enum KeyType {
+		WIPE, FREEZE, SUPPLY, KYC, ADMIN, EMPTY_ADMIN
 	}
 }

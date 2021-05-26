@@ -216,6 +216,8 @@ import com.hedera.services.state.merkle.MerkleSchedule;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
+import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.MerkleUniqueTokenId;
 import com.hedera.services.state.migration.StateMigrations;
 import com.hedera.services.state.migration.StdStateMigrations;
 import com.hedera.services.state.submerkle.EntityId;
@@ -233,8 +235,13 @@ import com.hedera.services.stats.ServicesStatsManager;
 import com.hedera.services.stats.SpeedometerFactory;
 import com.hedera.services.store.schedule.HederaScheduleStore;
 import com.hedera.services.store.schedule.ScheduleStore;
-import com.hedera.services.store.tokens.HederaTokenStore;
+import com.hedera.services.store.tokens.BaseTokenStore;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.store.tokens.common.CommonStore;
+import com.hedera.services.store.tokens.common.CommonTokenStore;
+import com.hedera.services.store.tokens.unique.OwnerIdentifier;
+import com.hedera.services.store.tokens.unique.UniqueStore;
+import com.hedera.services.store.tokens.unique.UniqueTokenStore;
 import com.hedera.services.stream.RecordStreamManager;
 import com.hedera.services.throttling.DeterministicThrottling;
 import com.hedera.services.throttling.FunctionalityThrottling;
@@ -272,12 +279,13 @@ import com.hedera.services.txns.schedule.ScheduleCreateTransitionLogic;
 import com.hedera.services.txns.schedule.ScheduleDeleteTransitionLogic;
 import com.hedera.services.txns.schedule.ScheduleExecutor;
 import com.hedera.services.txns.schedule.ScheduleSignTransitionLogic;
-import com.hedera.services.txns.submission.PlatformSubmissionManager;
 import com.hedera.services.txns.submission.BasicSubmissionFlow;
+import com.hedera.services.txns.submission.PlatformSubmissionManager;
 import com.hedera.services.txns.submission.SemanticPrecheck;
 import com.hedera.services.txns.submission.SolvencyPrecheck;
 import com.hedera.services.txns.submission.StagedPrechecks;
 import com.hedera.services.txns.submission.StructuralPrecheck;
+import com.hedera.services.txns.submission.SyntaxPrecheck;
 import com.hedera.services.txns.submission.SystemPrecheck;
 import com.hedera.services.txns.submission.TransactionPrecheck;
 import com.hedera.services.txns.submission.TxnResponseHelper;
@@ -293,7 +301,6 @@ import com.hedera.services.txns.token.TokenRevokeKycTransitionLogic;
 import com.hedera.services.txns.token.TokenUnfreezeTransitionLogic;
 import com.hedera.services.txns.token.TokenUpdateTransitionLogic;
 import com.hedera.services.txns.token.TokenWipeTransitionLogic;
-import com.hedera.services.txns.submission.SyntaxPrecheck;
 import com.hedera.services.txns.validation.ContextOptionValidator;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.usage.crypto.CryptoOpsUsage;
@@ -305,6 +312,7 @@ import com.hedera.services.utils.MiscUtils;
 import com.hedera.services.utils.Pause;
 import com.hedera.services.utils.SleepingPause;
 import com.hedera.services.utils.SystemExits;
+import com.hedera.services.utils.invertible_fchashmap.FCInvertibleHashMap;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -414,20 +422,34 @@ import static java.util.Map.entry;
  */
 public class ServicesContext {
 	private static final Logger log = LogManager.getLogger(ServicesContext.class);
-
 	private SystemExits systemExits = new JvmSystemExits();
 
-	/* Injected dependencies. */
-	ServicesState state;
+	/* Context-free infrastructure. */
+	private static Pause pause;
+	private static StateMigrations stateMigrations;
+	private static AccountsExporter accountsExporter;
+	private static LegacyEd25519KeyReader b64KeyReader;
 
+	static {
+		pause = SleepingPause.SLEEPING_PAUSE;
+		b64KeyReader = new LegacyEd25519KeyReader();
+		stateMigrations = new StdStateMigrations(SleepingPause.SLEEPING_PAUSE);
+		accountsExporter = new ToStringAccountsExporter();
+	}
+
+	/* Context-sensitive singletons. */
 	private final NodeId id;
 	private final Platform platform;
 	private final PropertySources propertySources;
-
-	/* Context-sensitive singletons. */
-	/** the directory to which we writes .rcd and .rcd_sig files */
+	/* Injected dependencies. */
+	ServicesState state;
+	/**
+	 * the directory to which we writes .rcd and .rcd_sig files
+	 */
 	private String recordStreamDir;
-	/** the initialHash of RecordStreamManager */
+	/**
+	 * the initialHash of RecordStreamManager
+	 */
 	private Hash recordsInitialHash = new ImmutableHash(new byte[DigestType.SHA_384.digestLength()]);
 	private Address address;
 	private Console console;
@@ -440,7 +462,8 @@ public class ServicesContext {
 	private FileAnswers fileAnswers;
 	private MetaAnswers metaAnswers;
 	private RecordCache recordCache;
-	private TokenStore tokenStore;
+	private CommonStore tokenStore;
+	private UniqueStore uniqueStore;
 	private TokenAnswers tokenAnswers;
 	private HederaLedger ledger;
 	private SyncVerifier syncVerifier;
@@ -543,19 +566,7 @@ public class ServicesContext {
 	private AtomicReference<FCMap<MerkleEntityId, MerkleSchedule>> queryableSchedules;
 	private AtomicReference<FCMap<MerkleBlobMeta, MerkleOptionalBlob>> queryableStorage;
 	private AtomicReference<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> queryableTokenAssociations;
-
-	/* Context-free infrastructure. */
-	private static Pause pause;
-	private static StateMigrations stateMigrations;
-	private static AccountsExporter accountsExporter;
-	private static LegacyEd25519KeyReader b64KeyReader;
-
-	static {
-		pause = SleepingPause.SLEEPING_PAUSE;
-		b64KeyReader = new LegacyEd25519KeyReader();
-		stateMigrations = new StdStateMigrations(SleepingPause.SLEEPING_PAUSE);
-		accountsExporter = new ToStringAccountsExporter();
-	}
+	private TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger;
 
 	public ServicesContext(
 			NodeId id,
@@ -1280,7 +1291,7 @@ public class ServicesContext {
 						List.of(new TokenCreateTransitionLogic(validator(), tokenStore(), ledger(), txnCtx()))),
 				entry(TokenUpdate,
 						List.of(new TokenUpdateTransitionLogic(
-								validator(), tokenStore(), ledger(), txnCtx(), HederaTokenStore::affectsExpiryAtMost))),
+								validator(), tokenStore(), ledger(), txnCtx(), BaseTokenStore::affectsExpiryAtMost))),
 				entry(TokenFreezeAccount,
 						List.of(new TokenFreezeTransitionLogic(tokenStore(), ledger(), txnCtx()))),
 				entry(TokenUnfreezeAccount,
@@ -1424,11 +1435,9 @@ public class ServicesContext {
 		}
 		return globalDynamicProperties;
 	}
-
-	// TODO make it CommonTokenStore
-	public TokenStore tokenStore() {
-		if (tokenStore == null) {
-			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
+	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelationsLedger(){
+		if(tokenRelsLedger == null) {
+			tokenRelsLedger =
 					new TransactionalLedger<>(
 							TokenRelProperty.class,
 							MerkleTokenRelStatus::new,
@@ -1436,7 +1445,15 @@ public class ServicesContext {
 							new ChangeSummaryManager<>());
 			tokenRelsLedger.setKeyComparator(REL_CMP);
 			tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
-			tokenStore = new HederaTokenStore(
+		}
+		return tokenRelsLedger;
+	}
+
+	public TokenStore tokenStore() {
+		if (tokenStore == null) {
+			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
+					tokenRelationsLedger();
+			tokenStore = new CommonTokenStore(
 					ids(),
 					validator(),
 					globalDynamicProperties(),
@@ -1446,8 +1463,17 @@ public class ServicesContext {
 		return tokenStore;
 	}
 
-	// uniqueTokenStore
-	// public UniqueTokenStore uniqueTokenStore() {
+	public UniqueStore uniqueTokenStore() {
+		if (uniqueStore == null) {
+
+			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
+					tokenRelationsLedger();
+
+			uniqueStore = new UniqueTokenStore(ids(), validator(), globalDynamicProperties(), this::tokens,
+					this::uniqueTokens, tokenRelsLedger);
+		}
+		return uniqueStore;
+	}
 
 	public ScheduleStore scheduleStore() {
 		if (scheduleStore == null) {
@@ -1976,6 +2002,10 @@ public class ServicesContext {
 		return state.tokens();
 	}
 
+	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> uniqueTokens() {
+		return state.uniqueTokens();
+	}
+
 	public FCMap<MerkleEntityAssociation, MerkleTokenRelStatus> tokenAssociations() {
 		return state.tokenAssociations();
 	}
@@ -2012,11 +2042,14 @@ public class ServicesContext {
 	/**
 	 * update the runningHash instance saved in runningHashLeaf
 	 *
-	 * @param runningHash
-	 * 		new runningHash instance
+	 * @param runningHash new runningHash instance
 	 */
 	public void updateRecordRunningHash(final RunningHash runningHash) {
 		state.runningHashLeaf().setRunningHash(runningHash);
+	}
+
+	Hash getRecordsInitialHash() {
+		return recordsInitialHash;
 	}
 
 	/**
@@ -2028,18 +2061,13 @@ public class ServicesContext {
 	 * setting is read.
 	 * Thus we save the initialHash in the context, and use it when initializing RecordStreamManager
 	 *
-	 * @param recordsInitialHash
-	 * 		initial running Hash of records
+	 * @param recordsInitialHash initial running Hash of records
 	 */
 	public void setRecordsInitialHash(final Hash recordsInitialHash) {
 		this.recordsInitialHash = recordsInitialHash;
 		if (recordStreamManager() != null) {
 			recordStreamManager().setInitialHash(recordsInitialHash);
 		}
-	}
-
-	Hash getRecordsInitialHash() {
-		return recordsInitialHash;
 	}
 
 	void setBackingTokenRels(BackingTokenRels backingTokenRels) {
@@ -2050,7 +2078,7 @@ public class ServicesContext {
 		this.backingAccounts = backingAccounts;
 	}
 
-	public void setTokenStore(TokenStore tokenStore) {
+	public void setTokenStore(CommonStore tokenStore) {
 		this.tokenStore = tokenStore;
 	}
 

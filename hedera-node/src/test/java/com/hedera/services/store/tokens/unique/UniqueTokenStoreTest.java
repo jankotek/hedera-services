@@ -49,6 +49,7 @@ import static com.hedera.services.ledger.properties.TokenRelProperty.IS_FROZEN;
 import static com.hedera.services.ledger.properties.TokenRelProperty.IS_KYC_GRANTED;
 import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
@@ -141,5 +142,21 @@ class UniqueTokenStoreTest {
 	void mint() {
 		var res = store.mint(tokenID, "memo", RichInstant.fromJava(Instant.now()));
 		assertEquals(ResponseCodeEnum.OK, res);
+		given(token.incrementSerialNum()).willReturn(1L);
+		given(store.get(tokenID)).willReturn(token);
+		var r = store.get(tokenID);
+		assertEquals(1, r.getCurrentSerialNum());
+	}
+
+	@Test
+	void wipe(){
+		var res = store.wipe(treasury, tokenID, 1, true);
+		assertNull(res);
+	}
+
+	@Test
+	void resolve(){
+		var res = store.resolve(tokenID);
+		assertEquals(tokenID, res);
 	}
 }

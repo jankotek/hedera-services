@@ -65,6 +65,7 @@ class MerkleTokenTest {
 	long expiry = Instant.now().getEpochSecond() + 1_234_567, otherExpiry = expiry + 2_345_678;
 	long autoRenewPeriod = 1_234_567, otherAutoRenewPeriod = 2_345_678;
 	long totalSupply = 1_000_000, otherTotalSupply = 1_000_001;
+	long currentSerialNum = 1;
 	boolean freezeDefault = true, otherFreezeDefault = false;
 	boolean accountsKycGrantedByDefault = true, otherAccountsKycGrantedByDefault = false;
 	EntityId treasury = new EntityId(1, 2, 3),
@@ -116,6 +117,12 @@ class MerkleTokenTest {
 	}
 
 	@Test
+	public void incrementsSerialNumber(){
+		var i = subject.incrementSerialNum();
+		assertEquals(i, subject.getCurrentSerialNum());
+	}
+
+	@Test
 	public void serializeWorks() throws IOException {
 		// setup:
 		var out = mock(SerializableDataOutputStream.class);
@@ -135,6 +142,7 @@ class MerkleTokenTest {
 		inOrder.verify(out).writeSerializable(treasury, true);
 		inOrder.verify(out).writeLong(totalSupply);
 		inOrder.verify(out).writeInt(decimals);
+		inOrder.verify(out).writeLong(currentSerialNum);
 		inOrder.verify(out, times(2)).writeBoolean(true);
 		inOrder.verify(serdes).writeNullable(
 				argThat(adminKey::equals), argThat(out::equals), any(IoWritingConsumer.class));
@@ -179,7 +187,9 @@ class MerkleTokenTest {
 		given(fin.readLong())
 				.willReturn(subject.expiry())
 				.willReturn(subject.autoRenewPeriod())
-				.willReturn(subject.totalSupply());
+				.willReturn(subject.totalSupply())
+				.willReturn(subject.incrementSerialNum());
+
 		given(fin.readInt()).willReturn(subject.decimals());
 		given(fin.readBoolean())
 				.willReturn(isDeleted)
@@ -215,7 +225,8 @@ class MerkleTokenTest {
 		given(fin.readLong())
 				.willReturn(subject.expiry())
 				.willReturn(subject.autoRenewPeriod())
-				.willReturn(subject.totalSupply());
+				.willReturn(subject.totalSupply())
+				.willReturn(subject.incrementSerialNum());
 		given(fin.readInt()).willReturn(subject.decimals());
 		given(fin.readBoolean())
 				.willReturn(isDeleted)
@@ -529,6 +540,7 @@ class MerkleTokenTest {
 						"treasury=" + treasury.toAbbrevString() + ", " +
 						"totalSupply=" + totalSupply + ", " +
 						"decimals=" + decimals + ", " +
+						"currentSerialNum=" + currentSerialNum + ", " +
 						"autoRenewAccount=" + autoRenewAccount.toAbbrevString() + ", " +
 						"autoRenewPeriod=" + autoRenewPeriod + ", " +
 						"adminKey=" + describe(adminKey) + ", " +

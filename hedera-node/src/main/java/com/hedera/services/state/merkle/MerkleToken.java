@@ -54,7 +54,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 	public static final int UPPER_BOUND_TOKEN_NAME_UTF8_BYTES = 1024;
 
 	private int decimals;
-	private long currentSerialNum = 0;
+	private long currentSerialNum = 1;
 	private long expiry;
 	private long totalSupply;
 	private long autoRenewPeriod = UNUSED_AUTO_RENEW_PERIOD;
@@ -94,7 +94,6 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		this.accountsFrozenByDefault = accountsFrozenByDefault;
 		this.accountsKycGrantedByDefault = accountKycGrantedByDefault;
 		this.treasury = treasury;
-		this.currentSerialNum = 0;
 	}
 
 	/* Object */
@@ -425,6 +424,10 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 
 	public void setMemo(String memo) {
 		this.memo = memo;
+	}
+
+	public long getCurrentSerialNum() {
+		return currentSerialNum;
 	}
 
 	public long incrementSerialNum(){

@@ -21,6 +21,8 @@ package com.hedera.services.state.merkle;
  */
 
 import com.google.common.base.MoreObjects;
+import com.hedera.services.state.submerkle.EntityId;
+import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.state.serdes.DomainSerdes;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RichInstant;
@@ -36,17 +38,25 @@ import java.util.Objects;
 
 import static com.hedera.services.state.merkle.MerkleAccountState.DEFAULT_MEMO;
 
+/**
+ * Represents an uniqueToken entity. Part of the nft implementation.
+ */
 public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, Identifiable<OwnerIdentifier> {
 
 	public static final int UPPER_BOUND_MEMO_UTF8_BYTES = 1024;
 	static final int MERKLE_VERSION = 1;
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x899641dafcc39164L;
-	static DomainSerdes serdes = new DomainSerdes();
 
 	private EntityId owner;
 	private RichInstant creationTime;
 	private String memo = DEFAULT_MEMO;
 
+	/**
+	 *
+	 * @param owner The entity which owns the unique token.
+	 * @param memo Metadata about the token.
+	 * @param creationTime The consensus time at which the token was created.
+	 */
 	public MerkleUniqueToken(
 			EntityId owner,
 			String memo,
@@ -95,6 +105,7 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, I
 	}
 
 	/* --- MerkleLeaf --- */
+
 	@Override
 	public long getClassId() {
 		return RUNTIME_CONSTRUCTABLE_ID;
@@ -108,14 +119,14 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, I
 	@Override
 	public void deserialize(SerializableDataInputStream in, int i) throws IOException {
 		owner = in.readSerializable();
-		creationTime = serdes.deserializeTimestamp(in);
+		creationTime = RichInstant.from(in);
 		memo = in.readNormalisedString(UPPER_BOUND_MEMO_UTF8_BYTES);
 	}
 
 	@Override
 	public void serialize(SerializableDataOutputStream out) throws IOException {
 		out.writeSerializable(owner, true);
-		serdes.serializeTimestamp(creationTime, out);
+		creationTime.serialize(out);
 		out.writeNormalisedString(memo);
 	}
 

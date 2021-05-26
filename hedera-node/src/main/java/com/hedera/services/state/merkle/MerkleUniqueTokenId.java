@@ -33,23 +33,29 @@ import java.util.Objects;
 
 import static com.hedera.services.state.submerkle.EntityId.MISSING_ENTITY_ID;
 
+/**
+ * Represents the ID of {@link MerkleUniqueToken}
+ */
 public class MerkleUniqueTokenId extends AbstractMerkleLeaf implements FCMKey {
 
 	static final int MERKLE_VERSION = 1;
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x52dd6afda193e8bcL;
 
-	static DomainSerdes serdes = new DomainSerdes();
-
 	private EntityId tokenId = MISSING_ENTITY_ID;
-	private int serialNumber;
+	private long serialNumber;
 
 	public MerkleUniqueTokenId() {
 		/* No-op. */
 	}
 
+	/**
+	 *
+	 * @param tokenId The underlying token id.
+	 * @param serialNumber Represents the serial num of the token.
+	 */
 	public MerkleUniqueTokenId(
 			EntityId tokenId,
-			int serialNumber
+			long serialNumber
 	) {
 		this.tokenId = tokenId;
 		this.serialNumber = serialNumber;
@@ -92,7 +98,7 @@ public class MerkleUniqueTokenId extends AbstractMerkleLeaf implements FCMKey {
 		return tokenId;
 	}
 
-	public int serialNumber() {
+	public long serialNumber() {
 		return serialNumber;
 	}
 
@@ -117,7 +123,7 @@ public class MerkleUniqueTokenId extends AbstractMerkleLeaf implements FCMKey {
 	@Override
 	public void serialize(SerializableDataOutputStream out) throws IOException {
 		out.writeSerializable(tokenId, true);
-		out.writeInt(serialNumber);
+		out.writeLong(serialNumber);
 	}
 
 	/* --- FastCopyable --- */

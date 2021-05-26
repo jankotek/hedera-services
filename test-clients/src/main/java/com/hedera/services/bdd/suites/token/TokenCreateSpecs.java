@@ -27,6 +27,8 @@ import com.hedera.services.bdd.spec.utilops.UtilVerbs;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import com.hederahashgraph.api.proto.java.TokenFreezeStatus;
 import com.hederahashgraph.api.proto.java.TokenKycStatus;
+import com.hederahashgraph.api.proto.java.TokenSupplyType;
+import com.hederahashgraph.api.proto.java.TokenType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -65,6 +67,8 @@ public class TokenCreateSpecs extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(new HapiApiSpec[] {
+						creationValidatesNonFungiblePrechecks(),
+						creationValidatesMaxSupply(),
 						creationValidatesMemo(),
 						creationValidatesName(),
 						creationValidatesSymbol(),
@@ -193,11 +197,13 @@ public class TokenCreateSpecs extends HapiApiSuite {
 						newKeyNamed("wipeKey")
 				).when(
 						tokenCreate("primary")
+								.supplyType(TokenSupplyType.FINITE)
 								.entityMemo(memo)
 								.name(saltedName)
 								.treasury(TOKEN_TREASURY)
 								.autoRenewAccount("autoRenewAccount")
 								.autoRenewPeriod(A_HUNDRED_SECONDS)
+								.maxSupply(1000)
 								.initialSupply(500)
 								.decimals(1)
 								.adminKey("adminKey")
@@ -205,7 +211,13 @@ public class TokenCreateSpecs extends HapiApiSuite {
 								.kycKey("kycKey")
 								.supplyKey("supplyKey")
 								.wipeKey("wipeKey")
-								.via("createTxn")
+								.via("createTxn"),
+						tokenCreate("non-fungible-unique-finite")
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.supplyType(TokenSupplyType.FINITE)
+								.initialSupply(0)
+								.maxSupply(100)
+								.treasury(TOKEN_TREASURY)
 				).then(
 						UtilVerbs.withOpContext((spec, opLog) -> {
 							var createTxn = getTxnRecord("createTxn");
@@ -216,6 +228,8 @@ public class TokenCreateSpecs extends HapiApiSuite {
 						getTokenInfo("primary")
 								.logged()
 								.hasRegisteredId("primary")
+								.hasTokenType(TokenType.FUNGIBLE_COMMON)
+								.hasSupplyType(TokenSupplyType.FINITE)
 								.hasEntityMemo(memo)
 								.hasName(saltedName)
 								.hasTreasury(TOKEN_TREASURY)
@@ -227,14 +241,27 @@ public class TokenCreateSpecs extends HapiApiSuite {
 								.hasKycKey("primary")
 								.hasSupplyKey("primary")
 								.hasWipeKey("primary")
+								.hasMaxSupply(1000)
 								.hasTotalSupply(500)
 								.hasAutoRenewAccount("autoRenewAccount"),
+						getTokenInfo("non-fungible-unique-finite")
+								.hasRegisteredId("non-fungible-unique-finite")
+								.hasTokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.hasSupplyType(TokenSupplyType.FINITE)
+								.hasTotalSupply(0)
+								.hasMaxSupply(100),
 						getAccountInfo(TOKEN_TREASURY)
 								.hasToken(
 										ExpectedTokenRel.relationshipWith("primary")
 												.balance(500)
 												.kyc(TokenKycStatus.Granted)
 												.freeze(TokenFreezeStatus.Unfrozen)
+								)
+								.hasToken(
+										ExpectedTokenRel.relationshipWith("non-fungible-unique-finite")
+												.balance(0)
+												.kyc(TokenKycStatus.KycNotApplicable)
+												.freeze(TokenFreezeStatus.FreezeNotApplicable)
 								)
 				);
 	}
@@ -290,6 +317,51 @@ public class TokenCreateSpecs extends HapiApiSuite {
 						tokenCreate("primary")
 								.entityMemo("N\u0000!!!")
 								.hasPrecheck(INVALID_ZERO_BYTE_IN_STRING)
+				);
+	}
+
+	public HapiApiSpec creationValidatesNonFungiblePrechecks() {
+		return defaultHapiSpec("CreationValidatesNonFungiblePrechecks")
+				.given()
+				.when()
+				.then(
+						tokenCreate("primary")
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.initialSupply(1)
+								.decimals(0)
+								.hasPrecheck(INVALID_TOKEN_INITIAL_SUPPLY),
+						tokenCreate("primary")
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.initialSupply(0)
+								.decimals(1)
+								.hasPrecheck(INVALID_TOKEN_DECIMALS)
+				);
+	}
+
+	public HapiApiSpec creationValidatesMaxSupply() {
+		return defaultHapiSpec("CreationValidatesMaxSupply")
+				.given()
+				.when()
+				.then(
+						tokenCreate("primary")
+								.maxSupply(-1)
+								.hasPrecheck(INVALID_TOKEN_MAX_SUPPLY),
+						tokenCreate("primary")
+								.maxSupply(1)
+								.hasPrecheck(INVALID_TOKEN_MAX_SUPPLY),
+						tokenCreate("primary")
+								.supplyType(TokenSupplyType.FINITE)
+								.maxSupply(0)
+								.hasPrecheck(INVALID_TOKEN_MAX_SUPPLY),
+						tokenCreate("primary")
+								.supplyType(TokenSupplyType.FINITE)
+								.maxSupply(-1)
+								.hasPrecheck(INVALID_TOKEN_MAX_SUPPLY),
+						tokenCreate("primary")
+								.supplyType(TokenSupplyType.FINITE)
+								.initialSupply(2)
+								.maxSupply(1)
+								.hasPrecheck(INVALID_TOKEN_INITIAL_SUPPLY)
 				);
 	}
 

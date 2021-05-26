@@ -46,6 +46,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -93,6 +94,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUT
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Provides a managing store for arbitrary tokens.
@@ -142,6 +144,17 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 	private void rebuildViewOfKnownTreasuries() {
 		tokens.get().forEach((key, value) ->
 				addKnownTreasury(value.treasury().toGrpcAccountId(), key.toTokenId()));
+	}
+
+	@Override
+	public List<TokenID> listOfTokensServed(AccountID treasury) {
+		if (!isKnownTreasury(treasury)) {
+			return Collections.emptyList();
+		} else {
+			return knownTreasuries.get(treasury).stream()
+					.sorted(HederaLedger.TOKEN_ID_COMPARATOR)
+					.collect(toList());
+		}
 	}
 
 	@Override
@@ -346,7 +359,10 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 			}
 
 			var aId = token.treasury().toGrpcAccountId();
-			var validity = tryAdjustment(aId, tId, change);
+			var validity = checkAccountUsability(aId);
+			if (validity == OK) {
+				validity = tryAdjustment(aId, tId, change);
+			}
 			if (validity != OK) {
 				return validity;
 			}
@@ -363,12 +379,12 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 			AccountID sponsor,
 			long now
 	) {
-		var validity = accountCheck(request.getTreasury(), INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
+		var validity = usableOrElse(request.getTreasury(), INVALID_TREASURY_ACCOUNT_FOR_TOKEN);
 		if (validity != OK) {
 			return failure(validity);
 		}
 		if (request.hasAutoRenewAccount()) {
-			validity = accountCheck(request.getAutoRenewAccount(), INVALID_AUTORENEW_ACCOUNT);
+			validity = usableOrElse(request.getAutoRenewAccount(), INVALID_AUTORENEW_ACCOUNT);
 			if (validity != OK) {
 				return failure(validity);
 			}
@@ -391,7 +407,10 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 				request.getFreezeDefault(),
 				kycKey.isEmpty(),
 				fromGrpcAccountId(request.getTreasury()));
+		pendingCreation.setTokenType(request.getTokenTypeValue());
+		pendingCreation.setSupplyType(request.getSupplyTypeValue());
 		pendingCreation.setMemo(request.getMemo());
+		pendingCreation.setMaxSupply(request.getMaxSupply());
 		adminKey.ifPresent(pendingCreation::setAdminKey);
 		kycKey.ifPresent(pendingCreation::setKycKey);
 		wipeKey.ifPresent(pendingCreation::setWipeKey);
@@ -500,7 +519,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		var hasNewTokenName = changes.getName().length() > 0;
 		var hasAutoRenewAccount = changes.hasAutoRenewAccount();
 		if (hasAutoRenewAccount) {
-			validity = accountCheck(changes.getAutoRenewAccount(), INVALID_AUTORENEW_ACCOUNT);
+			validity = usableOrElse(changes.getAutoRenewAccount(), INVALID_AUTORENEW_ACCOUNT);
 			if (validity != OK) {
 				return validity;
 			}
@@ -615,7 +634,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 			List<TokenID> tokens,
 			BiFunction<AccountID, List<TokenID>, ResponseCodeEnum> action
 	) {
-		var validity = checkAccountExistence(aId);
+		var validity = checkAccountUsability(aId);
 		if (validity != OK) {
 			return validity;
 		}
@@ -725,7 +744,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 	}
 
 	private ResponseCodeEnum checkExistence(AccountID aId, TokenID tId) {
-		var validity = checkAccountExistence(aId);
+		var validity = checkAccountUsability(aId);
 		if (validity != OK) {
 			return validity;
 		}

@@ -29,6 +29,8 @@ import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.TokenRelProperty;
 import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.sigs.utils.ImmutableKeyUtils;
+import com.hedera.services.state.enums.TokenSupplyType;
+import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleAccountTokens;
 import com.hedera.services.state.merkle.MerkleEntityId;
@@ -55,6 +57,7 @@ import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -78,6 +81,7 @@ import static com.hedera.test.factories.scenarios.TxnHandlingScenario.TOKEN_TREA
 import static com.hedera.test.mocks.TestContextValidator.CONSENSUS_NOW;
 import static com.hedera.test.mocks.TestContextValidator.TEST_VALIDATOR;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_DELETED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_IS_TREASURY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
@@ -143,6 +147,7 @@ class BaseTokenStoreTest {
 	long expiry = CONSENSUS_NOW + 1_234_567;
 	long newExpiry = CONSENSUS_NOW + 1_432_765;
 	long totalSupply = 1_000_000;
+	long maxSupply = 1_234_567;
 	long adjustment = 1;
 	int decimals = 10;
 	long treasuryBalance = 50_000, sponsorBalance = 1_000;
@@ -717,6 +722,18 @@ class BaseTokenStoreTest {
 	}
 
 	@Test
+	public void grantingKycRejectsDetachedAccount() {
+		given(accountsLedger.exists(sponsor)).willReturn(true);
+		given(hederaLedger.isDetached(sponsor)).willReturn(true);
+
+		// when:
+		var status = subject.grantKyc(sponsor, misc);
+
+		// expect:
+		assertEquals(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL, status);
+	}
+
+	@Test
 	public void grantingKycRejectsDeletedAccount() {
 		given(accountsLedger.exists(sponsor)).willReturn(true);
 		given(hederaLedger.isDeleted(sponsor)).willReturn(true);
@@ -780,7 +797,6 @@ class BaseTokenStoreTest {
 	@Test
 	public void wipingWithoutTokenRelationshipFails() {
 		// setup:
-		long balance = 1_234L;
 		given(token.hasWipeKey()).willReturn(false);
 		given(token.treasury()).willReturn(EntityId.fromGrpcAccountId(treasury));
 		// and:
@@ -1050,6 +1066,22 @@ class BaseTokenStoreTest {
 
 		// expect:
 		assertTrue(subject.isKnownTreasury(treasury));
+	}
+
+	@Test
+	public void treasuriesServeWorks() {
+		Set<TokenID> tokenSet = new HashSet<>(List.of(anotherMisc, misc));
+
+		subject.knownTreasuries.put(treasury, tokenSet);
+
+		// expect:
+		assertEquals(List.of(misc, anotherMisc), subject.listOfTokensServed(treasury));
+
+		// and when:
+		subject.knownTreasuries.remove(treasury);
+
+		// then:
+		assertSame(Collections.emptyList(), subject.listOfTokensServed(treasury));
 	}
 
 	@Test
@@ -1366,6 +1398,18 @@ class BaseTokenStoreTest {
 	}
 
 	@Test
+	public void mintingRejectsDetachedTreasury() {
+		given(token.hasSupplyKey()).willReturn(true);
+		given(hederaLedger.isDetached(treasury)).willReturn(true);
+
+		// when:
+		var status = subject.mint(misc, 1L);
+
+		// then:
+		assertEquals(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL, status);
+	}
+
+	@Test
 	public void burningRejectsInvalidToken() {
 		given(tokens.containsKey(fromTokenId(misc))).willReturn(false);
 
@@ -1396,6 +1440,19 @@ class BaseTokenStoreTest {
 
 		// then:
 		assertEquals(ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY, status);
+	}
+
+	@Test
+	public void burningRejectsDetachedTreasury() {
+		given(token.hasSupplyKey()).willReturn(true);
+		given(token.totalSupply()).willReturn(treasuryBalance);
+		given(hederaLedger.isDetached(treasury)).willReturn(true);
+
+		// when:
+		var status = subject.burn(misc, 1L);
+
+		// then:
+		assertEquals(ACCOUNT_EXPIRED_AND_PENDING_REMOVAL, status);
 	}
 
 	@Test
@@ -1673,6 +1730,8 @@ class BaseTokenStoreTest {
 				freezeDefault,
 				accountsKycGrantedByDefault,
 				new EntityId(treasury.getShardNum(), treasury.getRealmNum(), treasury.getAccountNum()));
+		expected.setTokenType(TokenType.FUNGIBLE_COMMON);
+		expected.setSupplyType(TokenSupplyType.INFINITE);
 		expected.setAutoRenewAccount(EntityId.fromGrpcAccountId(autoRenewAccount));
 		expected.setAutoRenewPeriod(autoRenewPeriod);
 		expected.setAdminKey(TOKEN_ADMIN_KT.asJKeyUnchecked());
@@ -1681,6 +1740,7 @@ class BaseTokenStoreTest {
 		expected.setWipeKey(MISC_ACCOUNT_KT.asJKeyUnchecked());
 		expected.setSupplyKey(COMPLEX_KEY_ACCOUNT_KT.asJKeyUnchecked());
 		expected.setMemo(memo);
+		expected.setMaxSupply(maxSupply);
 
 		// given:
 		var req = fullyValidAttempt()
@@ -1712,12 +1772,15 @@ class BaseTokenStoreTest {
 				freezeDefault,
 				accountsKycGrantedByDefault,
 				new EntityId(treasury.getShardNum(), treasury.getRealmNum(), treasury.getAccountNum()));
+		expected.setTokenType(TokenType.FUNGIBLE_COMMON);
+		expected.setSupplyType(TokenSupplyType.INFINITE);
 		expected.setAdminKey(TOKEN_ADMIN_KT.asJKeyUnchecked());
 		expected.setFreezeKey(TOKEN_FREEZE_KT.asJKeyUnchecked());
 		expected.setKycKey(TOKEN_KYC_KT.asJKeyUnchecked());
 		expected.setWipeKey(MISC_ACCOUNT_KT.asJKeyUnchecked());
 		expected.setSupplyKey(COMPLEX_KEY_ACCOUNT_KT.asJKeyUnchecked());
 		expected.setMemo(memo);
+		expected.setMaxSupply(maxSupply);
 
 		// given:
 		var req = fullyValidAttempt().build();
@@ -1766,7 +1829,7 @@ class BaseTokenStoreTest {
 
 	@Test
 	public void rejectsDeletedTreasuryAccount() {
-		given(accountsLedger.get(treasury, IS_DELETED)).willReturn(true);
+		given(hederaLedger.isDeleted(treasury)).willReturn(true);
 
 		// and:
 		var req = fullyValidAttempt()
@@ -1826,6 +1889,8 @@ class BaseTokenStoreTest {
 
 	TokenCreateTransactionBody.Builder fullyValidAttempt() {
 		return TokenCreateTransactionBody.newBuilder()
+				.setTokenType(com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON)
+				.setSupplyType(com.hederahashgraph.api.proto.java.TokenSupplyType.INFINITE)
 				.setExpiry(Timestamp.newBuilder().setSeconds(expiry))
 				.setMemo(memo)
 				.setAdminKey(adminKey)
@@ -1836,6 +1901,7 @@ class BaseTokenStoreTest {
 				.setSymbol(symbol)
 				.setName(name)
 				.setInitialSupply(totalSupply)
+				.setMaxSupply(maxSupply)
 				.setTreasury(treasury)
 				.setDecimals(decimals)
 				.setFreezeDefault(freezeDefault);

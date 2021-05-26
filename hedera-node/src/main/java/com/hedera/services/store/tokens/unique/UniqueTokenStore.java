@@ -75,9 +75,9 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			final var suppliedTokens = uniqueTokensSupply.get();
 			final var eId = EntityId.fromGrpcTokenId(tId);
 			final var owner = merkleToken.treasury();
-			final int serialNum = merkleToken.getCurrentSerialNum();
+			final long serialNum = merkleToken.incrementSerialNum();
 
-			final var nftId = new MerkleUniqueTokenId(eId, serialNum);
+			final var nftId = new MerkleUniqueTokenId(eId, Long.valueOf(serialNum).intValue());
 			final var nft = new MerkleUniqueToken(owner, memo, creationTime);
 			final var putResult = suppliedTokens.putIfAbsent(nftId, nft);
 			return (putResult == null && mintResult == ResponseCodeEnum.OK) ? ResponseCodeEnum.OK : ResponseCodeEnum.INVALID_TOKEN_ID;

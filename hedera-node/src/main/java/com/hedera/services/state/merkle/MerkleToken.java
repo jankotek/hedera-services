@@ -54,7 +54,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 	public static final int UPPER_BOUND_TOKEN_NAME_UTF8_BYTES = 1024;
 
 	private int decimals;
-	private int currentSerialNum;
+	private long currentSerialNum = 0;
 	private long expiry;
 	private long totalSupply;
 	private long autoRenewPeriod = UNUSED_AUTO_RENEW_PERIOD;
@@ -94,6 +94,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		this.accountsFrozenByDefault = accountsFrozenByDefault;
 		this.accountsKycGrantedByDefault = accountKycGrantedByDefault;
 		this.treasury = treasury;
+		this.currentSerialNum = 0;
 	}
 
 	/* Object */
@@ -201,7 +202,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		treasury = in.readSerializable();
 		totalSupply = in.readLong();
 		decimals = in.readInt();
-		currentSerialNum = in.readInt();
+		currentSerialNum = in.readLong();
 		accountsFrozenByDefault = in.readBoolean();
 		accountsKycGrantedByDefault = in.readBoolean();
 		adminKey = serdes.readNullable(in, serdes::deserializeKey);
@@ -225,7 +226,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		out.writeSerializable(treasury, true);
 		out.writeLong(totalSupply);
 		out.writeInt(decimals);
-		out.writeInt(currentSerialNum);
+		out.writeLong(currentSerialNum);
 		out.writeBoolean(accountsFrozenByDefault);
 		out.writeBoolean(accountsKycGrantedByDefault);
 		serdes.writeNullable(adminKey, out, serdes::serializeKey);
@@ -252,7 +253,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		fc.setDeleted(deleted);
 		fc.setAutoRenewPeriod(autoRenewPeriod);
 		fc.setAutoRenewAccount(autoRenewAccount);
-		fc.setCurrentSerialNum(currentSerialNum);
+		fc.currentSerialNum = currentSerialNum;
 		if (adminKey != UNUSED_KEY) {
 			fc.setAdminKey(adminKey);
 		}
@@ -426,16 +427,8 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		this.memo = memo;
 	}
 
-	public int getCurrentSerialNum() {
-		return currentSerialNum;
-	}
-
-	public void setCurrentSerialNum(final int currentSerialNum) {
-		this.currentSerialNum = currentSerialNum;
-	}
-
-	public void incrementSerialNum(){
-		this.currentSerialNum++;
+	public long incrementSerialNum(){
+		return ++this.currentSerialNum;
 	}
 
 }

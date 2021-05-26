@@ -380,7 +380,6 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		var wipeKey = asUsableFcKey(request.getWipeKey());
 		var supplyKey = asUsableFcKey(request.getSupplyKey());
 
-		var serialNum = 0; // request.getSerialNum(); TODO
 		var expiry = expiryOf(request, now);
 		pendingId = ids.newTokenId(sponsor);
 		pendingCreation = new MerkleToken(
@@ -392,7 +391,6 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 				request.getFreezeDefault(),
 				kycKey.isEmpty(),
 				fromGrpcAccountId(request.getTreasury()));
-		pendingCreation.setCurrentSerialNum(serialNum);
 		pendingCreation.setMemo(request.getMemo());
 		adminKey.ifPresent(pendingCreation::setAdminKey);
 		kycKey.ifPresent(pendingCreation::setKycKey);

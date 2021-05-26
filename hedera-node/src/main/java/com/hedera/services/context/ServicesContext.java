@@ -566,6 +566,7 @@ public class ServicesContext {
 	private AtomicReference<FCMap<MerkleEntityId, MerkleSchedule>> queryableSchedules;
 	private AtomicReference<FCMap<MerkleBlobMeta, MerkleOptionalBlob>> queryableStorage;
 	private AtomicReference<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> queryableTokenAssociations;
+	private TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger;
 
 	public ServicesContext(
 			NodeId id,
@@ -1435,14 +1436,16 @@ public class ServicesContext {
 		return globalDynamicProperties;
 	}
 	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelationsLedger(){
-		TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
-				new TransactionalLedger<>(
-						TokenRelProperty.class,
-						MerkleTokenRelStatus::new,
-						backingTokenRels(),
-						new ChangeSummaryManager<>());
-		tokenRelsLedger.setKeyComparator(REL_CMP);
-		tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
+		if(tokenRelsLedger == null) {
+			tokenRelsLedger =
+					new TransactionalLedger<>(
+							TokenRelProperty.class,
+							MerkleTokenRelStatus::new,
+							backingTokenRels(),
+							new ChangeSummaryManager<>());
+			tokenRelsLedger.setKeyComparator(REL_CMP);
+			tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
+		}
 		return tokenRelsLedger;
 	}
 

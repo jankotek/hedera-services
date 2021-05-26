@@ -39,7 +39,6 @@ import static com.hedera.services.ledger.accounts.BackingTokenRels.asTokenRel;
 import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
 import static com.hedera.services.state.submerkle.EntityId.fromGrpcAccountId;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_WIPE_KEY;
@@ -82,14 +81,4 @@ public class CommonTokenStore extends BaseTokenStore implements CommonStore {
 			return OK;
 		});
 	}
-
-
-	@Override
-	public ResponseCodeEnum mint(TokenID tId, long amount) {
-		return tokenSanityCheck(tId, merkleToken ->{
-			merkleToken.incrementSerialNum();
-			return changeSupply(tId, amount, +1, INVALID_TOKEN_MINT_AMOUNT);
-		});
-	}
-
 }

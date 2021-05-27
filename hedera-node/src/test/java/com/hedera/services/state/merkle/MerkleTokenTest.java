@@ -150,7 +150,6 @@ class MerkleTokenTest {
 		inOrder.verify(out).writeSerializable(treasury, true);
 		inOrder.verify(out).writeLong(totalSupply);
 		inOrder.verify(out).writeInt(decimals);
-		inOrder.verify(out).writeLong(currentSerialNum);
 		inOrder.verify(out, times(2)).writeBoolean(true);
 		inOrder.verify(serdes).writeNullable(
 				argThat(adminKey::equals), argThat(out::equals), any(IoWritingConsumer.class));
@@ -165,6 +164,7 @@ class MerkleTokenTest {
 		inOrder.verify(out).writeNormalisedString(memo);
 		inOrder.verify(out, times(2)).writeInt(tokenType.ordinal());
 		inOrder.verify(out).writeLong(maxSupply);
+		inOrder.verify(out).writeLong(currentSerialNum);
 	}
 
 	@Test
@@ -198,8 +198,8 @@ class MerkleTokenTest {
 				.willReturn(subject.expiry())
 				.willReturn(subject.autoRenewPeriod())
 				.willReturn(subject.totalSupply())
-				.willReturn(currentSerialNum)
-				.willReturn(subject.maxSupply());
+				.willReturn(subject.maxSupply())
+				.willReturn(currentSerialNum);
 		given(fin.readInt())
 				.willReturn(subject.decimals())
 				.willReturn(subject.tokenType().ordinal())
@@ -239,8 +239,7 @@ class MerkleTokenTest {
 		given(fin.readLong())
 				.willReturn(subject.expiry())
 				.willReturn(subject.autoRenewPeriod())
-				.willReturn(subject.totalSupply())
-				.willReturn(subject.incrementSerialNum());
+				.willReturn(subject.totalSupply());
 
 		given(fin.readInt()).willReturn(subject.decimals());
 		given(fin.readBoolean())
@@ -278,8 +277,7 @@ class MerkleTokenTest {
 		given(fin.readLong())
 				.willReturn(subject.expiry())
 				.willReturn(subject.autoRenewPeriod())
-				.willReturn(subject.totalSupply())
-				.willReturn(subject.incrementSerialNum());
+				.willReturn(subject.totalSupply());
 		given(fin.readInt()).willReturn(subject.decimals());
 		given(fin.readBoolean())
 				.willReturn(isDeleted)

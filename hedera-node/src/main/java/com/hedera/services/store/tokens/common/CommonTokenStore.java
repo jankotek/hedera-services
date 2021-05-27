@@ -1,4 +1,6 @@
-package com.hedera.services.store.tokens.common;/*
+package com.hedera.services.store.tokens.common;
+
+/*
  * ‌
  * Hedera Services Node
  * ​

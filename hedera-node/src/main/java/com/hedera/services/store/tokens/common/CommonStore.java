@@ -21,27 +21,10 @@ package com.hedera.services.store.tokens.common;
  */
 
 import com.hedera.services.store.tokens.TokenStore;
-import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.TokenID;
-import com.hederahashgraph.api.proto.java.TokenUpdateTransactionBody;
-
-import java.util.List;
 
 /**
  * Interface, defining the CommonTokenStore methods
  * @author Yoan Sredkov
  */
 public interface CommonStore extends TokenStore {
-	ResponseCodeEnum burn(TokenID tId, long amount);
-	ResponseCodeEnum mint(TokenID tId, long amount);
-	ResponseCodeEnum wipe(AccountID aId, TokenID tId, long wipingAmount, boolean skipKeyCheck);
-	ResponseCodeEnum freeze(AccountID aId, TokenID tId);
-	ResponseCodeEnum update(TokenUpdateTransactionBody changes, long now);
-	ResponseCodeEnum unfreeze(AccountID aId, TokenID tId);
-	ResponseCodeEnum grantKyc(AccountID aId, TokenID tId);
-	ResponseCodeEnum revokeKyc(AccountID aId, TokenID tId);
-	ResponseCodeEnum associate(AccountID aId, List<TokenID> tokens);
-	ResponseCodeEnum dissociate(AccountID aId, List<TokenID> tokens);
-	ResponseCodeEnum adjustBalance(AccountID aId, TokenID tId, long adjustment);
 }

@@ -216,7 +216,6 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		treasury = in.readSerializable();
 		totalSupply = in.readLong();
 		decimals = in.readInt();
-		currentSerialNum = in.readLong();
 		accountsFrozenByDefault = in.readBoolean();
 		accountsKycGrantedByDefault = in.readBoolean();
 		adminKey = serdes.readNullable(in, serdes::deserializeKey);
@@ -231,6 +230,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 			tokenType = TokenType.values()[in.readInt()];
 			supplyType = TokenSupplyType.values()[in.readInt()];
 			maxSupply = in.readLong();
+			currentSerialNum = in.readLong();
 		}
 		if (tokenType == null) {
 			tokenType = TokenType.FUNGIBLE_COMMON;
@@ -251,7 +251,6 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		out.writeSerializable(treasury, true);
 		out.writeLong(totalSupply);
 		out.writeInt(decimals);
-		out.writeLong(currentSerialNum);
 		out.writeBoolean(accountsFrozenByDefault);
 		out.writeBoolean(accountsKycGrantedByDefault);
 		serdes.writeNullable(adminKey, out, serdes::serializeKey);
@@ -263,6 +262,7 @@ public class MerkleToken extends AbstractMerkleLeaf implements FCMValue {
 		out.writeInt(tokenType.ordinal());
 		out.writeInt(supplyType.ordinal());
 		out.writeLong(maxSupply);
+		out.writeLong(currentSerialNum);
 	}
 
 	/* --- FastCopyable --- */

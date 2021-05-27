@@ -66,12 +66,14 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
 	@Override
 	public ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime) {
-		// is it unique type token? * - not yet impl
 		return tokenSanityCheck(tId, (merkleToken -> {
 			if (!merkleToken.hasSupplyKey()) {
 				return TOKEN_HAS_NO_SUPPLY_KEY;
 			}
 			var mintResult = super.mint(tId, 1);
+			if (!mintResult.equals(ResponseCodeEnum.OK)) {
+				return mintResult;
+			}
 			final var suppliedTokens = uniqueTokensSupply.get();
 			final var eId = EntityId.fromGrpcTokenId(tId);
 			final var owner = merkleToken.treasury();
@@ -80,7 +82,7 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			final var nftId = new MerkleUniqueTokenId(eId, Long.valueOf(serialNum).intValue());
 			final var nft = new MerkleUniqueToken(owner, memo, creationTime);
 			final var putResult = suppliedTokens.putIfAbsent(nftId, nft);
-			return (putResult == null && mintResult == ResponseCodeEnum.OK) ? ResponseCodeEnum.OK : ResponseCodeEnum.INVALID_TOKEN_ID;
+			return putResult == null ? ResponseCodeEnum.OK : ResponseCodeEnum.INVALID_TOKEN_ID;
 		}));
 
 	}
@@ -90,8 +92,4 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 		return null;
 	}
 
-	@Override
-	public TokenID resolve(final TokenID id) {
-		return super.resolve(id);
-	}
 }

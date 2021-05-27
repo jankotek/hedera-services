@@ -427,34 +427,20 @@ import static java.util.Map.entry;
  */
 public class ServicesContext {
 	private static final Logger log = LogManager.getLogger(ServicesContext.class);
+
 	private SystemExits systemExits = new JvmSystemExits();
 
-	/* Context-free infrastructure. */
-	private static Pause pause;
-	private static StateMigrations stateMigrations;
-	private static AccountsExporter accountsExporter;
-	private static LegacyEd25519KeyReader b64KeyReader;
+	/* Injected dependencies. */
+	ServicesState state;
 
-	static {
-		pause = SleepingPause.SLEEPING_PAUSE;
-		b64KeyReader = new LegacyEd25519KeyReader();
-		stateMigrations = new StdStateMigrations(SleepingPause.SLEEPING_PAUSE);
-		accountsExporter = new ToStringAccountsExporter();
-	}
-
-	/* Context-sensitive singletons. */
 	private final NodeId id;
 	private final Platform platform;
 	private final PropertySources propertySources;
-	/* Injected dependencies. */
-	ServicesState state;
-	/**
-	 * the directory to which we writes .rcd and .rcd_sig files
-	 */
+
+	/* Context-sensitive singletons. */
+	/** the directory to which we writes .rcd and .rcd_sig files */
 	private String recordStreamDir;
-	/**
-	 * the initialHash of RecordStreamManager
-	 */
+	/** the initialHash of RecordStreamManager */
 	private Hash recordsInitialHash = new ImmutableHash(new byte[DigestType.SHA_384.digestLength()]);
 	private Address address;
 	private Console console;
@@ -467,8 +453,8 @@ public class ServicesContext {
 	private FileAnswers fileAnswers;
 	private MetaAnswers metaAnswers;
 	private RecordCache recordCache;
-	private CommonStore tokenStore;
-	private UniqueStore uniqueStore;
+	private CommonStore commonTokenStore;
+	private UniqueStore uniqueTokenStore;
 	private TokenAnswers tokenAnswers;
 	private HederaLedger ledger;
 	private SyncVerifier syncVerifier;
@@ -574,6 +560,19 @@ public class ServicesContext {
 	private AtomicReference<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> queryableTokenAssociations;
 	private TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger;
 
+	/* Context-free infrastructure. */
+	private static Pause pause;
+	private static StateMigrations stateMigrations;
+	private static AccountsExporter accountsExporter;
+	private static LegacyEd25519KeyReader b64KeyReader;
+
+	static {
+		pause = SleepingPause.SLEEPING_PAUSE;
+		b64KeyReader = new LegacyEd25519KeyReader();
+		stateMigrations = new StdStateMigrations(SleepingPause.SLEEPING_PAUSE);
+		accountsExporter = new ToStringAccountsExporter();
+	}
+
 	public ServicesContext(
 			NodeId id,
 			Platform platform,
@@ -610,8 +609,8 @@ public class ServicesContext {
 		if (scheduleStore != null) {
 			scheduleStore.rebuildViews();
 		}
-		if (tokenStore != null) {
-			tokenStore.rebuildViews();
+		if (commonTokenStore != null) {
+			commonTokenStore.rebuildViews();
 		}
 	}
 
@@ -1443,14 +1442,14 @@ public class ServicesContext {
 		}
 		return globalDynamicProperties;
 	}
-	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelationsLedger(){
-		if(tokenRelsLedger == null) {
-			tokenRelsLedger =
-					new TransactionalLedger<>(
-							TokenRelProperty.class,
-							MerkleTokenRelStatus::new,
-							backingTokenRels(),
-							new ChangeSummaryManager<>());
+
+	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger(){
+		if (tokenRelsLedger == null) {
+			tokenRelsLedger = new TransactionalLedger<>(
+					TokenRelProperty.class,
+					MerkleTokenRelStatus::new,
+					backingTokenRels(),
+					new ChangeSummaryManager<>());
 			tokenRelsLedger.setKeyComparator(REL_CMP);
 			tokenRelsLedger.setKeyToString(BackingTokenRels::readableTokenRel);
 		}
@@ -1458,29 +1457,32 @@ public class ServicesContext {
 	}
 
 	public TokenStore tokenStore() {
-		if (tokenStore == null) {
+		if (commonTokenStore == null) {
 			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
-					tokenRelationsLedger();
-			tokenStore = new CommonTokenStore(
+					tokenRelsLedger();
+			commonTokenStore = new CommonTokenStore(
 					ids(),
 					validator(),
 					globalDynamicProperties(),
 					this::tokens,
 					tokenRelsLedger);
 		}
-		return tokenStore;
+		return commonTokenStore;
 	}
 
-	public UniqueStore uniqueTokenStore() {
-		if (uniqueStore == null) {
-
+	public UniqueStore uniqueStore(){
+		if (uniqueTokenStore == null){
 			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
-					tokenRelationsLedger();
-
-			uniqueStore = new UniqueTokenStore(ids(), validator(), globalDynamicProperties(), this::tokens,
-					this::uniqueTokens, tokenRelsLedger);
+					tokenRelsLedger();
+			uniqueTokenStore = new UniqueTokenStore(
+					ids(),
+					validator(),
+					globalDynamicProperties(),
+					this::tokens,
+					this::uniqueTokens,
+					tokenRelsLedger);
 		}
-		return uniqueStore;
+		return uniqueTokenStore;
 	}
 
 	public ScheduleStore scheduleStore() {
@@ -2035,7 +2037,7 @@ public class ServicesContext {
 		return state.tokens();
 	}
 
-	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> uniqueTokens() {
+	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> uniqueTokens(){
 		return state.uniqueTokens();
 	}
 
@@ -2075,14 +2077,11 @@ public class ServicesContext {
 	/**
 	 * update the runningHash instance saved in runningHashLeaf
 	 *
-	 * @param runningHash new runningHash instance
+	 * @param runningHash
+	 * 		new runningHash instance
 	 */
 	public void updateRecordRunningHash(final RunningHash runningHash) {
 		state.runningHashLeaf().setRunningHash(runningHash);
-	}
-
-	Hash getRecordsInitialHash() {
-		return recordsInitialHash;
 	}
 
 	/**
@@ -2094,13 +2093,18 @@ public class ServicesContext {
 	 * setting is read.
 	 * Thus we save the initialHash in the context, and use it when initializing RecordStreamManager
 	 *
-	 * @param recordsInitialHash initial running Hash of records
+	 * @param recordsInitialHash
+	 * 		initial running Hash of records
 	 */
 	public void setRecordsInitialHash(final Hash recordsInitialHash) {
 		this.recordsInitialHash = recordsInitialHash;
 		if (recordStreamManager() != null) {
 			recordStreamManager().setInitialHash(recordsInitialHash);
 		}
+	}
+
+	Hash getRecordsInitialHash() {
+		return recordsInitialHash;
 	}
 
 	void setBackingTokenRels(BackingTokenRels backingTokenRels) {
@@ -2111,8 +2115,12 @@ public class ServicesContext {
 		this.backingAccounts = backingAccounts;
 	}
 
-	public void setTokenStore(CommonStore tokenStore) {
-		this.tokenStore = tokenStore;
+	public void setCommonTokenStore(CommonStore commonTokenStore) {
+		this.commonTokenStore = commonTokenStore;
+	}
+
+	public void setUniqueTokenStore(UniqueStore uniqueTokenStore) {
+		this.uniqueTokenStore = uniqueTokenStore;
 	}
 
 	public void setScheduleStore(ScheduleStore scheduleStore) {

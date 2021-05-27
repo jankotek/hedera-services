@@ -377,7 +377,7 @@ public class ServicesContextTest {
 		assertDoesNotThrow(ctx::rebuildStoreViewsIfPresent);
 
 		// and given:
-		ctx.setTokenStore(tokenStore);
+		ctx.setCommonTokenStore(tokenStore);
 		ctx.setScheduleStore(scheduleStore);
 
 		// when:

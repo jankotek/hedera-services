@@ -76,6 +76,10 @@ import static com.hedera.services.utils.EntityIdUtils.accountParsedFromString;
 import static com.hedera.services.utils.EntityIdUtils.asLiteralString;
 
 public class ServicesState extends AbstractNaryMerkleInternal implements SwirldState.SwirldState2 {
+	private static final Logger log = LogManager.getLogger(ServicesState.class);
+
+	private static final ImmutableHash emptyHash = new ImmutableHash(new byte[DigestType.SHA_384.digestLength()]);
+
 	static final int RELEASE_070_VERSION = 1;
 	static final int RELEASE_080_VERSION = 2;
 	static final int RELEASE_090_VERSION = 3;
@@ -86,14 +90,38 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 	static final int RELEASE_0140_VERSION = 8;
 	static final int MERKLE_VERSION = RELEASE_0140_VERSION;
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x8e300b0dfdafbb1aL;
+
 	static final String UNSUPPORTED_VERSION_MSG_TPL = "Argument 'version=%d' is invalid!";
-	private static final Logger log = LogManager.getLogger(ServicesState.class);
-	private static final ImmutableHash emptyHash = new ImmutableHash(new byte[DigestType.SHA_384.digestLength()]);
+
 	static Function<String, byte[]> hashReader = RecordStream::readPrevFileHash;
 	static Supplier<BinaryObjectStore> blobStoreSupplier = BinaryObjectStore::getInstance;
 
 	NodeId nodeId = null;
 	boolean skipDiskFsHashCheck = false;
+
+	/* Order of Merkle node children */
+	static class ChildIndices {
+		static final int ADDRESS_BOOK = 0;
+		static final int NETWORK_CTX = 1;
+		static final int TOPICS = 2;
+		static final int STORAGE = 3;
+		static final int ACCOUNTS = 4;
+		static final int NUM_070_CHILDREN = 5;
+		static final int TOKENS = 5;
+		static final int NUM_080_CHILDREN = 6;
+		static final int TOKEN_ASSOCIATIONS = 6;
+		static final int DISK_FS = 7;
+		static final int NUM_090_CHILDREN = 8;
+		static final int NUM_0100_CHILDREN = 8;
+		static final int SCHEDULE_TXS = 8;
+		static final int RECORD_STREAM_RUNNING_HASH = 9;
+		static final int NUM_0110_CHILDREN = 10;
+		static final int NUM_0120_CHILDREN = 10;
+		static final int NUM_0130_CHILDREN = 10;
+		static final int NUM_0140_CHILDREN = 10;
+		static final int UNIQUE_TOKENS = 11;
+	}
+
 	ServicesContext ctx;
 
 	public ServicesState() {
@@ -175,10 +203,9 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			setChild(ChildIndices.RECORD_STREAM_RUNNING_HASH, initialRecordsRunningHashLeaf);
 			log.info("Created RecordsRunningHashLeaf after <=0.11.0 state restoration");
 		}
-		if (uniqueTokens() == null) {
-			// TODO
+		if (uniqueTokens() == null){
 //			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
-			log.info("Created unique tokens FCInvertibleHashMap after <= 0.12 state restoration");
+			log.info("Created unique tokens FCInvertibleHashMap after <=0.12.0 state restoration");
 		}
 	}
 
@@ -339,8 +366,11 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				diskFs().copy(),
 				scheduleTxs().copy(),
 				runningHashLeaf().copy()
+//				uniqueTokens().copy()
 		));
 	}
+
+	/* --------------- */
 
 	public AccountID getNodeAccountId() {
 		var address = addressBook().getAddress(nodeId.getId());
@@ -348,7 +378,6 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		return accountParsedFromString(memo);
 	}
 
-	/* --------------- */
 	public void logSummary() {
 		logHashes();
 		log.info(networkCtx().toString());
@@ -424,28 +453,5 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 
 	public RecordsRunningHashLeaf runningHashLeaf() {
 		return getChild(ChildIndices.RECORD_STREAM_RUNNING_HASH);
-	}
-
-	/* Order of Merkle node children */
-	static class ChildIndices {
-		static final int ADDRESS_BOOK = 0;
-		static final int NETWORK_CTX = 1;
-		static final int TOPICS = 2;
-		static final int STORAGE = 3;
-		static final int ACCOUNTS = 4;
-		static final int NUM_070_CHILDREN = 5;
-		static final int TOKENS = 5;
-		static final int NUM_080_CHILDREN = 6;
-		static final int TOKEN_ASSOCIATIONS = 6;
-		static final int DISK_FS = 7;
-		static final int NUM_090_CHILDREN = 8;
-		static final int NUM_0100_CHILDREN = 8;
-		static final int SCHEDULE_TXS = 8;
-		static final int RECORD_STREAM_RUNNING_HASH = 9;
-		static final int NUM_0110_CHILDREN = 10;
-		static final int NUM_0120_CHILDREN = 10;
-		static final int NUM_0130_CHILDREN = 10;
-		static final int NUM_0140_CHILDREN = 10;
-		static final int UNIQUE_TOKENS = 11;
 	}
 }

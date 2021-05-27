@@ -21,6 +21,7 @@ package com.hedera.services.txns.token;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.utils.PlatformTxnAccessor;
@@ -74,7 +75,7 @@ class TokenMintTransitionLogicTest {
 		givenValidTxnCtx();
 		// and:
 		given(tokenStore.mint(id, amount)).willReturn(INVALID_TOKEN_MINT_AMOUNT);
-
+		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		// when:
 		subject.doStateTransition();
 
@@ -101,6 +102,7 @@ class TokenMintTransitionLogicTest {
 		givenValidTxnCtx();
 		// and:
 		given(tokenStore.mint(id, amount)).willReturn(OK);
+		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 
 		// when:
 		subject.doStateTransition();

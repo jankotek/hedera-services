@@ -198,6 +198,7 @@ class MerkleTokenTest {
 				.willReturn(subject.expiry())
 				.willReturn(subject.autoRenewPeriod())
 				.willReturn(subject.totalSupply())
+				.willReturn(currentSerialNum)
 				.willReturn(subject.maxSupply());
 		given(fin.readInt())
 				.willReturn(subject.decimals())

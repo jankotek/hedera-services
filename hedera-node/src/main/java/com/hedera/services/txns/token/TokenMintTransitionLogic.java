@@ -21,8 +21,9 @@ package com.hedera.services.txns.token;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.state.enums.TokenType;
+import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.TokenStore;
-import com.hedera.services.store.tokens.common.CommonStore;
 import com.hedera.services.store.tokens.unique.UniqueStore;
 import com.hedera.services.txns.TransitionLogic;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -51,11 +52,11 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
 	private final TokenStore commonStore;
-	private final TokenStore uniqueStore;
+	private final UniqueStore uniqueStore;
 	private final TransactionContext txnCtx;
 
 	public TokenMintTransitionLogic(
-			CommonStore commonStore,
+			TokenStore commonStore,
 			UniqueStore uniqueStore,
 			TransactionContext txnCtx
 	) {
@@ -81,8 +82,17 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 			if (id == TokenStore.MISSING_TOKEN) {
 				txnCtx.setStatus(INVALID_TOKEN_ID);
 			} else {
-				// if token.getType .... then decide how to mint
-				var outcome = commonStore.mint(id, op.getAmount());
+				var token = commonStore.get(id);
+				ResponseCodeEnum outcome;
+				if(token.tokenType().equals(TokenType.FUNGIBLE_COMMON)) {
+					outcome = commonStore.mint(id, op.getAmount());
+				} else {
+					/* FIXME:
+					    the current FCInvertibleHashMap is not a descendant of MerkleNode, and it cannot be injected in ServicesContext
+					 */
+					assert uniqueStore != null; // <- this will throw AssertionError if reached
+					outcome = uniqueStore.mint(id, op.getMetadata().toStringUtf8(), RichInstant.fromJava(txnCtx.consensusTime()));
+				}
 				txnCtx.setStatus((outcome == OK) ? SUCCESS : outcome);
 				if (outcome == OK) {
 					txnCtx.setNewTotalSupply(commonStore.get(id).totalSupply());

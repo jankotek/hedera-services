@@ -65,15 +65,6 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 		this.txnCtx = txnCtx;
 	}
 
-	public TokenMintTransitionLogic(
-			TokenStore commonStore,
-			TransactionContext txnCtx
-	) {
-		this.commonStore = commonStore;
-		this.txnCtx = txnCtx;
-		this.uniqueStore = null;
-	}
-
 	@Override
 	public void doStateTransition() {
 		try {
@@ -87,10 +78,6 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 				if(token.tokenType().equals(TokenType.FUNGIBLE_COMMON)) {
 					outcome = commonStore.mint(id, op.getAmount());
 				} else {
-					/* FIXME:
-					    the current FCInvertibleHashMap is not a descendant of MerkleNode, and it cannot be injected in ServicesContext
-					 */
-					assert uniqueStore != null; // <- this will throw AssertionError if reached
 					outcome = uniqueStore.mint(id, op.getMetadata().toStringUtf8(), RichInstant.fromJava(txnCtx.consensusTime()));
 				}
 				txnCtx.setStatus((outcome == OK) ? SUCCESS : outcome);

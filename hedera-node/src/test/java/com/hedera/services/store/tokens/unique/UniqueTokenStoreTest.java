@@ -150,7 +150,9 @@ class UniqueTokenStoreTest {
 		var res = store.mint(tokenID, "memo", RichInstant.fromJava(Instant.now()));
 		assertEquals(ResponseCodeEnum.OK, res);
 		verify(token).incrementSerialNum();
+		verify(nfTokens).put(any(), any());
 	}
+
 
 	@Test
 	void mintFailsIfNoSupplyKey(){

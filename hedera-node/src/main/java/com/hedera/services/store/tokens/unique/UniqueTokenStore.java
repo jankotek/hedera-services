@@ -42,6 +42,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.function.Supplier;
 
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
 
 /**
@@ -65,13 +66,13 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 	}
 
 	@Override
-	public ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime) {
+	public ResponseCodeEnum mint(final TokenID tId, final String memo, final RichInstant creationTime) {
 		return tokenSanityCheck(tId, (merkleToken -> {
 			if (!merkleToken.hasSupplyKey()) {
 				return TOKEN_HAS_NO_SUPPLY_KEY;
 			}
 			var mintResult = super.mint(tId, 1);
-			if (!mintResult.equals(ResponseCodeEnum.OK)) {
+			if (!mintResult.equals(OK)) {
 				return mintResult;
 			}
 			final var suppliedTokens = uniqueTokensSupply.get();
@@ -81,8 +82,8 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
 			final var nftId = new MerkleUniqueTokenId(eId, Long.valueOf(serialNum).intValue());
 			final var nft = new MerkleUniqueToken(owner, memo, creationTime);
-			final var putResult = suppliedTokens.putIfAbsent(nftId, nft);
-			return putResult == null ? ResponseCodeEnum.OK : ResponseCodeEnum.INVALID_TOKEN_ID;
+			suppliedTokens.put(nftId, nft);
+			return OK;
 		}));
 
 	}

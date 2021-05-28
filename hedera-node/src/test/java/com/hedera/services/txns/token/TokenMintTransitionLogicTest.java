@@ -24,6 +24,7 @@ import com.hedera.services.context.TransactionContext;
 import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.store.tokens.unique.UniqueTokenStore;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -41,17 +42,20 @@ import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.BDDMockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 class TokenMintTransitionLogicTest {
 	long amount = 123L;
 	private TokenID id = IdUtils.asToken("1.2.3");
 
 	private TokenStore tokenStore;
+	private UniqueTokenStore uniqueStore;
 	private TransactionContext txnCtx;
 	private PlatformTxnAccessor accessor;
 	private MerkleToken token;
@@ -62,12 +66,13 @@ class TokenMintTransitionLogicTest {
 	@BeforeEach
 	private void setup() {
 		tokenStore = mock(TokenStore.class);
+		uniqueStore = mock(UniqueTokenStore.class);
 		accessor = mock(PlatformTxnAccessor.class);
 		token = mock(MerkleToken.class);
 
 		txnCtx = mock(TransactionContext.class);
 
-		subject = new TokenMintTransitionLogic(tokenStore, txnCtx);
+		subject = new TokenMintTransitionLogic(tokenStore, uniqueStore, txnCtx);
 	}
 
 	@Test
@@ -166,6 +171,29 @@ class TokenMintTransitionLogicTest {
 
 		// expect:
 		assertEquals(INVALID_TOKEN_MINT_AMOUNT, subject.semanticCheck().apply(tokenMintTxn));
+	}
+
+	@Test
+	public void followsHappyPathForUnique(){
+		givenValidTxnCtx();
+		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(uniqueStore.mint(any(), anyString(), any())).willReturn(OK);
+
+		subject.doStateTransition();
+
+		verify(uniqueStore, times(1)).mint(any(), anyString(), any());
+		verify(txnCtx).setStatus(SUCCESS);
+	}
+
+	@Test
+	public void followsSadPathForUnique(){
+		givenValidTxnCtx();
+		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(tokenStore.resolve(any())).willReturn(TokenID.getDefaultInstance());
+
+		subject.doStateTransition();
+		verify(uniqueStore, times(0)).mint(any(), anyString(), any());
+		verify(txnCtx).setStatus(INVALID_TOKEN_ID);
 	}
 
 	private void givenValidTxnCtx() {

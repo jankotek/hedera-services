@@ -118,7 +118,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		static final int NUM_0110_CHILDREN = 10;
 		static final int NUM_0120_CHILDREN = 10;
 		static final int NUM_0130_CHILDREN = 10;
-		static final int NUM_0140_CHILDREN = 11;
+		static final int NUM_0140_CHILDREN = 10;
 		static final int UNIQUE_TOKENS = 10;
 	}
 
@@ -204,7 +204,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			log.info("Created RecordsRunningHashLeaf after <=0.11.0 state restoration");
 		}
 		if (uniqueTokens() == null) {
-			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<>());
+			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
 			log.info("Created unique tokens FCInvertibleHashMap after <=0.12.0 state restoration");
 		}
 	}
@@ -245,7 +245,6 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			setChild(ChildIndices.TOKEN_ASSOCIATIONS, new FCMap<>());
 			setChild(ChildIndices.DISK_FS, new MerkleDiskFs());
 			setChild(ChildIndices.SCHEDULE_TXS, new FCMap<>());
-			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
 		} else {
 			log.info("Init called on Services node {} WITH Merkle saved state", nodeId);
 
@@ -273,6 +272,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			RunningHash runningHash = new RunningHash();
 			runningHash.setHash(new ImmutableHash(lastHash));
 			setChild(ChildIndices.RECORD_STREAM_RUNNING_HASH, new RecordsRunningHashLeaf(runningHash));
+			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
 		}
 		ctx.setRecordsInitialHash(runningHashLeaf().getRunningHash().getHash());
 
@@ -284,13 +284,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		log.info("  --> Context initialized accordingly on Services node {}", nodeId);
 	}
 
-	// TODO revert changes on this
 	private boolean runningHashIsEmpty() {
-		var runningHashLeaf = runningHashLeaf();
-		var runningHash = runningHashLeaf.getRunningHash();
-		var hash = runningHash.getHash();
-		return hash.equals(emptyHash);
-//		return runningHashLeaf().getRunningHash().getHash().equals(emptyHash);
+		return runningHashLeaf().getRunningHash().getHash().equals(emptyHash);
 	}
 
 	private void initializeContext(final ServicesContext ctx) {

@@ -20,9 +20,11 @@ package com.hedera.services.txns.token;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.store.tokens.unique.UniqueTokenStore;
 import com.hedera.services.utils.PlatformTxnAccessor;
@@ -32,6 +34,8 @@ import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.nio.charset.StandardCharsets;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
@@ -176,12 +180,21 @@ class TokenMintTransitionLogicTest {
 	@Test
 	public void followsHappyPathForUnique(){
 		givenValidTxnCtx();
+		var  tokenMintBody = TokenMintTransactionBody.newBuilder()
+				.setToken(id)
+				.setMetadata(ByteString.copyFrom("memo".getBytes(StandardCharsets.UTF_8)))
+				.setAmount(amount).build();
+
+		tokenMintTxn = TransactionBody.newBuilder()
+				.setTokenMint(tokenMintBody)
+				.build();
+
+		given(accessor.getTxn()).willReturn(tokenMintTxn);
 		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
 		given(uniqueStore.mint(any(), anyString(), any())).willReturn(OK);
 
 		subject.doStateTransition();
-
-		verify(uniqueStore, times(1)).mint(any(), anyString(), any());
+		verify(uniqueStore, times(1)).mint(id, "memo", RichInstant.fromJava(txnCtx.consensusTime()));
 		verify(txnCtx).setStatus(SUCCESS);
 	}
 

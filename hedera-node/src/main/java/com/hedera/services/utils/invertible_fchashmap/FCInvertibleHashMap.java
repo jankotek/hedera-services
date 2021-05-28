@@ -18,9 +18,16 @@
 package com.hedera.services.utils.invertible_fchashmap;
 
 import com.swirlds.common.FastCopyable;
+import com.swirlds.common.crypto.Hash;
+import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.fchashmap.FCHashMap;
 
-import java.util.*;
+import java.util.AbstractMap;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * A fast copyable hashmap that is also able to generate inverse mappings between a value and the set of all
@@ -36,7 +43,7 @@ import java.util.*;
  * @param <I>
  * 		the type of the identifier used for the value, as required by the {@link Identifiable} interface
  */
-public class FCInvertibleHashMap<K, V extends Identifiable<I>, I> extends AbstractMap<K, V> implements FastCopyable {
+public class FCInvertibleHashMap<K, V extends Identifiable<I>, I> extends AbstractMap<K, V> implements FastCopyable, MerkleNode {
 
 	/**
 	 * A standard mapping between keys and values.
@@ -60,6 +67,8 @@ public class FCInvertibleHashMap<K, V extends Identifiable<I>, I> extends Abstra
 
 	private boolean immutable;
 
+	private int referenceCount;
+
 	/**
 	 * Create a new {@link FCInvertibleHashMap}.
 	 */
@@ -78,6 +87,7 @@ public class FCInvertibleHashMap<K, V extends Identifiable<I>, I> extends Abstra
 		valueToKeyMap = new FCHashMap<>();
 		valueCountMap = new FCHashMap<>();
 		keyIndexMap = new HashMap<>(capacity);
+		this.referenceCount = 0;
 	}
 
 	/**
@@ -91,6 +101,7 @@ public class FCInvertibleHashMap<K, V extends Identifiable<I>, I> extends Abstra
 		valueToKeyMap = that.valueToKeyMap.copy();
 		valueCountMap = that.valueCountMap.copy();
 		keyIndexMap = that.keyIndexMap;
+		referenceCount = that.referenceCount;
 		that.immutable = true;
 	}
 
@@ -286,5 +297,44 @@ public class FCInvertibleHashMap<K, V extends Identifiable<I>, I> extends Abstra
 	@Override
 	public Set<Entry<K, V>> entrySet() {
 		return keyToValueMap.entrySet();
+	}
+
+	@Override
+	public boolean isLeaf() {
+		return false;
+	}
+
+	@Override
+	public void incrementReferenceCount() {
+		referenceCount++;
+	}
+
+	@Override
+	public void decrementReferenceCount() {
+		referenceCount--;
+	}
+
+	@Override
+	public int getReferenceCount() {
+		return referenceCount;
+	}
+
+	@Override
+	public long getClassId() {
+		return 0;
+	}
+
+	@Override
+	public Hash getHash() {
+		return new Hash();
+	}
+
+	@Override
+	public void setHash(final Hash hash) {
+	}
+
+	@Override
+	public int getVersion() {
+		return 1;
 	}
 }

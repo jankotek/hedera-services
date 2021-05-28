@@ -118,8 +118,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		static final int NUM_0110_CHILDREN = 10;
 		static final int NUM_0120_CHILDREN = 10;
 		static final int NUM_0130_CHILDREN = 10;
-		static final int NUM_0140_CHILDREN = 10;
-		static final int UNIQUE_TOKENS = 11;
+		static final int NUM_0140_CHILDREN = 11;
+		static final int UNIQUE_TOKENS = 10;
 	}
 
 	ServicesContext ctx;
@@ -203,8 +203,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			setChild(ChildIndices.RECORD_STREAM_RUNNING_HASH, initialRecordsRunningHashLeaf);
 			log.info("Created RecordsRunningHashLeaf after <=0.11.0 state restoration");
 		}
-		if (uniqueTokens() == null){
-//			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
+		if (uniqueTokens() == null) {
+			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<>());
 			log.info("Created unique tokens FCInvertibleHashMap after <=0.12.0 state restoration");
 		}
 	}
@@ -245,7 +245,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			setChild(ChildIndices.TOKEN_ASSOCIATIONS, new FCMap<>());
 			setChild(ChildIndices.DISK_FS, new MerkleDiskFs());
 			setChild(ChildIndices.SCHEDULE_TXS, new FCMap<>());
-//			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
+			setChild(ChildIndices.UNIQUE_TOKENS, new FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>());
 		} else {
 			log.info("Init called on Services node {} WITH Merkle saved state", nodeId);
 
@@ -284,8 +284,13 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		log.info("  --> Context initialized accordingly on Services node {}", nodeId);
 	}
 
+	// TODO revert changes on this
 	private boolean runningHashIsEmpty() {
-		return runningHashLeaf().getRunningHash().getHash().equals(emptyHash);
+		var runningHashLeaf = runningHashLeaf();
+		var runningHash = runningHashLeaf.getRunningHash();
+		var hash = runningHash.getHash();
+		return hash.equals(emptyHash);
+//		return runningHashLeaf().getRunningHash().getHash().equals(emptyHash);
 	}
 
 	private void initializeContext(final ServicesContext ctx) {
@@ -365,8 +370,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				tokenAssociations().copy(),
 				diskFs().copy(),
 				scheduleTxs().copy(),
-				runningHashLeaf().copy()
-//				uniqueTokens().copy()
+				runningHashLeaf().copy(),
+				uniqueTokens().copy()
 		));
 	}
 
@@ -390,6 +395,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 						"  Storage                :: %s\n" +
 						"  Topics                 :: %s\n" +
 						"  Tokens                 :: %s\n" +
+						"  UniqueTokens           :: %s\n" +
 						"  TokenAssociations      :: %s\n" +
 						"  DiskFs                 :: %s\n" +
 						"  ScheduledTxs           :: %s\n" +
@@ -402,6 +408,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				storage().getHash(),
 				topics().getHash(),
 				tokens().getHash(),
+				uniqueTokens().getHash(),
 				tokenAssociations().getHash(),
 				diskFs().getHash(),
 				scheduleTxs().getHash(),

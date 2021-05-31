@@ -46,7 +46,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.util.Collections;
 
 import static com.hedera.services.ledger.accounts.BackingTokenRels.asTokenRel;
 import static com.hedera.services.ledger.properties.AccountProperty.IS_DELETED;
@@ -56,7 +55,6 @@ import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALAN
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -81,13 +79,10 @@ class UniqueTokenStoreTest {
 	MerkleToken token;
 	EntityId eId;
 	TokenID tokenID = IdUtils.asToken("1.2.3");
-	AccountID autoRenewAccount = IdUtils.asAccount("1.2.5");
-	AccountID newAutoRenewAccount = IdUtils.asAccount("1.2.6");
 	AccountID treasury = IdUtils.asAccount("1.2.3");
 	AccountID sponsor = IdUtils.asAccount("1.2.666");
 	Pair<AccountID, TokenID> sponsorPair = asTokenRel(sponsor, tokenID);
-	Pair<AccountID, TokenID> treasuryPair = asTokenRel(treasury, tokenID);
-	long treasuryBalance = 50_000, sponsorBalance = 1_000;
+	long sponsorBalance = 1_000;
 
 
 	@BeforeEach
@@ -113,35 +108,20 @@ class UniqueTokenStoreTest {
 		given(tokens.getForModify(any())).willReturn(token);
 
 		nfTokens = mock(FCInvertibleHashMap.class);
-		given(nfTokens.containsKey(nftId)).willReturn(true);
-		given(nfTokens.get(nftId)).willReturn(nft);
-		given(nfTokens.inverseGet(any())).willReturn(Collections.singletonList(nftId).iterator());
-		given(nfTokens.inverseGet(any(), anyInt())).willReturn(Collections.singletonList(nftId).iterator());
-		given(nfTokens.inverseGet(any(), anyInt(), anyInt())).willReturn(Collections.singletonList(nftId).iterator());
-		given(nfTokens.size()).willReturn(10);
 
 
 		accountsLedger = (TransactionalLedger<AccountID, AccountProperty, MerkleAccount>) mock(TransactionalLedger.class);
-		given(accountsLedger.exists(treasury)).willReturn(true);
-		given(accountsLedger.exists(autoRenewAccount)).willReturn(true);
-		given(accountsLedger.exists(newAutoRenewAccount)).willReturn(true);
 		given(accountsLedger.exists(sponsor)).willReturn(true);
 		given(accountsLedger.get(treasury, IS_DELETED)).willReturn(false);
 
 		tokenRelsLedger = mock(TransactionalLedger.class);
-		given(tokenRelsLedger.exists(sponsorPair)).willReturn(true);
-		given(tokenRelsLedger.exists(treasuryPair)).willReturn(true);
 		given(tokenRelsLedger.get(sponsorPair, TOKEN_BALANCE)).willReturn(sponsorBalance);
 		given(tokenRelsLedger.get(sponsorPair, IS_FROZEN)).willReturn(false);
 		given(tokenRelsLedger.get(sponsorPair, IS_KYC_GRANTED)).willReturn(true);
-		given(tokenRelsLedger.get(treasuryPair, TOKEN_BALANCE)).willReturn(treasuryBalance);
-		given(tokenRelsLedger.get(treasuryPair, IS_FROZEN)).willReturn(false);
-		given(tokenRelsLedger.get(treasuryPair, IS_KYC_GRANTED)).willReturn(true);
 
 		store = new UniqueTokenStore(ids, TestContextValidator.TEST_VALIDATOR, properties, () -> tokens, () -> nfTokens, tokenRelsLedger);
 		store.setHederaLedger(hederaLedger);
 		store.setAccountsLedger(accountsLedger);
-		given(store.get(tokenID)).willReturn(token);
 
 	}
 

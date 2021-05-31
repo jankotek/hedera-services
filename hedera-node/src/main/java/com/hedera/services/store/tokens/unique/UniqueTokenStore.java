@@ -52,17 +52,17 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_S
  */
 public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
-	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokensSupply;
+	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokenSupplier;
 
 	public UniqueTokenStore(final EntityIdSource ids,
 							final OptionValidator validator,
 							final GlobalDynamicProperties properties,
 							final Supplier<FCMap<MerkleEntityId, MerkleToken>> tokens,
-							final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokensSupply,
+							final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokenSupplier,
 							final TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger
 	) {
 		super(ids, validator, properties, tokens, tokenRelsLedger);
-		this.uniqueTokensSupply = uniqueTokensSupply;
+		this.uniqueTokenSupplier = uniqueTokenSupplier;
 	}
 
 	@Override
@@ -75,7 +75,7 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			if (!mintResult.equals(OK)) {
 				return mintResult;
 			}
-			final var suppliedTokens = uniqueTokensSupply.get();
+			final var suppliedTokens = uniqueTokenSupplier.get();
 			final var eId = EntityId.fromGrpcTokenId(tId);
 			final var owner = merkleToken.treasury();
 			final long serialNum = merkleToken.incrementSerialNum();

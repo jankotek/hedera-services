@@ -284,7 +284,6 @@ class ServicesStateTest {
 		given(ctx.propertySources()).willReturn(propertySources);
 		given(ctx.networkCtxManager()).willReturn(networkCtxManager);
 		given(ctx.recordStreamManager()).willReturn(recordStreamManager);
-//		given(ctx.uniqueTokens()).willReturn(uniqueTokens);
 		systemExits = mock(SystemExits.class);
 
 		subject = new ServicesState();

@@ -80,7 +80,7 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			final var owner = merkleToken.treasury();
 			final long serialNum = merkleToken.incrementSerialNum();
 
-			final var nftId = new MerkleUniqueTokenId(eId, Long.valueOf(serialNum).intValue());
+			final var nftId = new MerkleUniqueTokenId(eId, serialNum);
 			final var nft = new MerkleUniqueToken(owner, memo, creationTime);
 			suppliedTokens.put(nftId, nft);
 			return OK;

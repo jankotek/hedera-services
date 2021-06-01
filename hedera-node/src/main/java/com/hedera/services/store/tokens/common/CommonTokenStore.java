@@ -76,6 +76,7 @@ public class CommonTokenStore extends BaseTokenStore implements CommonStore {
 				return INVALID_WIPING_AMOUNT;
 			}
 			super.getTokenRelsLedger().set(relationship, TOKEN_BALANCE, balance - amount);
+			// TODO this should and will be updated in another PR
 			hederaLedger.updateTokenXfers(tId, aId, -amount);
 
 			apply(tId, t -> t.adjustTotalSupplyBy(-amount));

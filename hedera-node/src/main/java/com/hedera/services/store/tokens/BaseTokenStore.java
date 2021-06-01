@@ -459,7 +459,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 			return INSUFFICIENT_TOKEN_BALANCE;
 		}
 		tokenRelsLedger.set(relationship, TOKEN_BALANCE, newBalance);
-		// TODO this should and will be updated in another PR
+		// TODO this should and will be updated in another PR -> sync with Yoan
 		hederaLedger.updateTokenXfers(tId, aId, adjustment);
 		return OK;
 	}

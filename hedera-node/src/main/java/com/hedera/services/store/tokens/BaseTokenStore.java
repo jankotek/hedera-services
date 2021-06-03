@@ -46,6 +46,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -248,7 +249,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 
 	@Override
 	public boolean associationExists(AccountID aId, TokenID tId) {
-		return checkExistence(aId, tId) == OK && tokenRelsLedger.exists(asTokenRel(aId, tId));
+		return checkAccountExistence(aId) == OK && checkTokenExistence(tId) == OK && tokenRelsLedger.exists(asTokenRel(aId, tId));
 	}
 
 	@Override
@@ -445,23 +446,58 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		}
 	}
 
-	private ResponseCodeEnum tryAdjustment(AccountID aId, TokenID tId, long adjustment) {
+	protected ResponseCodeEnum tryAdjustment(AccountID aId, TokenID tId, long adjustment) {
 		var relationship = asTokenRel(aId, tId);
-		if ((boolean) tokenRelsLedger.get(relationship, IS_FROZEN)) {
-			return ACCOUNT_FROZEN_FOR_TOKEN;
+
+		var resultFrozenOrKYC = checkRelFrozenOrKYC(Arrays.asList(aId), tId);
+		if (!resultFrozenOrKYC.equals(OK)) {
+			return resultFrozenOrKYC;
 		}
-		if (!(boolean) tokenRelsLedger.get(relationship, IS_KYC_GRANTED)) {
-			return ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
-		}
+
 		long balance = (long) tokenRelsLedger.get(relationship, TOKEN_BALANCE);
 		long newBalance = balance + adjustment;
 		if (newBalance < 0) {
 			return INSUFFICIENT_TOKEN_BALANCE;
 		}
 		tokenRelsLedger.set(relationship, TOKEN_BALANCE, newBalance);
-		// TODO this should and will be updated in another PR -> sync with Yoan
 		hederaLedger.updateTokenXfers(tId, aId, adjustment);
 		return OK;
+	}
+
+	protected ResponseCodeEnum tryAdjustment(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
+		var relationshipSender = asTokenRel(senderAId, tId);
+		var relationshipReceiver = asTokenRel(receiverAId, tId);
+
+		var resultFrozenOrKYC = checkRelFrozenOrKYC(Arrays.asList(senderAId, receiverAId), tId);
+		if (!resultFrozenOrKYC.equals(OK)) {
+			return resultFrozenOrKYC;
+		}
+
+		long balanceSender = (long) tokenRelsLedger.get(relationshipSender, TOKEN_BALANCE);
+		long balanceReceiver = (long) tokenRelsLedger.get(relationshipReceiver, TOKEN_BALANCE);
+		if (balanceSender <= 0) {
+			return INSUFFICIENT_TOKEN_BALANCE;
+		}
+		tokenRelsLedger.set(relationshipSender, TOKEN_BALANCE, balanceSender - 1);
+		tokenRelsLedger.set(relationshipReceiver, TOKEN_BALANCE, balanceReceiver + 1);
+		hederaLedger.updateTokenXfers(tId, senderAId, receiverAId, serialNumber);
+		return OK;
+	}
+
+	private ResponseCodeEnum checkRelFrozenOrKYC(List<AccountID> aIdList, TokenID tId) {
+		var result = OK;
+
+		for (AccountID aId : aIdList) {
+			var relationship = asTokenRel(aId, tId);
+			if ((boolean) tokenRelsLedger.get(relationship, IS_FROZEN)) {
+				return ACCOUNT_FROZEN_FOR_TOKEN;
+			}
+			if (!(boolean) tokenRelsLedger.get(relationship, IS_KYC_GRANTED)) {
+				return ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
+			}
+		}
+
+		return result;
 	}
 
 	private boolean isValidAutoRenewPeriod(long secs) {
@@ -708,7 +744,11 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 			TokenID tId,
 			Function<MerkleToken, ResponseCodeEnum> action
 	) {
-		var validity = checkExistence(aId, tId);
+		var validity = checkAccountExistence(aId);
+		if (validity != OK) {
+			return validity;
+		}
+		validity = checkTokenExistence(tId);
 		if (validity != OK) {
 			return validity;
 		}
@@ -719,6 +759,34 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		}
 
 		var key = asTokenRel(aId, tId);
+		if (!tokenRelsLedger.exists(key)) {
+			return TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
+		}
+
+		return action.apply(token);
+	}
+
+	protected ResponseCodeEnum sanityChecked(AccountID senderAId, AccountID receiverAId, TokenID tId,
+											 Function<MerkleToken, ResponseCodeEnum> action) {
+		var validity = checkAccountExistence(senderAId);
+		if (validity != OK) {
+			return validity;
+		}
+		validity = checkAccountExistence(receiverAId);
+		if (validity != OK) {
+			return validity;
+		}
+		validity = checkTokenExistence(tId);
+		if (validity != OK) {
+			return validity;
+		}
+
+		var token = get(tId);
+		if (token.isDeleted()) {
+			return TOKEN_WAS_DELETED;
+		}
+
+		var key = asTokenRel(senderAId, tId);
 		if (!tokenRelsLedger.exists(key)) {
 			return TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 		}
@@ -744,17 +812,18 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		return action.apply(token);
 	}
 
-	private ResponseCodeEnum checkExistence(AccountID aId, TokenID tId) {
-		var validity = checkAccountUsability(aId);
-		if (validity != OK) {
-			return validity;
-		}
+	private ResponseCodeEnum checkAccountExistence(AccountID aId) {
+		return checkAccountUsability(aId);
+	}
+
+	private ResponseCodeEnum checkTokenExistence(TokenID tId) {
 		return exists(tId) ? OK : INVALID_TOKEN_ID;
 	}
 
 	Map<AccountID, Set<TokenID>> getKnownTreasuries() {
 		return knownTreasuries;
 	}
+
 	protected TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> getTokenRelsLedger() {
 		return tokenRelsLedger;
 	}

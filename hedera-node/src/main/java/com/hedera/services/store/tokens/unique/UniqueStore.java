@@ -22,8 +22,10 @@ package com.hedera.services.store.tokens.unique;
 
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
 
 /**
  * An interface which defines methods for the UniqueTokenStore
@@ -32,7 +34,16 @@ import com.hederahashgraph.api.proto.java.TokenID;
  */
 public interface UniqueStore extends TokenStore {
 
-	ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime);
+    //	ResponseCodeEnum mint(final TokenID tId, String memo, RichInstant creationTime);
+    ResponseCodeEnum mint(final TokenMintTransactionBody txBody, final RichInstant creationTime);
+
+    ResponseCodeEnum mintProvisional(final TokenMintTransactionBody request, final RichInstant creationTime);
+
+    ResponseCodeEnum commitProvisional();
+
+    default ResponseCodeEnum adjustBalance(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
+        throw new UnsupportedOperationException();
+    }
 //	MerkleUniqueToken getUnique(final EntityId eId, final int serialNum);
 //	Iterator<MerkleUniqueTokenId> getByToken(final MerkleUniqueToken token);
 //	Iterator<MerkleUniqueTokenId> getByTokenFromIdx(final MerkleUniqueToken token, final int start);

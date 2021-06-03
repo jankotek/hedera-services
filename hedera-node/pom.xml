@@ -283,6 +283,13 @@
         </exclusion>
       </exclusions>
     </dependency>
+
+    <dependency>
+      <groupId>org.hyperledger.besu.internal</groupId>
+      <artifactId>core</artifactId>
+      <version>21.7.0-RC1</version>
+    </dependency>
+
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
@@ -370,6 +377,13 @@
       <name>bintray</name>
       <url>https://jcenter.bintray.com</url>
     </repository>
+
+    <repository>
+      <id>hyperledger-artifactory</id>
+      <name>hyperledger-artifactory-primary-0-releases</name>
+      <url>https://hyperledger.jfrog.io/artifactory/besu-maven</url>
+    </repository>
+
   </repositories>
   <profiles>
     <profile>

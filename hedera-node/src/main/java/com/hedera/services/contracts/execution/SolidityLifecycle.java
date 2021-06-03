@@ -86,7 +86,6 @@ public class SolidityLifecycle {
 
 		var status = OK;
 		var result = asHapiResult(executor.getReceipt(), Optional.empty());
-
 		var failed = StringUtils.isNotEmpty(result.getErrorMessage());
 		if (failed) {
 			status = Optional.ofNullable(executor.getErrorCode()).orElse(CONTRACT_EXECUTION_EXCEPTION);

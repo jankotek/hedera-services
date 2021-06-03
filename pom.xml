@@ -513,6 +513,11 @@ ${git.signoff}
         <artifactId>ethereumj-core</artifactId>
         <version>${ethereum-core.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.hyperledger.besu.internal</groupId>
+        <artifactId>core</artifactId>
+        <version>21.7.0-RC1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
   <profiles>
@@ -577,6 +582,7 @@ ${git.signoff}
           </plugin>
         </plugins>
       </build>
+
     </profile>
   </profiles>
 </project>

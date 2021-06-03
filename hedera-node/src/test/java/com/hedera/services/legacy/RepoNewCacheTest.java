@@ -37,6 +37,7 @@ import com.hedera.services.state.merkle.MerkleBlobMeta;
 import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.merkle.MerkleOptionalBlob;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.store.tokens.unique.UniqueStore;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hedera.services.utils.MiscUtils;
 import com.hedera.test.mocks.StorageSourceFactory;
@@ -74,13 +75,14 @@ public class RepoNewCacheTest {
 				new FCMapBackingAccounts(() -> accountMap),
 				new ChangeSummaryManager<>());
 		HederaLedger ledger = new HederaLedger(
-				mock(TokenStore.class),
-				mock(EntityIdSource.class),
-				mock(ExpiringCreations.class),
-				TestContextValidator.TEST_VALIDATOR,
-				mock(AccountRecordsHistorian.class),
-				new MockGlobalDynamicProps(),
-				delegate);
+                mock(TokenStore.class),
+                mock(UniqueStore.class),
+                mock(EntityIdSource.class),
+                mock(ExpiringCreations.class),
+                TestContextValidator.TEST_VALIDATOR,
+                mock(AccountRecordsHistorian.class),
+                new MockGlobalDynamicProps(),
+                delegate);
 		Source<byte[], AccountState> repDatabase = new LedgerAccountsSource(ledger);
 		ServicesRepositoryRoot repository = new ServicesRepositoryRoot(repDatabase, repDBFile);
 		String key = Hex.toHexString(EntityIdUtils.asSolidityAddress(0, 0, 1));
@@ -171,13 +173,14 @@ public class RepoNewCacheTest {
 		backingAccounts.put(IdUtils.asAccount("0.0.1"), someAccount);
 		backingAccounts.put(IdUtils.asAccount("0.0.2"), someOtherAccount);
 		HederaLedger ledger = new HederaLedger(
-				mock(TokenStore.class),
-				mock(EntityIdSource.class),
-				mock(ExpiringCreations.class),
-				TestContextValidator.TEST_VALIDATOR,
-				mock(AccountRecordsHistorian.class),
-				new MockGlobalDynamicProps(),
-				delegate);
+                mock(TokenStore.class),
+                mock(UniqueStore.class),
+                mock(EntityIdSource.class),
+                mock(ExpiringCreations.class),
+                TestContextValidator.TEST_VALIDATOR,
+                mock(AccountRecordsHistorian.class),
+                new MockGlobalDynamicProps(),
+                delegate);
 		Source<byte[], AccountState> accountSource = new LedgerAccountsSource(ledger);
 		ServicesRepositoryRoot repository = new ServicesRepositoryRoot(accountSource, repDBFile);
 

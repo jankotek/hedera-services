@@ -78,12 +78,12 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 				if(token.tokenType().equals(TokenType.FUNGIBLE_COMMON)) {
 					outcome = commonStore.mint(id, op.getAmount());
 				} else {
-					outcome = uniqueStore.mint(id, op.getMetadata().toStringUtf8(), RichInstant.fromJava(txnCtx.consensusTime()));
-				}
+                    outcome = uniqueStore.mint(op, RichInstant.fromJava(txnCtx.consensusTime()));
+                }
 				txnCtx.setStatus((outcome == OK) ? SUCCESS : outcome);
 				if (outcome == OK) {
-					txnCtx.setNewTotalSupply(commonStore.get(id).totalSupply());
-				}
+                    txnCtx.setNewTotalSupply(token.totalSupply());
+                }
 			}
 		} catch (Exception e) {
 			log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxn4Log(), e);
@@ -102,16 +102,16 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 	}
 
 	public ResponseCodeEnum validate(TransactionBody txnBody) {
-		TokenMintTransactionBody op = txnBody.getTokenMint();
+        TokenMintTransactionBody op = txnBody.getTokenMint();
 
-		if (!op.hasToken()) {
-			return INVALID_TOKEN_ID;
-		}
+        if (!op.hasToken()) {
+            return INVALID_TOKEN_ID;
+        }
 
-		if (op.getAmount() <= 0) {
-			return INVALID_TOKEN_MINT_AMOUNT;
-		}
+        if (op.getAmount() <= 0 || op.getMetadataCount() == 0) {
+            return INVALID_TOKEN_MINT_AMOUNT;
+        }
 
-		return OK;
-	}
+        return OK;
+    }
 }

@@ -152,54 +152,54 @@ public class HederaLedgerTest extends BaseHederaLedgerTest {
 
 	@Test
 	public void recognizesDetached() {
-		// setup:
-		validator = mock(OptionValidator.class);
-		given(validator.isAfterConsensusSecond(anyLong())).willReturn(false);
-		given(accountsLedger.get(genesis, BALANCE)).willReturn(0L);
-		// and:
-		subject = new HederaLedger(tokenStore, ids, creator, validator, historian, dynamicProps, accountsLedger);
+        // setup:
+        validator = mock(OptionValidator.class);
+        given(validator.isAfterConsensusSecond(anyLong())).willReturn(false);
+        given(accountsLedger.get(genesis, BALANCE)).willReturn(0L);
+        // and:
+        subject = new HederaLedger(tokenStore, uniqueTokenStore, ids, creator, validator, historian, dynamicProps, accountsLedger);
 
-		// when:
-		var result = subject.isDetached(genesis);
+        // when:
+        var result = subject.isDetached(genesis);
 
-		// then:
-		assertTrue(result);
-	}
+        // then:
+        assertTrue(result);
+    }
 
 	@Test
 	public void recognizesCannotBeDetachedIfContract() {
-		// setup:
-		validator = mock(OptionValidator.class);
-		given(validator.isAfterConsensusSecond(anyLong())).willReturn(false);
-		given(accountsLedger.get(genesis, BALANCE)).willReturn(0L);
-		given(accountsLedger.get(genesis, IS_SMART_CONTRACT)).willReturn(true);
-		// and:
-		subject = new HederaLedger(tokenStore, ids, creator, validator, historian, dynamicProps, accountsLedger);
+        // setup:
+        validator = mock(OptionValidator.class);
+        given(validator.isAfterConsensusSecond(anyLong())).willReturn(false);
+        given(accountsLedger.get(genesis, BALANCE)).willReturn(0L);
+        given(accountsLedger.get(genesis, IS_SMART_CONTRACT)).willReturn(true);
+        // and:
+        subject = new HederaLedger(tokenStore, uniqueTokenStore, ids, creator, validator, historian, dynamicProps, accountsLedger);
 
-		// when:
-		var result = subject.isDetached(genesis);
+        // when:
+        var result = subject.isDetached(genesis);
 
-		// then:
-		assertFalse(result);
-	}
+        // then:
+        assertFalse(result);
+    }
 
 	@Test
 	public void recognizesCannotBeDetachedIfAutoRenewDisabled() {
-		// setup:
-		validator = mock(OptionValidator.class);
-		given(validator.isAfterConsensusSecond(anyLong())).willReturn(false);
-		given(accountsLedger.get(genesis, BALANCE)).willReturn(0L);
-		// and:
-		subject = new HederaLedger(tokenStore, ids, creator, validator, historian, dynamicProps, accountsLedger);
-		// and:
-		dynamicProps.disableAutoRenew();
+        // setup:
+        validator = mock(OptionValidator.class);
+        given(validator.isAfterConsensusSecond(anyLong())).willReturn(false);
+        given(accountsLedger.get(genesis, BALANCE)).willReturn(0L);
+        // and:
+        subject = new HederaLedger(tokenStore, uniqueTokenStore, ids, creator, validator, historian, dynamicProps, accountsLedger);
+        // and:
+        dynamicProps.disableAutoRenew();
 
-		// when:
-		var result = subject.isDetached(genesis);
+        // when:
+        var result = subject.isDetached(genesis);
 
-		// then:
-		assertFalse(result);
-	}
+        // then:
+        assertFalse(result);
+    }
 
 	@Test
 	public void delegatesToCorrectExpiryProperty() {

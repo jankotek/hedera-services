@@ -445,7 +445,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		}
 	}
 
-	private ResponseCodeEnum tryAdjustment(AccountID aId, TokenID tId, long adjustment) {
+	protected ResponseCodeEnum tryAdjustment(AccountID aId, TokenID tId, long adjustment) {
 		var relationship = asTokenRel(aId, tId);
 		if ((boolean) tokenRelsLedger.get(relationship, IS_FROZEN)) {
 			return ACCOUNT_FROZEN_FOR_TOKEN;
@@ -459,8 +459,28 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 			return INSUFFICIENT_TOKEN_BALANCE;
 		}
 		tokenRelsLedger.set(relationship, TOKEN_BALANCE, newBalance);
-		// TODO this should and will be updated in another PR -> sync with Yoan
 		hederaLedger.updateTokenXfers(tId, aId, adjustment);
+		return OK;
+	}
+
+	protected ResponseCodeEnum tryAdjustment(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
+		var relationshipSender = asTokenRel(senderAId, tId);
+		var relationshipReceiver = asTokenRel(receiverAId, tId);
+		if ((boolean) tokenRelsLedger.get(relationshipSender, IS_FROZEN) ||
+				(boolean) tokenRelsLedger.get(relationshipReceiver, IS_FROZEN)) {
+			return ACCOUNT_FROZEN_FOR_TOKEN;
+		}
+		if (!(boolean) tokenRelsLedger.get(relationshipSender, IS_KYC_GRANTED) ||
+				!(boolean) tokenRelsLedger.get(relationshipReceiver, IS_KYC_GRANTED)) {
+			return ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
+		}
+		long balanceSender = (long) tokenRelsLedger.get(relationshipSender, TOKEN_BALANCE);
+		if (balanceSender <= 0) {
+			return INSUFFICIENT_TOKEN_BALANCE;
+		}
+		tokenRelsLedger.set(relationshipSender, TOKEN_BALANCE, 0);
+		tokenRelsLedger.set(relationshipReceiver, TOKEN_BALANCE, 1);
+		hederaLedger.updateTokenXfers(tId, senderAId, receiverAId, serialNumber);
 		return OK;
 	}
 
@@ -726,6 +746,26 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		return action.apply(token);
 	}
 
+	protected ResponseCodeEnum sanityChecked(AccountID senderAId, AccountID receiverAId, TokenID tId,
+											 Function<MerkleToken, ResponseCodeEnum> action) {
+		var validity = checkExistence(senderAId, receiverAId, tId);
+		if (validity != OK) {
+			return validity;
+		}
+
+		var token = get(tId);
+		if (token.isDeleted()) {
+			return TOKEN_WAS_DELETED;
+		}
+		// TODO do we need more checks?
+		var key = asTokenRel(senderAId, tId);
+		if (!tokenRelsLedger.exists(key)) {
+			return TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
+		}
+
+		return action.apply(token);
+	}
+
 	protected ResponseCodeEnum tokenSanityCheck(
 			TokenID tId,
 			Function<MerkleToken, ResponseCodeEnum> action
@@ -752,9 +792,22 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		return exists(tId) ? OK : INVALID_TOKEN_ID;
 	}
 
+	private ResponseCodeEnum checkExistence(AccountID senderAId, AccountID receiverAId, TokenID tId) {
+		var validity = checkAccountUsability(senderAId);
+		if (validity != OK) {
+			return validity;
+		}
+		validity = checkAccountUsability(receiverAId);
+		if (validity != OK) {
+			return validity;
+		}
+		return exists(tId) ? OK : INVALID_TOKEN_ID;
+	}
+
 	Map<AccountID, Set<TokenID>> getKnownTreasuries() {
 		return knownTreasuries;
 	}
+
 	protected TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> getTokenRelsLedger() {
 		return tokenRelsLedger;
 	}

@@ -378,6 +378,7 @@ import static com.hedera.services.sigs.metadata.SigMetadataLookup.SCHEDULE_REF_L
 import static com.hedera.services.sigs.utils.PrecheckUtils.queryPaymentTestFor;
 import static com.hedera.services.state.expiry.NoopExpiringCreations.NOOP_EXPIRING_CREATIONS;
 import static com.hedera.services.store.tokens.ExceptionalTokenStore.NOOP_TOKEN_STORE;
+import static com.hedera.services.store.tokens.unique.ExceptionalUniqueTokenStore.NOOP_UNIQUE_TOKEN_STORE;
 import static com.hedera.services.txns.submission.StructuralPrecheck.HISTORICAL_MAX_PROTO_MESSAGE_DEPTH;
 import static com.hedera.services.utils.EntityIdUtils.accountParsedFromString;
 import static com.hedera.services.utils.MiscUtils.lookupInCustomStore;
@@ -1503,6 +1504,7 @@ public class ServicesContext {
 			accountsLedger.setKeyComparator(ACCOUNT_ID_COMPARATOR);
 			ledger = new HederaLedger(
 					tokenStore(),
+					uniqueStore(),
 					ids(),
 					creator(),
 					validator(),
@@ -1825,6 +1827,7 @@ public class ServicesContext {
 					new ChangeSummaryManager<>());
 			HederaLedger pureLedger = new HederaLedger(
 					NOOP_TOKEN_STORE,
+					NOOP_UNIQUE_TOKEN_STORE,
 					NOOP_ID_SOURCE,
 					NOOP_EXPIRING_CREATIONS,
 					validator(),

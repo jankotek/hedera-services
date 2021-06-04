@@ -20,6 +20,8 @@ package com.hedera.services.ledger;
  * ‍
  */
 
+import com.hedera.services.state.enums.TokenType;
+import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
@@ -57,6 +59,9 @@ public class HederLedgerTokenXfersTest extends BaseHederaLedgerTest {
 
 	@Test
 	public void requiresAllNetZeroTransfers() {
+		// setup
+		given(tokenStore.get(tokenId)).willReturn(token);
+		given(tokenStore.get(tokenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		givenAdjustBalanceUpdatingTokenXfers(any(), any(), anyLong());
 
 		// when:
@@ -87,6 +92,10 @@ public class HederLedgerTokenXfersTest extends BaseHederaLedgerTest {
 
 	@Test
 	public void tokenTransfersRollbackIfInvalidHbars() {
+		// setup
+		given(tokenStore.get(tokenId)).willReturn(token);
+		given(tokenStore.get(frozenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(tokenStore.get(tokenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		given(tokenStore.adjustBalance(any(), any(), anyLong())).willReturn(OK);
 		given(accountsLedger.get(rand, IS_SMART_CONTRACT)).willReturn(true);
 
@@ -103,6 +112,10 @@ public class HederLedgerTokenXfersTest extends BaseHederaLedgerTest {
 
 	@Test
 	public void happyPathZeroSumTokenTransfers() {
+		// setup
+		given(tokenStore.get(tokenId)).willReturn(token);
+		given(tokenStore.get(frozenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(tokenStore.get(tokenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		givenAdjustBalanceUpdatingTokenXfers(any(), any(), anyLong());
 
 		// when:
@@ -125,6 +138,10 @@ public class HederLedgerTokenXfersTest extends BaseHederaLedgerTest {
 
 	@Test
 	public void happyPathZeroSumTokenTransfersWithHbar() {
+		// setup
+		given(tokenStore.get(tokenId)).willReturn(token);
+		given(tokenStore.get(frozenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(tokenStore.get(tokenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		givenAdjustBalanceUpdatingTokenXfers(any(), any(), anyLong());
 
 		// when:
@@ -202,6 +219,8 @@ public class HederLedgerTokenXfersTest extends BaseHederaLedgerTest {
 	@Test
 	public void tokenTransferHappyPath() {
 		// setup
+		given(tokenStore.get(tokenId)).willReturn(token);
+		given(tokenStore.get(tokenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		givenAdjustBalanceUpdatingTokenXfers(misc, tokenId, -555);
 		givenAdjustBalanceUpdatingTokenXfers(rand, tokenId, 555);
 
@@ -236,6 +255,10 @@ public class HederLedgerTokenXfersTest extends BaseHederaLedgerTest {
 						.addAccountAmounts(
 								AccountAmount.newBuilder()
 										.setAccountID(IdUtils.asAccount("0.0.3"))));
+		// and:
+		given(tokenStore.get(tokenId)).willReturn(token);
+		given(tokenStore.get(frozenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
+		given(tokenStore.get(tokenId).tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 
 		// when:
 		subject.rollback();

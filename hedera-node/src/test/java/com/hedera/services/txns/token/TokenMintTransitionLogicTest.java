@@ -26,7 +26,6 @@ import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.TokenStore;
-import com.hedera.services.store.tokens.common.CommonTokenStore;
 import com.hedera.services.store.tokens.unique.UniqueTokenStore;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.utils.IdUtils;
@@ -35,6 +34,8 @@ import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.nio.charset.StandardCharsets;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
@@ -45,6 +46,7 @@ import static junit.framework.TestCase.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
@@ -53,29 +55,29 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 class TokenMintTransitionLogicTest {
-    long amount = 123L;
-    private TokenID id = IdUtils.asToken("1.2.3");
+	long amount = 123L;
+	private TokenID id = IdUtils.asToken("1.2.3");
 
-    private CommonTokenStore tokenStore;
-    private UniqueTokenStore uniqueStore;
-    private TransactionContext txnCtx;
-    private PlatformTxnAccessor accessor;
-    private MerkleToken token;
+	private TokenStore tokenStore;
+	private UniqueTokenStore uniqueStore;
+	private TransactionContext txnCtx;
+	private PlatformTxnAccessor accessor;
+	private MerkleToken token;
 
-    private TransactionBody tokenMintTxn;
-    private TokenMintTransitionLogic subject;
+	private TransactionBody tokenMintTxn;
+	private TokenMintTransitionLogic subject;
 
-    @BeforeEach
-    private void setup() {
-        tokenStore = mock(CommonTokenStore.class);
-        uniqueStore = mock(UniqueTokenStore.class);
-        accessor = mock(PlatformTxnAccessor.class);
-        token = mock(MerkleToken.class);
+	@BeforeEach
+	private void setup() {
+		tokenStore = mock(TokenStore.class);
+		uniqueStore = mock(UniqueTokenStore.class);
+		accessor = mock(PlatformTxnAccessor.class);
+		token = mock(MerkleToken.class);
 
-        txnCtx = mock(TransactionContext.class);
+		txnCtx = mock(TransactionContext.class);
 
-        subject = new TokenMintTransitionLogic(tokenStore, uniqueStore, txnCtx);
-    }
+		subject = new TokenMintTransitionLogic(tokenStore, uniqueStore, txnCtx);
+	}
 
 	@Test
 	public void capturesInvalidMint() {
@@ -146,6 +148,7 @@ class TokenMintTransitionLogicTest {
 	@Test
 	public void acceptsValidTxn() {
 		givenValidTxnCtx();
+
 		// expect:
 		assertEquals(OK, subject.semanticCheck().apply(tokenMintTxn));
 	}
@@ -176,47 +179,41 @@ class TokenMintTransitionLogicTest {
 
 	@Test
 	public void followsHappyPathForUnique() {
-        givenValidTxnCtx();
-        var tokenMintBody = TokenMintTransactionBody.newBuilder()
-                .setToken(id)
-                .addMetadata(ByteString.copyFromUtf8("memo"))
-                .setAmount(amount).build();
+		givenValidTxnCtx();
+		var tokenMintBody = TokenMintTransactionBody.newBuilder()
+				.setToken(id)
+				.addMetadata(ByteString.copyFrom("memo".getBytes(StandardCharsets.UTF_8)))
+				.setAmount(amount).build();
 
-        tokenMintTxn = TransactionBody.newBuilder().setTokenMint(tokenMintBody).build();
-        given(tokenStore.exists(id)).willReturn(true);
-        given(tokenStore.get(id)).willReturn(token);
-        given(tokenStore.resolve(id)).willReturn(id);
-        given(token.isDeleted()).willReturn(false);
-        given(accessor.getTxn()).willReturn(tokenMintTxn);
-        given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		tokenMintTxn = TransactionBody.newBuilder()
+				.setTokenMint(tokenMintBody)
+				.build();
 
-        given(uniqueStore.mintProvisional(any(), any())).willReturn(OK);
-        given(uniqueStore.commitProvisional()).willReturn(OK);
-        given(uniqueStore.mint(any(), any())).willReturn(OK);
+		given(accessor.getTxn()).willReturn(tokenMintTxn);
+		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(uniqueStore.mint(any(), anyString(), any())).willReturn(OK);
 
-        subject.doStateTransition();
-        verify(uniqueStore, times(1)).mint(tokenMintBody, RichInstant.fromJava(txnCtx.consensusTime()));
-        verify(txnCtx).setStatus(SUCCESS);
-    }
+		subject.doStateTransition();
+		verify(uniqueStore, times(1)).mint(id, "memo", RichInstant.fromJava(txnCtx.consensusTime()));
+		verify(txnCtx).setStatus(SUCCESS);
+	}
 
 	@Test
 	public void followsSadPathForUnique() {
-        givenValidTxnCtx();
-        given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
-        given(tokenStore.resolve(any())).willReturn(TokenID.getDefaultInstance());
+		givenValidTxnCtx();
+		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		given(tokenStore.resolve(any())).willReturn(TokenID.getDefaultInstance());
 
-        subject.doStateTransition();
-        verify(uniqueStore, times(0)).mint(any(), any());
-        verify(txnCtx).setStatus(INVALID_TOKEN_ID);
-    }
+		subject.doStateTransition();
+		verify(uniqueStore, times(0)).mint(any(), anyString(), any());
+		verify(txnCtx).setStatus(INVALID_TOKEN_ID);
+	}
 
 	private void givenValidTxnCtx() {
 		tokenMintTxn = TransactionBody.newBuilder()
 				.setTokenMint(TokenMintTransactionBody.newBuilder()
-                        .setToken(id)
-                        .addMetadata(ByteString.copyFromUtf8("memo"))
-                        .setAmount(amount)
-                )
+						.setToken(id)
+						.setAmount(amount))
 				.build();
 		given(accessor.getTxn()).willReturn(tokenMintTxn);
 		given(txnCtx.accessor()).willReturn(accessor);

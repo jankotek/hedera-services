@@ -89,6 +89,7 @@ import com.hedera.services.fees.calculation.schedule.txns.ScheduleDeleteResource
 import com.hedera.services.fees.calculation.schedule.txns.ScheduleSignResourceUsage;
 import com.hedera.services.fees.calculation.system.txns.FreezeResourceUsage;
 import com.hedera.services.fees.calculation.token.queries.GetTokenInfoResourceUsage;
+import com.hedera.services.fees.calculation.token.queries.GetTokenNftInfoResourceUsage;
 import com.hedera.services.fees.calculation.token.txns.TokenAssociateResourceUsage;
 import com.hedera.services.fees.calculation.token.txns.TokenBurnResourceUsage;
 import com.hedera.services.fees.calculation.token.txns.TokenCreateResourceUsage;
@@ -179,6 +180,7 @@ import com.hedera.services.queries.meta.MetaAnswers;
 import com.hedera.services.queries.schedule.GetScheduleInfoAnswer;
 import com.hedera.services.queries.schedule.ScheduleAnswers;
 import com.hedera.services.queries.token.GetTokenInfoAnswer;
+import com.hedera.services.queries.token.GetTokenNftInfoAnswer;
 import com.hedera.services.queries.token.TokenAnswers;
 import com.hedera.services.queries.validation.QueryFeeCheck;
 import com.hedera.services.records.AccountRecordsHistorian;
@@ -439,9 +441,13 @@ public class ServicesContext {
 	private final PropertySources propertySources;
 
 	/* Context-sensitive singletons. */
-	/** the directory to which we writes .rcd and .rcd_sig files */
+	/**
+	 * the directory to which we writes .rcd and .rcd_sig files
+	 */
 	private String recordStreamDir;
-	/** the initialHash of RecordStreamManager */
+	/**
+	 * the initialHash of RecordStreamManager
+	 */
 	private Hash recordsInitialHash = new ImmutableHash(new byte[DigestType.SHA_384.digestLength()]);
 	private Address address;
 	private Console console;
@@ -560,6 +566,7 @@ public class ServicesContext {
 	private AtomicReference<FCMap<MerkleBlobMeta, MerkleOptionalBlob>> queryableStorage;
 	private AtomicReference<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> queryableTokenAssociations;
 	private TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger;
+	private AtomicReference<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> queryableUniqueTokens;
 
 	/* Context-free infrastructure. */
 	private static Pause pause;
@@ -595,6 +602,7 @@ public class ServicesContext {
 		queryableTokens().set(tokens());
 		queryableTokenAssociations().set(tokenAssociations());
 		queryableSchedules().set(schedules());
+		queryableUniqueTokens().set(uniqueTokens());
 	}
 
 	public void rebuildBackingStoresIfPresent() {
@@ -612,6 +620,9 @@ public class ServicesContext {
 		}
 		if (commonTokenStore != null) {
 			commonTokenStore.rebuildViews();
+		}
+		if (uniqueTokenStore != null) {
+			uniqueTokenStore.rebuildViews();
 		}
 	}
 
@@ -773,6 +784,7 @@ public class ServicesContext {
 		if (stateViews == null) {
 			stateViews = () -> new StateView(
 					tokenStore(),
+					uniqueStore(),
 					scheduleStore(),
 					() -> queryableTopics().get(),
 					() -> queryableAccounts().get(),
@@ -788,6 +800,7 @@ public class ServicesContext {
 		if (currentView == null) {
 			currentView = new StateView(
 					tokenStore(),
+					uniqueStore(),
 					scheduleStore(),
 					this::topics,
 					this::accounts,
@@ -912,7 +925,8 @@ public class ServicesContext {
 	public TokenAnswers tokenAnswers() {
 		if (tokenAnswers == null) {
 			tokenAnswers = new TokenAnswers(
-					new GetTokenInfoAnswer()
+					new GetTokenInfoAnswer(),
+					new GetTokenNftInfoAnswer()
 			);
 		}
 		return tokenAnswers;
@@ -989,7 +1003,9 @@ public class ServicesContext {
 							/* Token */
 							new GetTokenInfoResourceUsage(),
 							/* Schedule */
-							new GetScheduleInfoResourceUsage(scheduleOpsUsage)
+							new GetScheduleInfoResourceUsage(scheduleOpsUsage),
+							/* NftInfo */
+							new GetTokenNftInfoResourceUsage()
 					),
 					txnUsageEstimators(
 							cryptoOpsUsage, fileOpsUsage, fileFees, cryptoFees, contractFees, scheduleOpsUsage)
@@ -1444,7 +1460,7 @@ public class ServicesContext {
 		return globalDynamicProperties;
 	}
 
-	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger(){
+	public TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger() {
 		if (tokenRelsLedger == null) {
 			tokenRelsLedger = new TransactionalLedger<>(
 					TokenRelProperty.class,
@@ -1471,8 +1487,8 @@ public class ServicesContext {
 		return commonTokenStore;
 	}
 
-	public UniqueStore uniqueStore(){
-		if (uniqueTokenStore == null){
+	public UniqueStore uniqueStore() {
+		if (uniqueTokenStore == null) {
 			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
 					tokenRelsLedger();
 			uniqueTokenStore = new UniqueTokenStore(
@@ -1941,6 +1957,14 @@ public class ServicesContext {
 		return queryableSchedules;
 	}
 
+	public AtomicReference<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> queryableUniqueTokens() {
+		if (queryableUniqueTokens == null) {
+			queryableUniqueTokens = new AtomicReference<>(uniqueTokens());
+		}
+
+		return queryableUniqueTokens;
+	}
+
 	public UsagePricesProvider usagePrices() {
 		if (usagePrices == null) {
 			usagePrices = new AwareFcfsUsagePrices(hfs(), fileNums(), txnCtx());
@@ -2040,7 +2064,7 @@ public class ServicesContext {
 		return state.tokens();
 	}
 
-	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> uniqueTokens(){
+	public FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier> uniqueTokens() {
 		return state.uniqueTokens();
 	}
 
@@ -2080,8 +2104,7 @@ public class ServicesContext {
 	/**
 	 * update the runningHash instance saved in runningHashLeaf
 	 *
-	 * @param runningHash
-	 * 		new runningHash instance
+	 * @param runningHash new runningHash instance
 	 */
 	public void updateRecordRunningHash(final RunningHash runningHash) {
 		state.runningHashLeaf().setRunningHash(runningHash);
@@ -2096,8 +2119,7 @@ public class ServicesContext {
 	 * setting is read.
 	 * Thus we save the initialHash in the context, and use it when initializing RecordStreamManager
 	 *
-	 * @param recordsInitialHash
-	 * 		initial running Hash of records
+	 * @param recordsInitialHash initial running Hash of records
 	 */
 	public void setRecordsInitialHash(final Hash recordsInitialHash) {
 		this.recordsInitialHash = recordsInitialHash;

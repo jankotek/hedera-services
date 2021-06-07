@@ -35,25 +35,18 @@ import com.hedera.services.store.tokens.BaseTokenStore;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.invertible_fchashmap.FCInvertibleHashMap;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
-import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
-import static com.hedera.services.ledger.accounts.BackingTokenRels.asTokenRel;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
-/*
- * Notes:
- * */
-
+import static com.hedera.services.state.merkle.MerkleUniqueTokenId.fromNftID;
+import static com.hedera.services.utils.EntityIdUtils.readableId;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
 
 /**
  * Provides functionality to work with Unique tokens.
@@ -63,7 +56,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 
 	private final Supplier<FCInvertibleHashMap<MerkleUniqueTokenId, MerkleUniqueToken, OwnerIdentifier>> uniqueTokenSupplier;
-	private final List<Pair<MerkleUniqueTokenId, MerkleUniqueToken>> provisionalUniqueTokens;
 
 	public UniqueTokenStore(final EntityIdSource ids,
 							final OptionValidator validator,
@@ -74,18 +66,17 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 	) {
 		super(ids, validator, properties, tokens, tokenRelsLedger);
 		this.uniqueTokenSupplier = uniqueTokenSupplier;
-		this.provisionalUniqueTokens = new ArrayList<>(); // TODO MAX_SIZE
-
 	}
 
-	private ResponseCodeEnum mintOne(final TokenID tId, final String memo, final RichInstant creationTime) {
+	@Override
+	public ResponseCodeEnum mint(final TokenID tId, final String memo, final RichInstant creationTime) {
 		return tokenSanityCheck(tId, (merkleToken -> {
 			if (!merkleToken.hasSupplyKey()) {
 				return TOKEN_HAS_NO_SUPPLY_KEY;
 			}
-			var adjustmentResult = tryAdjustment(merkleToken.treasury().toGrpcAccountId(), tId, 1);
-			if (!adjustmentResult.equals(OK)) {
-				return adjustmentResult;
+			var mintResult = super.mint(tId, 1);
+			if (!mintResult.equals(OK)) {
+				return mintResult;
 			}
 			final var suppliedTokens = uniqueTokenSupplier.get();
 			final var eId = EntityId.fromGrpcTokenId(tId);
@@ -97,6 +88,7 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			suppliedTokens.put(nftId, nft);
 			return OK;
 		}));
+
 	}
 
 	@Override
@@ -104,86 +96,21 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 		return null;
 	}
 
-	@Override
-	public ResponseCodeEnum mintProvisional(final TokenMintTransactionBody request, final RichInstant creationTime) {
-		return tokenSanityCheck(request.getToken(), merkleToken -> {
-			if (!merkleToken.hasSupplyKey()) {
-				return TOKEN_HAS_NO_SUPPLY_KEY;
-			}
-			final var eId = EntityId.fromGrpcTokenId(request.getToken());
-			final var owner = merkleToken.treasury();
-			final var metadataList = request.getMetadataList();
-			metadataList.stream().map(el -> {
-				String metaAsStr = el.toStringUtf8();
-				final long serialNum = merkleToken.getCurrentSerialNum();
-				final var nftId = new MerkleUniqueTokenId(eId, serialNum);
-				final var nft = new MerkleUniqueToken(owner, metaAsStr, creationTime);
-				return Pair.of(nftId, nft);
-			}).forEach(provisionalUniqueTokens::add);
-			return OK;
-		});
+	public boolean nftExists(final NftID id) {
+		return uniqueTokenSupplier.get().containsKey(fromNftID(id));
 	}
 
-	@Override
-	public ResponseCodeEnum mint(final TokenMintTransactionBody txBody, final RichInstant creationTime) {
-		var res = mintProvisional(txBody, creationTime);
-		if (!res.equals(OK)) {
-			clearProvisional();
-			return res;
+	public MerkleUniqueToken get(final NftID id) {
+		throwIfMissing(id);
+
+		return uniqueTokenSupplier.get().get(fromNftID(id));
+	}
+
+	private void throwIfMissing(NftID id) {
+		if (!nftExists(id)) {
+			throw new IllegalArgumentException(String.format(
+					"Argument 'id=%s' does not refer to a known token!",
+					readableId(id)));
 		}
-
-		res = commitProvisional();
-		if (!res.equals(OK)) {
-			clearProvisional();
-			return res;
-		}
-		clearProvisional();
-		return OK;
-	}
-
-	private boolean checkProvisional() {
-		// Memo should not be repeated
-		var ptokenSet = provisionalUniqueTokens.stream().map(e -> e.getValue().getMemo()).collect(Collectors.toSet());
-		return ptokenSet.size() == provisionalUniqueTokens.size();
-	}
-
-	private void clearProvisional() {
-		provisionalUniqueTokens.clear();
-	}
-
-	@Override
-	public ResponseCodeEnum commitProvisional() {
-		final AtomicBoolean didAnyFail = new AtomicBoolean(false);
-		if (!checkProvisional()) {
-			return INVALID_TRANSACTION_BODY;
-		} else {
-			provisionalUniqueTokens.forEach(e -> {
-				TokenID tokenId = e.getKey().tokenId().toGrpcTokenId();
-				String memo = e.getValue().getMemo();
-				RichInstant creationTime = e.getValue().getCreationTime();
-				var res = mintOne(tokenId, memo, creationTime);
-				var a = 5;
-				// if native minting fails for some reason, revert changes
-				if (!res.equals(OK)) {
-					// TODO decrement serial num?
-					// revert adjustment
-					var token = get(tokenId);
-					revertAdjustmentOfToken(token, tokenId);
-					// revert from map
-					uniqueTokenSupplier.get().remove(new MerkleUniqueTokenId(EntityId.fromGrpcTokenId(tokenId), token.getCurrentSerialNum()));
-					didAnyFail.set(true);
-				}
-			});
-			return didAnyFail.get() ? FAIL_INVALID : OK;
-		}
-	}
-
-	@Override
-	public ResponseCodeEnum adjustBalance(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
-		return sanityChecked(senderAId, receiverAId, tId, token -> tryAdjustment(senderAId, receiverAId, tId, serialNumber));
-	}
-
-	private void revertAdjustmentOfToken(MerkleToken token, TokenID tokenID) {
-		tryAdjustment(token.treasury().toGrpcAccountId(), tokenID, -1);
 	}
 }

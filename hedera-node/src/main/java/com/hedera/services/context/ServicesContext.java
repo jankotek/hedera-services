@@ -237,6 +237,7 @@ import com.hedera.services.stats.MiscSpeedometers;
 import com.hedera.services.stats.RunningAvgFactory;
 import com.hedera.services.stats.ServicesStatsManager;
 import com.hedera.services.stats.SpeedometerFactory;
+import com.hedera.services.store.contracts.ContractsStore;
 import com.hedera.services.store.schedule.HederaScheduleStore;
 import com.hedera.services.store.schedule.ScheduleStore;
 import com.hedera.services.store.tokens.HederaTokenStore;
@@ -336,6 +337,20 @@ import org.ethereum.core.AccountState;
 import org.ethereum.datasource.Source;
 import org.ethereum.datasource.StoragePersistence;
 import org.ethereum.db.ServicesRepositoryRoot;
+import org.hyperledger.besu.ethereum.core.Account;
+import org.hyperledger.besu.ethereum.core.PrivacyParameters;
+import org.hyperledger.besu.ethereum.core.fees.CoinbaseFeePriceCalculator;
+import org.hyperledger.besu.ethereum.core.fees.TransactionPriceCalculator;
+import org.hyperledger.besu.ethereum.mainnet.FrontierGasCalculator;
+import org.hyperledger.besu.ethereum.mainnet.MainnetContractCreationProcessor;
+import org.hyperledger.besu.ethereum.mainnet.MainnetEvmRegistries;
+import org.hyperledger.besu.ethereum.mainnet.MainnetMessageCallProcessor;
+import org.hyperledger.besu.ethereum.mainnet.MainnetPrecompiledContractRegistries;
+import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
+import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionValidator;
+import org.hyperledger.besu.ethereum.mainnet.PrecompileContractRegistry;
+import org.hyperledger.besu.ethereum.mainnet.PrecompiledContractConfiguration;
+import org.hyperledger.besu.ethereum.mainnet.contractvalidation.MaxCodeSizeRule;
 
 import java.io.File;
 import java.io.IOException;
@@ -541,6 +556,8 @@ public class ServicesContext {
 	private InHandleActivationHelper activationHelper;
 	private PlatformSubmissionManager submissionManager;
 	private SmartContractRequestHandler contracts;
+	private MainnetTransactionProcessor besuContracts;
+	private ContractsStore contractsStore;
 	private TxnAwareSoliditySigsVerifier soliditySigsVerifier;
 	private ValidatingCallbackInterceptor apiPermissionsReloading;
 	private ValidatingCallbackInterceptor applicationPropertiesReloading;
@@ -1277,7 +1294,7 @@ public class ServicesContext {
 				/* Contract */
 				entry(ContractCreate,
 						List.of(new ContractCreateTransitionLogic(
-								hfs(), contracts()::createContract, this::seqNo, validator(), txnCtx()))),
+								hfs(), contracts()::createContract, this::seqNo, validator(), txnCtx(), besuContracts(), contractsStore()))),
 				entry(ContractUpdate,
 						List.of(new ContractUpdateTransitionLogic(
 								ledger(), validator(), txnCtx(), new UpdateCustomizerFactory(), this::accounts))),
@@ -1739,6 +1756,38 @@ public class ServicesContext {
 					globalDynamicProperties());
 		}
 		return contracts;
+	}
+
+	public MainnetTransactionProcessor besuContracts() {
+		if (besuContracts == null) {
+			var gasCalculator = new FrontierGasCalculator();
+			var transactionValidator = new MainnetTransactionValidator(gasCalculator, false, Optional.empty(), false);
+			var evm = MainnetEvmRegistries.frontier(gasCalculator);
+			var contractCreateProcessor = new MainnetContractCreationProcessor(gasCalculator, evm,false,Collections.singletonList(MaxCodeSizeRule.of(24576)),0);
+			var privacyParameters = new PrivacyParameters.Builder().setEnabled(false).build();
+			var precompiledContractConfiguration = new PrecompiledContractConfiguration(gasCalculator, privacyParameters);
+			PrecompileContractRegistry precompileContractRegistry = MainnetPrecompiledContractRegistries.byzantium(precompiledContractConfiguration);
+			var messageCallProcessor = new MainnetMessageCallProcessor(evm, precompileContractRegistry);
+			besuContracts = new MainnetTransactionProcessor(
+					gasCalculator,
+					transactionValidator,
+					contractCreateProcessor,
+					messageCallProcessor,
+					false,
+					1024,
+					Account.DEFAULT_VERSION,
+					TransactionPriceCalculator.frontier(),
+					CoinbaseFeePriceCalculator.frontier()
+					);
+		}
+		return besuContracts;
+	}
+
+	public ContractsStore contractsStore () {
+		if (contractsStore == null) {
+			contractsStore = new ContractsStore();
+		}
+		return contractsStore;
 	}
 
 	public SysFileCallbacks sysFileCallbacks() {

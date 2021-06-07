@@ -758,11 +758,11 @@ public class SmartContractRequestHandler {
 		return Math.max(1L, feeInTinyBars);
 	}
 
-	private long getContractCreateGasPriceInTinyBars(Timestamp at) {
+	public long getContractCreateGasPriceInTinyBars(Timestamp at) {
 		return gasPriceTinyBarsGiven(ContractCreate, at);
 	}
 
-	private long getContractCallGasPriceInTinyBars(Timestamp at) {
+	public long getContractCallGasPriceInTinyBars(Timestamp at) {
 		return gasPriceTinyBarsGiven(ContractCall, at);
 	}
 

@@ -22,21 +22,48 @@ package com.hedera.services.txns.contract;
 
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.files.HederaFs;
+import com.hedera.services.legacy.handler.SmartContractRequestHandler;
 import com.hedera.services.state.submerkle.SequenceNumber;
+import com.hedera.services.store.contracts.ContractsStore;
+import com.hedera.services.store.contracts.stubs.StubbedBlockchain;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
+import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import com.hederahashgraph.builder.RequestBuilder;
+import com.hederahashgraph.fee.FeeBuilder;
+import com.swirlds.common.CommonUtils;
+import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.core.Address;
+import org.hyperledger.besu.ethereum.core.Difficulty;
+import org.hyperledger.besu.ethereum.core.Hash;
+import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
+import org.hyperledger.besu.ethereum.core.Transaction;
+import org.hyperledger.besu.ethereum.core.Wei;
+import org.hyperledger.besu.ethereum.core.WorldUpdater;
+import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
+import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
+import org.hyperledger.besu.ethereum.vm.BlockHashLookup;
+import org.hyperledger.besu.ethereum.vm.OperationTracer;
 
+import java.math.BigInteger;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
+import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCall;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_FILE_EMPTY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_GAS;
@@ -64,6 +91,8 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	private final OptionValidator validator;
 	private final TransactionContext txnCtx;
 	private final Supplier<SequenceNumber> seqNo;
+	private final MainnetTransactionProcessor txProcessor;
+	private final WorldUpdater store;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
@@ -72,13 +101,17 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			LegacyCreator delegate,
 			Supplier<SequenceNumber> seqNo,
 			OptionValidator validator,
-			TransactionContext txnCtx
+			TransactionContext txnCtx,
+			MainnetTransactionProcessor txProcessor,
+			ContractsStore store
 	) {
 		this.hfs = hfs;
 		this.seqNo = seqNo;
 		this.txnCtx = txnCtx;
 		this.delegate = delegate;
 		this.validator = validator;
+		this.txProcessor = txProcessor;
+		this.store = store;
 	}
 
 	@Override
@@ -86,24 +119,85 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 		try {
 			var contractCreateTxn = txnCtx.accessor().getTxn();
 			var op = contractCreateTxn.getContractCreateInstance();
+			TransactionID transactionID = contractCreateTxn.getTransactionID();
+			Instant startTime = RequestBuilder.convertProtoTimeStamp(transactionID.getTransactionValidStart());
+			AccountID senderAccount = transactionID.getAccountID();
+			Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
+
+			// TODO max gas check?
 
 			var inputs = prepBytecode(op);
 			if (inputs.getValue() != OK) {
 				txnCtx.setStatus(inputs.getValue());
 				return;
 			}
+			String contractByteCodeString = new String(inputs.getKey());
+			if (op.getConstructorParameters() != null && !op.getConstructorParameters().isEmpty()) {
+				final var constructorParamsHexString = CommonUtils.hex(
+						op.getConstructorParameters().toByteArray());
+				contractByteCodeString += constructorParamsHexString;
+			}
 
-			var legacyRecord = delegate.perform(contractCreateTxn, txnCtx.consensusTime(), inputs.getKey(), seqNo.get());
+			// TODO Gas Price
+			Wei gasPrice = Wei.of(1000000000L);
+			long gasLimit = 15000000L;
 
-			var outcome = legacyRecord.getReceipt().getStatus();
-			txnCtx.setStatus(outcome);
-			txnCtx.setCreateResult(legacyRecord.getContractCreateResult());
-			if (outcome == SUCCESS) {
-				txnCtx.setCreated(legacyRecord.getReceipt().getContractID());
+			Wei value = Wei.ZERO;
+			if (op.getInitialBalance() > 0) {
+				value = Wei.of(op.getInitialBalance());
+			}
+
+			// TODO miningBeneficiary, blockHashLookup
+			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.EMPTY, sender, Optional.empty());
+			var result = txProcessor.processTransaction(
+					stubbedBlockchain(),
+					store,
+					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
+					evmTx,
+					Address.ZERO,
+					null,
+					null,
+					false);
+			// Blockchain -> we have to stub fake block
+			// WorldUpdater -> we have to implement it
+			// ProcessableBlockHeader -> we have to stub fake block header
+			// Transaction
+			// Address
+			// BlockHashLookup
+			// isPersistingPrivateState = false
+			// TransactionValidationParams
+//
+//			var legacyRecord = delegate.perform(contractCreateTxn, txnCtx.consensusTime(), inputs.getKey(), seqNo.get());
+//
+//			var outcome = legacyRecord.getReceipt().getStatus();
+//			txnCtx.setStatus();
+//			txnCtx.setCreateResult(legacyRecord.getContractCreateResult());
+//			if (outcome == SUCCESS) {
+//				txnCtx.setCreated(legacyRecord.getReceipt().getContractID());
+//			}
+			if (result.isSuccessful()) {
+				txnCtx.setStatus(SUCCESS);
+			} else {
+				txnCtx.setStatus(FAIL_INVALID);
 			}
 		} catch (Exception e) {
 			txnCtx.setStatus(FAIL_INVALID);
 		}
+	}
+
+	private Blockchain stubbedBlockchain() {
+		return new StubbedBlockchain();
+	}
+
+	private ProcessableBlockHeader stubbedBlockHeader(long timestamp) {
+		return new ProcessableBlockHeader(
+				Hash.EMPTY,
+				Address.ZERO, //Coinbase might be the 0.98 address?
+				Difficulty.ONE,
+				0,
+				12_500_000L,
+				timestamp,
+				1000000000L);
 	}
 
 	private Map.Entry<byte[], ResponseCodeEnum> prepBytecode(ContractCreateTransactionBody op) {

@@ -235,6 +235,24 @@
   </build>
 
   <dependencies>
+    <!-- TODO Added eclipse collections for performance testing. Jasper   -->
+    <dependency>
+      <groupId>org.eclipse.collections</groupId>
+      <artifactId>eclipse-collections-api</artifactId>
+      <version>10.4.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.collections</groupId>
+      <artifactId>eclipse-collections</artifactId>
+      <version>10.4.0</version>
+    </dependency>
+    <!-- TODO Added apache tuweni for performance testing. Jasper   -->
+    <dependency>
+      <groupId>org.apache.tuweni</groupId>
+      <artifactId>units</artifactId>
+      <version>1.3.0</version>
+    </dependency>
+
     <dependency>
       <groupId>com.hedera.hashgraph</groupId>
       <artifactId>hapi-fees</artifactId>

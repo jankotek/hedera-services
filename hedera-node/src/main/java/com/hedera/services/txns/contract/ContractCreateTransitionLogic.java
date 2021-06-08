@@ -146,9 +146,11 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				value = Wei.of(op.getInitialBalance());
 			}
 
+			// TODO create DefaultMutableWorldState Instance and create `updater`. Pass the updater to `processTransaction`
+
 			// TODO miningBeneficiary, blockHashLookup
 			// TODO we can remove SECPSignature from Transaction
-			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.EMPTY, sender, Optional.empty());
+			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.fromHexString(contractByteCodeString), sender, Optional.empty());
 			var result = txProcessor.processTransaction(
 					stubbedBlockchain(),
 					store,

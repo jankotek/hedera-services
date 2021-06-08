@@ -38,27 +38,57 @@ package com.hedera.services.store.contracts;/*
  * ‍
  */
 
+import com.hedera.services.ledger.HederaLedger;
+import org.ethereum.util.ALock;
 import org.hyperledger.besu.ethereum.core.Account;
 import org.hyperledger.besu.ethereum.core.Address;
 import org.hyperledger.besu.ethereum.core.EvmAccount;
+import org.hyperledger.besu.ethereum.core.UpdateTrackingAccount;
 import org.hyperledger.besu.ethereum.core.Wei;
 import org.hyperledger.besu.ethereum.core.WorldUpdater;
 
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import static com.hedera.services.utils.EntityIdUtils.accountParsedFromSolidityAddress;
+import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
 
 public class ContractsStore implements WorldUpdater {
+
+	private final HederaLedger ledger;
+	private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+	private final ALock rLock = new ALock(rwLock.readLock());
+//	private final ALock wLock = new ALock(rwLock.writeLock());
+
+	public ContractsStore(HederaLedger ledger) {
+		this.ledger = ledger;
+	}
 
 
 	@Override
 	public EvmAccount createAccount(Address address, long nonce, Wei balance) {
+		// TODO must implement
 		return null;
 	}
 
+	// TODO We are always returning UpdateTrackingAccount. Is it OK?
 	@Override
 	public EvmAccount getAccount(Address address) {
-		return null;
+		try (ALock ignored = rLock.lock()) {
+			var id = accountParsedFromSolidityAddress(address.toArray());
+			if (!ledger.exists(id) || ledger.isDetached(id)) {
+				return null;
+			}
+
+			var account = ledger.get(id);
+			// TODO check whether we need more properties to be set
+			return new UpdateTrackingAccount<>(new EvmAccountImpl(address, Wei.of(account.getBalance())));
+		}
 	}
+
 
 	@Override
 	public void deleteAccount(Address address) {

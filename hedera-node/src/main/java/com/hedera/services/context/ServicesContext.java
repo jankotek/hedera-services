@@ -306,7 +306,6 @@ import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.usage.crypto.CryptoOpsUsage;
 import com.hedera.services.usage.file.FileOpsUsage;
 import com.hedera.services.usage.schedule.ScheduleOpsUsage;
-import com.hedera.services.utils.EntityIdUtils;
 import com.hedera.services.utils.JvmSystemExits;
 import com.hedera.services.utils.MiscUtils;
 import com.hedera.services.utils.Pause;
@@ -1785,7 +1784,7 @@ public class ServicesContext {
 
 	public ContractsStore contractsStore () {
 		if (contractsStore == null) {
-			contractsStore = new ContractsStore();
+			contractsStore = new ContractsStore(ledger);
 		}
 		return contractsStore;
 	}

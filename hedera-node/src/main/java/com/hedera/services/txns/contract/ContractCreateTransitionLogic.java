@@ -9,9 +9,9 @@ package com.hedera.services.txns.contract;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -123,7 +123,6 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			Instant startTime = RequestBuilder.convertProtoTimeStamp(transactionID.getTransactionValidStart());
 			AccountID senderAccount = transactionID.getAccountID();
 			Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
-
 			// TODO max gas check?
 
 			var inputs = prepBytecode(op);
@@ -138,7 +137,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				contractByteCodeString += constructorParamsHexString;
 			}
 
-			// TODO Gas Price
+//			// TODO Gas Price
 			Wei gasPrice = Wei.of(1000000000L);
 			long gasLimit = 15000000L;
 
@@ -148,6 +147,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			}
 
 			// TODO miningBeneficiary, blockHashLookup
+			// TODO we can remove SECPSignature from Transaction
 			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.EMPTY, sender, Optional.empty());
 			var result = txProcessor.processTransaction(
 					stubbedBlockchain(),

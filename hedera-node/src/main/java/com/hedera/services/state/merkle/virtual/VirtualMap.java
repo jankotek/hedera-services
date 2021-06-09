@@ -12,7 +12,10 @@ import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
 import com.swirlds.common.merkle.MerkleExternalLeaf;
 import com.swirlds.common.merkle.utility.AbstractMerkleLeaf;
+import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
+import org.hyperledger.besu.ethereum.worldstate.AccountStorageMap;
 
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -23,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -65,7 +69,7 @@ import static com.hedera.services.state.merkle.virtual.VirtualTreePath.isLeft;
 @ConstructableIgnored
 public final class VirtualMap
         extends AbstractMerkleLeaf
-        implements Archivable, FCMValue, MerkleExternalLeaf {
+        implements Archivable, FCMValue, MerkleExternalLeaf, AccountStorageMap {
 
     private static final long CLASS_ID = 0xb881f3704885e853L;
     private static final int CLASS_VERSION = 1;
@@ -94,7 +98,7 @@ public final class VirtualMap
      * information. All instances of VirtualTreeMap in the "family" (i.e. that are copies
      * going back to some first progenitor) share the same exact dataSource instance.
      */
-    private final VirtualDataSource dataSource;
+    private VirtualDataSource dataSource;
 
     /**
      * A local cache that maps from keys to leaves. Normally this map will contain a few
@@ -103,9 +107,9 @@ public final class VirtualMap
      */
     private final Map<VirtualKey, VirtualRecord> cache = new HashMap<>();
     private final LongObjectHashMap<VirtualRecord> cache2 = new LongObjectHashMap<>();
-    private final HashWorkQueue hashWork;
+    private HashWorkQueue hashWork;
 
-    private final ExecutorService hashingPool;
+    private ExecutorService hashingPool;
 
     /**
      * Keeps track of all tree nodes that were deleted. A leaf node that was deleted represents
@@ -136,6 +140,8 @@ public final class VirtualMap
      */
     private long firstLeafPath;
 
+    private boolean initialised;
+
     /**
      * Creates a new VirtualTreeMap.
      */
@@ -159,6 +165,36 @@ public final class VirtualMap
             thread.setDaemon(true);
             return thread;
         });
+    }
+
+    public VirtualMap() {}
+
+    public void init(VirtualDataSource ds) {
+        this.dataSource = Objects.requireNonNull(ds);
+        this.firstLeafPath = ds.getFirstLeafPath();
+        this.lastLeafPath = ds.getLastLeafPath();
+        setImmutable(false);
+
+        final var rh = ds.loadParentHash(ROOT_PATH);
+        final var future = new CompletableFuture<byte[]>();
+        future.complete(rh);
+        rootHash = future;
+
+        // Avg. max 25 modified leaves at max 64 leaf depth. Big enough to not need array expansion,
+        // small enough to not waste too much space (Note: This is probably still way bigger than needed)
+        this.hashWork = new HashWorkQueue(25 * 64);
+
+        this.hashingPool = Executors.newSingleThreadExecutor((r) -> {
+            final var thread = new Thread(HASHING_GROUP, r);
+            thread.setDaemon(true);
+            return thread;
+        });
+
+        this.initialised = true;
+    }
+
+    public boolean isInitialised() {
+        return this.initialised;
     }
 
     /**
@@ -230,6 +266,26 @@ public final class VirtualMap
 //            // TODO delete the node associated with this record. We gotta realize everything to get hashes right
 //            // and move everything around as needed.
 //        }
+    }
+
+    @Override
+    public Optional<Bytes> get(Bytes32 key) {
+        final var value = getValue(new VirtualKey(key.toArray()));
+        if (value == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(Bytes.of(value.asByteArray()));
+    }
+
+    @Override
+    public void put(Bytes32 key, Bytes value) {
+        this.putValue(new VirtualKey(key.toArray()), new VirtualValue(value.toArray()));
+    }
+
+    @Override
+    public void remove(Bytes32 key) {
+        this.deleteValue(new VirtualKey(key.toArray()));
     }
 
     /**

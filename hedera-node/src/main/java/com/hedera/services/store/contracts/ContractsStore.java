@@ -39,48 +39,66 @@ package com.hedera.services.store.contracts;/*
  */
 
 import com.hedera.services.ledger.HederaLedger;
+import com.hedera.services.state.merkle.virtual.VirtualMap;
+import com.hedera.services.state.merkle.virtual.persistence.mmap.MemMapDataSource;
+import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
+import com.hedera.services.utils.EntityIdUtils;
+import com.hederahashgraph.api.proto.java.AccountID;
 import org.apache.tuweni.bytes.Bytes;
-import org.ethereum.util.ALock;
 import org.hyperledger.besu.ethereum.core.Account;
 import org.hyperledger.besu.ethereum.core.Address;
 import org.hyperledger.besu.ethereum.core.Wei;
 import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
 import org.hyperledger.besu.ethereum.worldstate.AccountStorageMap;
 
-import java.util.Optional;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import static com.hedera.services.utils.EntityIdUtils.accountParsedFromSolidityAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ContractsStore implements AccountStateStore {
-
+	private final VirtualMapDataStore dataStore;
 	private final HederaLedger ledger;
-	private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
-	private final ALock rLock = new ALock(rwLock.readLock());
+	private Map<AccountID, VirtualMap> maps;
 
-	public ContractsStore(HederaLedger ledger) {
+	public ContractsStore(
+			VirtualMapDataStore dataStore, HederaLedger ledger) {
 		this.ledger = ledger;
+		this.dataStore = dataStore;
+		this.maps = new HashMap<>();
 	}
 
 	@Override
 	public Account get(Address address) {
-		return null;
+		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
+		final var account = ledger.get(accId);
+
+		return new EvmAccountImpl(address, Wei.of(account.getBalance()));
 	}
 
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
-		return null;
+		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
+		var map = ledger.get(accId).map();
+		map.init(new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum())));
+		maps.put(accId, map);
+		return map;
 	}
 
 	@Override
 	public void put(Address address, long nonce, Wei balance) {
-
+		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
+		// TODO: set provisionally
 	}
 
 	@Override
 	public void putCode(Address address, Bytes code) {
-
+		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
+		if (maps.get(accId) == null) {
+			var map = ledger.get(accId).map();
+			map.init(new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum())));
+			maps.put(accId, map);
+		}
+		var map = maps.get(accId);
+		// TODO:
 	}
 
 	@Override
@@ -90,16 +108,17 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public void remove(Address address) {
-
+		// TODO: set somewhere provisionally
 	}
 
 	@Override
 	public void clearStorage(Address address) {
-
+		// TODO: set somewhere provisionally
 	}
 
 	@Override
 	public void commit() {
-
+		maps.forEach((key, value) -> value.commit());
+		// TODO: commit the provisional changes
 	}
 }

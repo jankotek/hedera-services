@@ -23,6 +23,7 @@ package com.hedera.services.state.merkle;
 import com.google.common.base.MoreObjects;
 import com.hedera.services.exceptions.NegativeAccountBalanceException;
 import com.hedera.services.legacy.core.jproto.JKey;
+import com.hedera.services.state.merkle.virtual.VirtualMap;
 import com.hedera.services.state.serdes.DomainSerdes;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
@@ -52,7 +53,8 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 	static final int RELEASE_081_VERSION = 1;
 	static final int RELEASE_090_ALPHA_VERSION = 2;
 	static final int RELEASE_090_VERSION = 3;
-	static final int MERKLE_VERSION = RELEASE_090_VERSION;
+	static final int RELEASE_0150_VERSION = 4;
+	static final int MERKLE_VERSION = RELEASE_0150_VERSION;
 
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x950bcf7255691908L;
 
@@ -70,7 +72,8 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 
 		static final int RELEASE_090_RECORDS = 1;
 		static final int RELEASE_090_ASSOCIATED_TOKENS = 2;
-		static final int NUM_090_CHILDREN = 3;
+		static final int RELEASE_0150_SMART_CONTRACTS = 4;
+		static final int NUM_090_CHILDREN = 5;
 	}
 
 	public MerkleAccount(List<MerkleNode> children) {
@@ -82,7 +85,8 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 		this(List.of(
 				new MerkleAccountState(),
 				new FCQueue<ExpirableTxnRecord>(),
-				new MerkleAccountTokens()));
+				new MerkleAccountTokens(),
+				new VirtualMap()));
 	}
 
 	/* --- MerkleInternal --- */
@@ -118,7 +122,8 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 			addDeserializedChildren(List.of(
 					getChild(ChildIndices.STATE),
 					getChild(ChildIndices.RELEASE_081_PAYER_RECORDS),
-					new MerkleAccountTokens()), MERKLE_VERSION);
+					new MerkleAccountTokens(),
+					new VirtualMap()), MERKLE_VERSION);
 		} else {
 			/* Must be a v0.9.0 state. */
 		}
@@ -192,6 +197,14 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 
 	public void setTokens(MerkleAccountTokens tokens) {
 		setChild(ChildIndices.RELEASE_090_ASSOCIATED_TOKENS, tokens);
+	}
+
+	public VirtualMap map() {
+		return getChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS);
+	}
+
+	public void setVirtualMap(VirtualMap map) {
+		setChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS, map);
 	}
 
 	/* ----  Bean  ---- */

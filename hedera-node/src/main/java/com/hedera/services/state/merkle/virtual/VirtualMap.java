@@ -4,11 +4,9 @@ import com.hedera.services.state.merkle.virtual.persistence.ImmutableFuture;
 import com.hedera.services.state.merkle.virtual.persistence.VirtualDataSource;
 import com.hedera.services.state.merkle.virtual.persistence.VirtualRecord;
 import com.swirlds.common.Archivable;
-import com.swirlds.common.FCMElement;
 import com.swirlds.common.FCMValue;
 import com.swirlds.common.constructable.ConstructableIgnored;
 import com.swirlds.common.crypto.CryptoFactory;
-import com.swirlds.common.crypto.DigestType;
 import com.swirlds.common.crypto.Hash;
 import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
@@ -18,19 +16,20 @@ import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
 
 import java.io.IOException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hedera.services.state.merkle.virtual.VirtualTreePath.INVALID_PATH;
 import static com.hedera.services.state.merkle.virtual.VirtualTreePath.ROOT_PATH;
@@ -73,18 +72,22 @@ public final class VirtualMap
 
     private static final ThreadGroup HASHING_GROUP = new ThreadGroup("VirtualMap-Hashers");
 
-    private static final ExecutorService HASHING_POOL = Executors.newFixedThreadPool(48, (r) -> {
-        final var thread = new Thread(HASHING_GROUP, r);
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final MessageDigest DIGEST = getDigest();
 
-    private static final ThreadLocal<MessageDigest> MD_LOCAL = new ThreadLocal<>();
+    static MessageDigest getDigest() {
+        try {
+            return MessageDigest.getInstance("SHA-384");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+        return null; // cannot be reached...?
+    }
 
     /**
      * Pre-cache the NULL_HASH since we use it so frequently.
      */
-    private static final Hash NULL_HASH = CryptoFactory.getInstance().getNullHash();
+    private static final byte[] NULL_HASH = CryptoFactory.getInstance().getNullHash().getValue();
 
     /**
      * This data source is used for looking up the values and the virtual tree leaf node
@@ -100,6 +103,9 @@ public final class VirtualMap
      */
     private final Map<VirtualKey, VirtualRecord> cache = new HashMap<>();
     private final LongObjectHashMap<VirtualRecord> cache2 = new LongObjectHashMap<>();
+    private final HashWorkQueue hashWork;
+
+    private final ExecutorService hashingPool;
 
     /**
      * Keeps track of all tree nodes that were deleted. A leaf node that was deleted represents
@@ -116,7 +122,7 @@ public final class VirtualMap
      * A future that contains the hash. If the hash is still being computed, then
      * any "get" on this will block until the computation finishes.
      */
-    private Future<Hash> rootHash;
+    private Future<byte[]> rootHash;
 
     /**
      * The path of the very last leaf in the tree. Can be null if there are no leaves.
@@ -140,9 +146,19 @@ public final class VirtualMap
         setImmutable(false);
 
         final var rh = ds.loadParentHash(ROOT_PATH);
-        final var future = new CompletableFuture<Hash>();
+        final var future = new CompletableFuture<byte[]>();
         future.complete(rh);
         rootHash = future;
+
+        // Avg. max 25 modified leaves at max 64 leaf depth. Big enough to not need array expansion,
+        // small enough to not waste too much space (Note: This is probably still way bigger than needed)
+        this.hashWork = new HashWorkQueue(25 * 64);
+
+        this.hashingPool = Executors.newSingleThreadExecutor((r) -> {
+            final var thread = new Thread(HASHING_GROUP, r);
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     /**
@@ -155,6 +171,8 @@ public final class VirtualMap
         this.firstLeafPath = source.firstLeafPath;
         this.lastLeafPath = source.lastLeafPath;
         this.rootHash = source.rootHash;
+        this.hashWork = source.hashWork; // The source can no longer be modified and *SHOULD NO LONGER HASH* TODO test that.
+        this.hashingPool = source.hashingPool;
         this.setImmutable(false);
         source.setImmutable(true);
     }
@@ -229,12 +247,13 @@ public final class VirtualMap
         // TODO handle deleting things, etc.
 
         // Start hash recomputation eagerly.
-        final var dirtyParents = recomputeHash();
+        recomputeHash();
 
         // Now that all the hashing is done, we can save the new hashes to the data source.
-        for (var dirtyParent : dirtyParents) {
+        for (int i=0; i<hashWork.size(); i++) {
             try {
-                dataSource.saveParent(dirtyParent.path, dirtyParent.hash.get());
+                final var entry = hashWork.get(i);
+                dataSource.saveParent(entry.path, entry.hash.get());
             } catch (InterruptedException | ExecutionException e) {
                 // TODO Not sure what to do here!!
                 e.printStackTrace();
@@ -257,9 +276,12 @@ public final class VirtualMap
     public Hash getHash() {
         // TODO To be rewritten such that we recompute here if needed based on the state of
         // dirtyParents or whatnot.
+        return new Hash(getRootHash());
+    }
+
+    private byte[] getRootHash() {
         try {
-            final var h = rootHash.get();
-            return h == null ? NULL_HASH : h;
+            return rootHash.get();
         } catch (InterruptedException | ExecutionException e) {
             // TODO Not sure what to do if this fails... Try, try, again?
             e.printStackTrace();
@@ -274,36 +296,33 @@ public final class VirtualMap
 
     private static final class HashJobData {
         private final long path;
-        private final Future<Hash> leftHash;
-        private final Future<Hash> rightHash;
+        private final Future<byte[]> leftHash;
+        private final Future<byte[]> rightHash;
+        private final CompletableFuture<byte[]> hash;
 
-        HashJobData(long path, Future<Hash> leftHash, Future<Hash> rightHash) {
+        HashJobData(long path, Future<byte[]> leftHash, Future<byte[]> rightHash) {
             this.path = path;
             this.leftHash = leftHash;
             this.rightHash = rightHash;
+            this.hash = new CompletableFuture<>();
         }
     }
 
-    private static final class DirtyParent {
-        private final long path;
-        private final Future<Hash> hash;
-
-        DirtyParent(long path, Future<Hash> hash) {
-            this.path = path;
-            this.hash = hash;
-        }
-    }
-
-    private List<DirtyParent> recomputeHash() {
+    private void recomputeHash() {
         // Get the old hash so we can see whether we need to recompute it at all.
         // Note that this call blocks if there was a previous hash running that
         // hasn't completed yet. This is critical, otherwise we may lose some
         // information about what needs to be rehashed and end up with the wrong
         // hash in the end.
-        Hash hash = getHash();
+        byte[] hash = getRootHash();
 
         // Only recompute if we have to.
-        if (hash == null || NULL_HASH.equals(hash) || !cache.isEmpty()) {
+        if (hash == null || !cache.isEmpty() || Arrays.equals(NULL_HASH, hash)) {
+
+            // Resets to an empty queue (doesn't actually clear the underlying array,
+            // so we depend on a solid implementation to make sure we don't read old
+            // data and hash incorrectly).
+            hashWork.reset();
 
             // Keeps track of all data required for hashing. Initially, the list is null.
             // As we visit leaves, a new HashJobData is created for the parent of the
@@ -312,7 +331,23 @@ public final class VirtualMap
             // the queue and add to the tail of the queue their own information about
             // _their_ parent, and so on. Each parent then has access to the data it needs
             // to compute its hash, without having to do any kind of map lookups.
-            final var hashJobData = new LinkedList<HashJobData>();
+            // TODO move these comments to the best place.
+
+            final var index = new AtomicInteger(0); // The index into the hashJobQueue to add stuff...
+            final var done = new AtomicBoolean(false); // Set to indicate that no more items will be added to the work queue
+            // Fire up a background thread that will process all the hashes for us as we go
+            hashingPool.submit(() -> {
+                // Yes, this is a busy loop. But, it cuts down on synchronization overhead and
+                // is short lived.
+                int i = 0;
+                while (!done.get() || i < index.get()) {
+                    // Hash everything until we run out of items to hash
+                    while (i < index.get()) {
+                        final var data = hashWork.get(i++);
+                        data.hash.complete(compute(data.leftHash, data.rightHash));
+                    }
+                }
+            });
 
             // First, process all of the leaves. We need to make sure we only handle each
             // leaf once, but we also have to deal with siblings. So we'll have an array
@@ -324,9 +359,6 @@ public final class VirtualMap
             final var dirtyLeaves = new ArrayList<>(cache.values());
             final var numDirtyLeaves = dirtyLeaves.size();
             dirtyLeaves.sort((a, b) -> compareTo(b.getPath(), a.getPath())); // reverse the order
-
-            // Gotta save parents that are modified here
-            final var dirtyParents = new ArrayList<DirtyParent>(cache.size() * getRank(lastLeafPath));
 
             // Process the leaves
             for (int i=0; i<numDirtyLeaves; i++) {
@@ -343,7 +375,7 @@ public final class VirtualMap
                 final var siblingPath = getSiblingPath(leafPath);
                 if (nextLeaf != null && nextLeaf.getPath() == siblingPath) {
                     i++; // Increment so we skip this leaf on the next iteration
-                    hashJobData.addLast(new HashJobData(
+                    hashWork.addLast(new HashJobData(
                             getParentPath(leafPath),
                             leaf.getFutureHash(),
                             nextLeaf.getFutureHash()));
@@ -352,27 +384,25 @@ public final class VirtualMap
                     // no more leaves in the list, but a sibling might *now* exist which is a parent
                     // and can be found on the hashJobData. Look there. If we find the sibling there,
                     // then we use that. Otherwise, we need to look it up in the data source.
-                    if (nextLeaf == null && !hashJobData.isEmpty() && hashJobData.getFirst().path == siblingPath) {
-                        final var siblingFuture = new ImmutableFuture<>(call(new HashParent(hashJobData.removeFirst())));
-                        dirtyParents.add(new DirtyParent(siblingPath, siblingFuture));
-                        hashJobData.addLast(new HashJobData(
+                    if (nextLeaf == null && !hashWork.isEmpty() && hashWork.get(index.get()).path == siblingPath) {
+                        final var siblingData = hashWork.get(index.getAndIncrement());
+                        hashWork.addLast(new HashJobData(
                                 getParentPath(leafPath),
                                 leaf.getFutureHash(),
-                                siblingFuture));
-//                                HASHING_POOL.submit(new HashParent(hashJobData.removeFirst()))));
+                                siblingData.hash));
                     } else {
                         // nextLeaf was not the sibling, so we need to look it up. There might be no
                         // sibling, in which case it will be null. A leaf might have a leaf OR a parent
                         // as a sibling, so we need to check both in the case one is null.
                         final var siblingLeaf = dataSource.loadLeaf(siblingPath);
                         if (siblingLeaf != null) {
-                            hashJobData.addLast(new HashJobData(
+                            hashWork.addLast(new HashJobData(
                                     getParentPath(leafPath),
                                     leaf.getFutureHash(),
                                     siblingLeaf.getFutureHash()));
                         } else {
                             final var siblingParent = dataSource.loadParentHash(siblingPath);
-                            hashJobData.addLast(new HashJobData(
+                            hashWork.addLast(new HashJobData(
                                     getParentPath(leafPath),
                                     leaf.getFutureHash(),
                                     siblingParent == null ? null : new ImmutableFuture<>(siblingParent)));
@@ -388,96 +418,80 @@ public final class VirtualMap
             // it will be the next item in the hashJobData list, since we were careful to
             // processing leaves in reverse order. As we process each parent, we add it to
             // the hashJobData, and keep iterating until we've eventually handled everything.
-            while (!hashJobData.isEmpty()) {
+            this.rootHash = null;
+            while (rootHash == null) {
                 // FIFO, pull off the first, push on the last.
-                final var data = hashJobData.removeFirst();
+                final var data = hashWork.get(index.getAndIncrement());
                 final var path = data.path;
-
-                // Create the future that will hash the left and right children as appropriate
-//                final var future = HASHING_POOL.submit(new HashParent(data));
-                final var future = new ImmutableFuture<>(call(new HashParent(data)));
-
-                // Add this node to the dirty parents
-                dirtyParents.add(new DirtyParent(path, future));
+                final var i = index.get();
 
                 if (path == ROOT_PATH) {
                     // Also set this future as the rootHash.
-                    assert hashJobData.isEmpty(); // This must be true
-                    this.rootHash = future;
+                    assert i == hashWork.size(); // This must be true
+                    this.rootHash = data.hash;
+                    done.set(true);
                 } else {
                     // We're not at the root yet, so we need to look for a sibling. Fortunately,
                     // if there is a dirty sibling, it will be next on the hashJobData list.
                     // Otherwise, we load it from dataSource. Add the new HashJobData to the
                     // list to be processed next.
                     final var siblingPath = getSiblingPath(path);
-                    if (!hashJobData.isEmpty() && hashJobData.getFirst().path == siblingPath) {
+                    if (i < hashWork.size() && hashWork.get(i).path == siblingPath) {
                         // The next node is a sibling, so lets remove it too
-                        final var sibling = hashJobData.removeFirst();
-//                        final var siblingFuture = HASHING_POOL.submit(new HashParent(sibling));
-                        final var siblingFuture = new ImmutableFuture<>(call(new HashParent(sibling)));
-                        dirtyParents.add(new DirtyParent(sibling.path, siblingFuture));
-                        hashJobData.addLast(new HashJobData(
+                        final var sibling = hashWork.get(index.getAndIncrement());
+                        hashWork.addLast(new HashJobData(
                                 getParentPath(path),
-                                future,
-                                siblingFuture));
+                                data.hash,
+                                sibling.hash));
                     } else {
                         // No dirty sibling, so get a fresh one from the data source
                         final var siblingHash = dataSource.loadParentHash(siblingPath);
-                        hashJobData.addLast(new HashJobData(
+                        hashWork.addLast(new HashJobData(
                                 getParentPath(path),
-                                future,
+                                data.hash,
                                 siblingHash == null ? null : new ImmutableFuture<>(siblingHash)));
                     }
                 }
             }
 
-            return dirtyParents;
-        }
-        return Collections.emptyList();
-    }
-
-    private Hash call(HashParent c) {
-        try {
-            return c.call();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return NULL_HASH;
+            try {
+                // block until it is done hashing. Might actually care to do that here.
+                rootHash.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                // TODO oof, now what?
+            }
         }
     }
 
-    private static final class HashParent implements Callable<Hash> {
-        private final HashJobData data;
-        HashParent(HashJobData data) {
-            this.data = data;
-        }
-        @Override
-        public Hash call() throws Exception {
+    private byte[] compute(Future<byte[]> leftHash, Future<byte[]> rightHash) {
 //                        System.out.println("Hashing (" + getRank(path) + ", " + getBreadcrumbs(path) + ")");
-            if (data.leftHash == null && data.rightHash != null) {
+        try {
+            if (leftHash == null && rightHash != null) {
                 // Since there is only a rightHash, we might as well pass it up and not bother
                 // hashing anything at all.
-                return data.rightHash.get();
-            } else if (data.leftHash != null && data.rightHash == null) {
+                return rightHash.get();
+            } else if (leftHash != null && rightHash == null) {
                 // Since there is only a left hash, we can use it as our hash
-                return data.leftHash.get();
-            } else if (data.leftHash != null) {
+                return leftHash.get();
+            } else if (leftHash != null) {
                 // BTW: This branch is hit if right and left hash != null.
                 // Since we have both a left and right hash, we need to hash them together.
+                assert leftHash.get() != null;
+                assert rightHash.get() != null;
 
-                // Get the message digest we will need for hashing.
-                var md = MD_LOCAL.get();
-                if (md == null) {
-                    md = MessageDigest.getInstance("SHA-384");
-                    MD_LOCAL.set(md);
-                }
-
-                md.update(data.leftHash.get().getValue());
-                md.update(data.rightHash.get().getValue());
-                return new Hash(md.digest(), DigestType.SHA_384);
+                // Hash it.
+                DIGEST.update(leftHash.get());
+                DIGEST.update(rightHash.get());
+                return DIGEST.digest();
             } else {
                 System.err.println("Both children were null. This shouldn't be possible!");
                 return NULL_HASH;
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+            // TODO not sure what to do with exceptions here
+            return NULL_HASH;
         }
     }
 
@@ -732,6 +746,53 @@ public final class VirtualMap
 
             print(strings, getLeftChildPath(path));
             print(strings, getRightChildPath(path));
+        }
+    }
+
+    private static final class HashWorkQueue {
+        private HashJobData[] q;
+        private int head = -1; // Points to first
+        private int tail = -1; // Points to last
+
+        public HashWorkQueue(int initialSize) {
+            q = new HashJobData[initialSize];
+        }
+
+        public HashJobData getFirst() {
+            return q[head];
+        }
+
+        public HashJobData getLast() {
+            return q[tail];
+        }
+
+        public HashJobData get(int index) {
+            if (index < head || index > tail) {
+                throw new IndexOutOfBoundsException();
+            }
+
+            return q[index];
+        }
+
+        public void addLast(HashJobData data) {
+            head = 0;
+            tail += 1;
+            if (tail >= q.length) {
+                q = Arrays.copyOf(q, q.length * 2);
+            }
+            q[tail] = data;
+        }
+
+        public boolean isEmpty() {
+            return head == -1;
+        }
+
+        public int size() {
+            return head == -1 ? 0 : tail - head + 1;
+        }
+
+        public void reset() {
+            head = tail = -1;
         }
     }
 }

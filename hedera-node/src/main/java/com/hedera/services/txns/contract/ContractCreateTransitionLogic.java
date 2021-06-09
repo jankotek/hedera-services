@@ -92,7 +92,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	private final TransactionContext txnCtx;
 	private final Supplier<SequenceNumber> seqNo;
 	private final MainnetTransactionProcessor txProcessor;
-	private final WorldUpdater store;
+//	private final WorldUpdater store;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
@@ -111,7 +111,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 		this.delegate = delegate;
 		this.validator = validator;
 		this.txProcessor = txProcessor;
-		this.store = store;
+//		this.store = store;
 	}
 
 	@Override
@@ -151,15 +151,15 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			// TODO miningBeneficiary, blockHashLookup
 			// TODO we can remove SECPSignature from Transaction
 			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.fromHexString(contractByteCodeString), sender, Optional.empty());
-			var result = txProcessor.processTransaction(
-					stubbedBlockchain(),
-					store,
-					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
-					evmTx,
-					Address.ZERO,
-					null,
-					null,
-					false);
+//			var result = txProcessor.processTransaction(
+//					stubbedBlockchain(),
+//					store,
+//					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
+//					evmTx,
+//					Address.ZERO,
+//					null,
+//					null,
+//					false);
 			// Blockchain -> we have to stub fake block
 			// WorldUpdater -> we have to implement it
 			// ProcessableBlockHeader -> we have to stub fake block header
@@ -177,11 +177,11 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 //			if (outcome == SUCCESS) {
 //				txnCtx.setCreated(legacyRecord.getReceipt().getContractID());
 //			}
-			if (result.isSuccessful()) {
-				txnCtx.setStatus(SUCCESS);
-			} else {
-				txnCtx.setStatus(FAIL_INVALID);
-			}
+//			if (result.isSuccessful()) {
+			txnCtx.setStatus(SUCCESS);
+//			} else {
+//				txnCtx.setStatus(FAIL_INVALID);
+//			}
 		} catch (Exception e) {
 			txnCtx.setStatus(FAIL_INVALID);
 		}

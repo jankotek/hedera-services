@@ -332,7 +332,7 @@ public final class VirtualMap
     public Hash getHash() {
         // TODO To be rewritten such that we recompute here if needed based on the state of
         // dirtyParents or whatnot.
-        return new Hash(getRootHash());
+        return new Hash();
     }
 
     private byte[] getRootHash() {

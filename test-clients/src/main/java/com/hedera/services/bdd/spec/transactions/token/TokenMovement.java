@@ -24,6 +24,7 @@ import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.NftTransfer;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 
@@ -40,6 +41,7 @@ import static com.hedera.services.bdd.spec.transactions.TxnUtils.asTokenId;
 
 public class TokenMovement {
 	private final long amount;
+	private long serialNum;
 	private final String token;
 	private Optional<String> sender;
 	private Optional<String> receiver;
@@ -68,6 +70,25 @@ public class TokenMovement {
 
 	TokenMovement(
 			String token,
+			Optional<String> sender,
+			long amount,
+			long serialNum,
+			Optional<String> receiver,
+			Optional<List<String>> receivers
+	) {
+		this.token = token;
+		this.sender = sender;
+		this.amount = amount;
+		this.serialNum = serialNum;
+		this.receiver = receiver;
+		this.receivers = receivers;
+
+		senderFn = Optional.empty();
+		receiverFn = Optional.empty();
+	}
+
+	TokenMovement(
+			String token,
 			Function<HapiApiSpec, String> senderFn,
 			long amount,
 			Function<HapiApiSpec, String> receiverFn
@@ -86,6 +107,10 @@ public class TokenMovement {
 		return token != HapiApiSuite.HBAR_TOKEN_SENTINEL;
 	}
 
+	public boolean isFungibleToken() {
+		return serialNum == 0;
+	}
+
 	public List<Map.Entry<String, Long>> generallyInvolved() {
 		if (sender.isPresent()) {
 			Map.Entry<String, Long> senderEntry = new AbstractMap.SimpleEntry<>(
@@ -93,7 +118,7 @@ public class TokenMovement {
 					-amount);
 			return receiver.isPresent()
 					? List.of(
-							senderEntry,
+					senderEntry,
 					new AbstractMap.SimpleEntry<>(
 							token + "|" + receiver.get(),
 							+amount))
@@ -140,6 +165,17 @@ public class TokenMovement {
 		return scopedTransfers.build();
 	}
 
+	public TokenTransferList specializedForNft(HapiApiSpec spec) {
+		var scopedTransfers = TokenTransferList.newBuilder();
+		var id = isTrulyToken() ? asTokenId(token, spec) : HBAR_SENTINEL_TOKEN_ID;
+		scopedTransfers.setToken(id);
+		if (sender.isPresent() && receiver.isPresent()) {
+			scopedTransfers.addNftTransfers(adjustment(sender.get(), receiver.get(), serialNum, spec));
+		}
+
+		return scopedTransfers.build();
+	}
+
 	private AccountAmount adjustment(String name, long value, HapiApiSpec spec) {
 		return AccountAmount.newBuilder()
 				.setAccountID(asId(name, spec))
@@ -147,8 +183,17 @@ public class TokenMovement {
 				.build();
 	}
 
+	private NftTransfer adjustment(String senderName, String receiverName, long value, HapiApiSpec spec) {
+		return NftTransfer.newBuilder()
+				.setSenderAccountID(asId(senderName, spec))
+				.setReceiverAccountID(asId(receiverName, spec))
+				.setSerialNumber(value)
+				.build();
+	}
+
 	public static class Builder {
 		private final long amount;
+		private long serialNum;
 		private final String token;
 
 		public Builder(long amount, String token) {
@@ -156,11 +201,27 @@ public class TokenMovement {
 			this.amount = amount;
 		}
 
+		public Builder(long amount, long serialNum, String token) {
+			this.amount = amount;
+			this.serialNum = serialNum;
+			this.token = token;
+		}
+
 		public TokenMovement between(String sender, String receiver) {
 			return new TokenMovement(
 					token,
 					Optional.of(sender),
 					amount,
+					Optional.of(receiver),
+					Optional.empty());
+		}
+
+		public TokenMovement betweenUnique(String sender, String receiver) {
+			return new TokenMovement(
+					token,
+					Optional.of(sender),
+					amount,
+					serialNum,
 					Optional.of(receiver),
 					Optional.empty());
 		}
@@ -201,6 +262,10 @@ public class TokenMovement {
 
 	public static Builder moving(long amount, String token) {
 		return new Builder(amount, token);
+	}
+
+	public static Builder moving(long amount, long serialNum, String token) {
+		return new Builder(amount, serialNum, token);
 	}
 
 	public static Builder movingHbar(long amount) {

@@ -481,6 +481,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		tokenRelsLedger.set(relationshipSender, TOKEN_BALANCE, balanceSender - 1);
 		tokenRelsLedger.set(relationshipReceiver, TOKEN_BALANCE, balanceReceiver + 1);
 		hederaLedger.updateTokenXfers(tId, senderAId, receiverAId, serialNumber);
+
 		return OK;
 	}
 

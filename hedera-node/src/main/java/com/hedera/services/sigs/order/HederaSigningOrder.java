@@ -47,6 +47,7 @@ import com.hederahashgraph.api.proto.java.FileDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.FileUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.NftTransfer;
 import com.hederahashgraph.api.proto.java.ScheduleCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TokenAssociateTransactionBody;
@@ -550,9 +551,16 @@ public class HederaSigningOrder {
 
 		KeyOrderingFailure failure;
 		for (TokenTransferList xfers : op.getTokenTransfersList()) {
+			// fungible tokens
 			for (AccountAmount adjust : xfers.getTransfersList()) {
 				if ((failure = includeIfPresentAndNecessary(adjust, required)) != NONE) {
 					return accountFailure(adjust.getAccountID(), txnId, failure, factory);
+				}
+			}
+			// non fungible tokens
+			for (NftTransfer adjust : xfers.getNftTransfersList()) {
+				if ((failure = includeIfPresentAndNecessary(adjust, required)) != NONE) {
+					return accountFailure(adjust.getSenderAccountID(), txnId, failure, factory);
 				}
 			}
 		}
@@ -965,6 +973,25 @@ public class HederaSigningOrder {
 		if (result.succeeded()) {
 			var meta = result.metadata();
 			if (adjust.getAmount() < 0 || meta.isReceiverSigRequired()) {
+				required.add(meta.getKey());
+			}
+		}
+		return result.failureIfAny();
+	}
+
+	private KeyOrderingFailure includeIfPresentAndNecessary(NftTransfer adjust, List<JKey> required) {
+		var account = adjust.getSenderAccountID();
+		var result = sigMetaLookup.accountSigningMetaFor(account);
+		if (result.succeeded()) {
+			var meta = result.metadata();
+			required.add(meta.getKey());
+		}
+
+		account = adjust.getReceiverAccountID();
+		result = sigMetaLookup.accountSigningMetaFor(account);
+		if (result.succeeded()) {
+			var meta = result.metadata();
+			if (meta.isReceiverSigRequired()) {
 				required.add(meta.getKey());
 			}
 		}

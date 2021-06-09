@@ -768,7 +768,7 @@ public class SmartContractRequestHandler {
 	}
 
 	private long rbhPriceTinyBarsGiven(HederaFunctionality function, Timestamp at) {
-		return rbhPriceTinyBarsGiven(function, at);
+		return rbhPriceTinyBarsGiven(function, SubType.DEFAULT, at);
 	}
 
 	private long getContractCreateGasPriceInTinyBars(Timestamp at) {

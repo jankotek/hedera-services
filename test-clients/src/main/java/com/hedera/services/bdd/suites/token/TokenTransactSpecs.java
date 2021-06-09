@@ -20,9 +20,12 @@ package com.hedera.services.bdd.suites.token;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.bdd.spec.HapiApiSpec;
-import com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer;
+import com.hedera.services.bdd.spec.queries.QueryVerbs;
 import com.hedera.services.bdd.suites.HapiApiSuite;
+import com.hederahashgraph.api.proto.java.TokenSupplyType;
+import com.hederahashgraph.api.proto.java.TokenType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -32,14 +35,16 @@ import java.util.Map;
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.assertions.AccountInfoAsserts.changeFromSnapshot;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getReceipt;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileUpdate;
+import static com.hedera.services.bdd.spec.transactions.TxnVerbs.mintToken;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenAssociate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
-import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfer.tinyBarsFromTo;
 import static com.hedera.services.bdd.spec.transactions.token.TokenMovement.moving;
 import static com.hedera.services.bdd.spec.transactions.token.TokenMovement.movingHbar;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.balanceSnapshot;
@@ -85,6 +90,7 @@ public class TokenTransactSpecs extends HapiApiSuite {
 						prechecksWork(),
 						missingEntitiesRejected(),
 						allRequiredSigsAreChecked(),
+						uniqueTokenTransfers(),
 				}
 		);
 	}
@@ -420,7 +426,7 @@ public class TokenTransactSpecs extends HapiApiSuite {
 						cryptoTransfer(
 								moving(100, A_TOKEN).between(TOKEN_TREASURY, FIRST_USER),
 								moving(100, B_TOKEN).between(TOKEN_TREASURY, SECOND_USER)
-						)
+						).via("transactTxn")
 				).then(
 						getAccountBalance(TOKEN_TREASURY)
 								.hasTokenBalance(A_TOKEN, TOTAL_SUPPLY - 100)
@@ -428,7 +434,47 @@ public class TokenTransactSpecs extends HapiApiSuite {
 						getAccountBalance(FIRST_USER)
 								.hasTokenBalance(A_TOKEN, 100),
 						getAccountBalance(SECOND_USER)
-								.hasTokenBalance(B_TOKEN, 100)
+								.hasTokenBalance(B_TOKEN, 100),
+						QueryVerbs.getReceipt("transactTxn").logged()
+				);
+	}
+
+	public HapiApiSpec uniqueTokenTransfers() {
+		return defaultHapiSpec("UniqueTokenTransfers")
+				.given(
+						cryptoCreate(FIRST_USER).balance(0L),
+						cryptoCreate(SECOND_USER).balance(0L),
+						cryptoCreate(TOKEN_TREASURY).balance(0L),
+						newKeyNamed("supplyKey"),
+						tokenCreate(A_TOKEN)
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.supplyType(TokenSupplyType.INFINITE)
+								.initialSupply(0)
+								.supplyKey("supplyKey")
+								.treasury(TOKEN_TREASURY),
+						mintToken(A_TOKEN, List.of(ByteString.copyFromUtf8("memo"))),
+						tokenAssociate(FIRST_USER, A_TOKEN),
+						tokenAssociate(SECOND_USER, A_TOKEN)
+				).when(
+						cryptoTransfer(
+								moving(1, 1, A_TOKEN).betweenUnique(TOKEN_TREASURY, FIRST_USER)
+						),
+						cryptoTransfer(
+								moving(1, 1, A_TOKEN).betweenUnique(FIRST_USER, SECOND_USER)
+						)
+				).then(
+						getAccountBalance(TOKEN_TREASURY)
+								.hasTokenBalance(A_TOKEN, 0),
+						getAccountBalance(FIRST_USER)
+								.hasTokenBalance(A_TOKEN, 0),
+						getAccountBalance(SECOND_USER)
+								.hasTokenBalance(A_TOKEN, 1),
+
+						getTokenNftInfo(A_TOKEN, 1)
+								.hasSerialNum(1)
+//								.hasMetadata(metadata)
+								.hasTokenID(A_TOKEN)
+								.hasAccountID(SECOND_USER)
 				);
 	}
 

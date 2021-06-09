@@ -39,10 +39,12 @@ import com.hedera.services.ledger.TransactionalLedger;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.CreationResult;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -54,6 +56,21 @@ import java.util.function.Consumer;
 
 public enum ExceptionalUniqueTokenStore implements TokenStore, UniqueStore {
     NOOP_UNIQUE_TOKEN_STORE;
+
+    @Override
+    public ResponseCodeEnum mint(TokenID tId, String memo, RichInstant creationTime) {
+        return null;
+    }
+
+    @Override
+    public boolean nftExists(NftID id) {
+        return false;
+    }
+
+    @Override
+    public MerkleUniqueToken get(NftID id) {
+        return null;
+    }
 
     @Override
     public ResponseCodeEnum unfreeze(AccountID aId, TokenID tId) {
@@ -187,22 +204,6 @@ public enum ExceptionalUniqueTokenStore implements TokenStore, UniqueStore {
 
     @Override
     public ResponseCodeEnum wipe(AccountID aId, TokenID tId, long wipingAmount, boolean skipKeyCheck) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ResponseCodeEnum mint(final TokenMintTransactionBody txBody, final RichInstant creationTime) {
-        throw new UnsupportedOperationException();
-
-    }
-
-    @Override
-    public ResponseCodeEnum mintProvisional(final TokenMintTransactionBody request, final RichInstant creationTime) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ResponseCodeEnum commitProvisional() {
         throw new UnsupportedOperationException();
     }
 }

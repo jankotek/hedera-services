@@ -45,6 +45,7 @@ import java.util.function.Supplier;
 
 import static com.hedera.services.state.merkle.MerkleUniqueTokenId.fromNftID;
 import static com.hedera.services.utils.EntityIdUtils.readableId;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
 
@@ -112,5 +113,22 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 					"Argument 'id=%s' does not refer to a known token!",
 					readableId(id)));
 		}
+	}
+
+	@Override
+	public ResponseCodeEnum adjustBalance(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
+		var nftId = NftID.newBuilder()
+				.setTokenID(tId)
+				.setSerialNumber(serialNumber)
+				.build();
+		if (nftExists(nftId)) {
+			get(nftId).setOwner(EntityId.fromGrpcAccountId(receiverAId));
+			return sanityChecked(senderAId, receiverAId, tId, token -> tryAdjustment(senderAId, receiverAId, tId, serialNumber));
+		}
+		return FAIL_INVALID;
+	}
+
+	private void revertAdjustmentOfToken(MerkleToken token, TokenID tokenID) {
+		tryAdjustment(token.treasury().toGrpcAccountId(), tokenID, -1);
 	}
 }

@@ -23,6 +23,7 @@ package com.hedera.services.store.tokens.unique;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.submerkle.RichInstant;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -44,4 +45,8 @@ public interface UniqueStore extends TokenStore {
 	boolean nftExists(final NftID id);
 
 	MerkleUniqueToken get(final NftID id);
+
+	default ResponseCodeEnum adjustBalance(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
+		throw new UnsupportedOperationException();
+	}
 }

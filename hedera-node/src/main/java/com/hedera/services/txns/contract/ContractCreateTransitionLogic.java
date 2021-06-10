@@ -44,6 +44,7 @@ import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.Wei;
 import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
+import org.hyperledger.besu.ethereum.vm.OperationTracer;
 import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
 import org.hyperledger.besu.ethereum.worldstate.DefaultMutableWorldState;
 
@@ -138,21 +139,21 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				value = Wei.of(op.getInitialBalance());
 			}
 
-			// TODO create DefaultMutableWorldState Instance and create `updater`. Pass the updater to `processTransaction`
-
 			// TODO miningBeneficiary, blockHashLookup
 			// TODO we can remove SECPSignature from Transaction
 			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.fromHexString(contractByteCodeString), sender, Optional.empty());
 			var defaultMutableWorld = new DefaultMutableWorldState(this.store);
+			var updater = defaultMutableWorld.updater();
 			var result = txProcessor.processTransaction(
 					stubbedBlockchain(),
-					defaultMutableWorld.updater(),
+					updater,
 					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
 					evmTx,
 					Address.ZERO,
-					null,
+					OperationTracer.NO_TRACING,
 					null,
 					false);
+			updater.commit();
 			// Blockchain -> we have to stub fake block
 			// WorldUpdater -> we have to implement it
 			// ProcessableBlockHeader -> we have to stub fake block header

@@ -69,9 +69,12 @@ public class ContractsStore implements AccountStateStore {
 	@Override
 	public Account get(Address address) {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
-		final var account = ledger.get(accId);
-
-		return new EvmAccountImpl(address, Wei.of(account.getBalance()));
+		if (ledger.exists(accId)) {
+			var account = ledger.get(accId);
+			// TODO what we do with nonces?
+			return new EvmAccountImpl(address, Wei.of(account.getBalance()));
+		}
+		return null;
 	}
 
 	@Override

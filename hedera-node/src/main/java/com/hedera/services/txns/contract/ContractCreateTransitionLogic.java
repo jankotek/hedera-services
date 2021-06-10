@@ -37,7 +37,6 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import com.hederahashgraph.builder.RequestBuilder;
-import com.hederahashgraph.fee.FeeBuilder;
 import com.swirlds.common.CommonUtils;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.Address;
@@ -46,12 +45,10 @@ import org.hyperledger.besu.ethereum.core.Hash;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.Wei;
-import org.hyperledger.besu.ethereum.core.WorldUpdater;
 import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
 import org.apache.tuweni.bytes.Bytes;
-import org.hyperledger.besu.ethereum.processing.TransactionProcessingResult;
-import org.hyperledger.besu.ethereum.vm.BlockHashLookup;
-import org.hyperledger.besu.ethereum.vm.OperationTracer;
+import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
+import org.hyperledger.besu.ethereum.worldstate.DefaultMutableWorldState;
 
 import java.math.BigInteger;
 import java.time.Instant;
@@ -63,7 +60,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
-import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCall;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_FILE_EMPTY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_GAS;
@@ -92,7 +88,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	private final TransactionContext txnCtx;
 	private final Supplier<SequenceNumber> seqNo;
 	private final MainnetTransactionProcessor txProcessor;
-//	private final WorldUpdater store;
+	private final AccountStateStore store;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
@@ -111,7 +107,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 		this.delegate = delegate;
 		this.validator = validator;
 		this.txProcessor = txProcessor;
-//		this.store = store;
+		this.store = store;
 	}
 
 	@Override
@@ -151,15 +147,16 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			// TODO miningBeneficiary, blockHashLookup
 			// TODO we can remove SECPSignature from Transaction
 			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.fromHexString(contractByteCodeString), sender, Optional.empty());
-//			var result = txProcessor.processTransaction(
-//					stubbedBlockchain(),
-//					store,
-//					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
-//					evmTx,
-//					Address.ZERO,
-//					null,
-//					null,
-//					false);
+			var mutableWorldState = new DefaultMutableWorldState(store);
+			var result = txProcessor.processTransaction(
+					stubbedBlockchain(),
+					mutableWorldState.updater(),
+					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
+					evmTx,
+					Address.ZERO,
+					null,
+					null,
+					false);
 			// Blockchain -> we have to stub fake block
 			// WorldUpdater -> we have to implement it
 			// ProcessableBlockHeader -> we have to stub fake block header
@@ -177,11 +174,11 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 //			if (outcome == SUCCESS) {
 //				txnCtx.setCreated(legacyRecord.getReceipt().getContractID());
 //			}
-//			if (result.isSuccessful()) {
-			txnCtx.setStatus(SUCCESS);
-//			} else {
-//				txnCtx.setStatus(FAIL_INVALID);
-//			}
+			if (result.isSuccessful()) {
+				txnCtx.setStatus(SUCCESS);
+			} else {
+				txnCtx.setStatus(FAIL_INVALID);
+			}
 		} catch (Exception e) {
 			txnCtx.setStatus(FAIL_INVALID);
 		}

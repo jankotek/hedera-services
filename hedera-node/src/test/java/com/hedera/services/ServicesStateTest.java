@@ -613,28 +613,27 @@ class ServicesStateTest {
 						"  Storage                :: %s\n" +
 						"  Topics                 :: %s\n" +
 						"  Tokens                 :: %s\n" +
-						"  UniqueTokens           :: %s\n" +
 						"  TokenAssociations      :: %s\n" +
 						"  DiskFs                 :: %s\n" +
 						"  ScheduledTxs           :: %s\n" +
 						"  NetworkContext         :: %s\n" +
 						"  AddressBook            :: %s\n" +
 						"  RecordsRunningHashLeaf :: %s\n" +
-						"    ↪ Running hash       :: %s",
-
+						"    ↪ Running hash       :: %s\n" +
+						"  UniqueTokens           :: %s",
 				overallHash,
 				accountsRootHash,
 				storageRootHash,
 				topicRootHash,
 				tokensRootHash,
-				uniqueTokensRootHash,
 				tokenRelsRootHash,
 				specialFileSystemHash,
 				scheduledTxsRootHash,
 				ctxHash,
 				bookHash,
 				runningHashLeafHash,
-				hashInRunningHash);
+				hashInRunningHash,
+				uniqueTokensRootHash);
 		subject.setHash(overallHash);
 
 		given(topics.getHash()).willReturn(topicRootHash);

@@ -90,6 +90,7 @@ public class TokenManagementSpecs extends HapiApiSuite {
 		);
 	}
 
+
 	private HapiApiSpec frozenTreasuryCannotBeMintedOrBurned() {
 		return defaultHapiSpec("FrozenTreasuryCannotBeMintedOrBurned")
 				.given(

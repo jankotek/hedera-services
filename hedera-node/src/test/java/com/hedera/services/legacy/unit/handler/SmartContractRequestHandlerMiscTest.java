@@ -47,6 +47,7 @@ import com.hedera.services.state.merkle.MerkleOptionalBlob;
 import com.hedera.services.state.submerkle.ExchangeRates;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.store.tokens.unique.UniqueStore;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hedera.services.utils.MiscUtils;
 import com.hedera.test.mocks.SolidityLifecycleFactory;
@@ -65,6 +66,7 @@ import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Query;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.ResponseType;
+import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -163,6 +165,7 @@ public class SmartContractRequestHandlerMiscTest {
             new ChangeSummaryManager<>());
     ledger = new HederaLedger(
             mock(TokenStore.class),
+            mock(UniqueStore.class),
             mock(EntityIdSource.class),
             mock(ExpiringCreations.class),
             TestContextValidator.TEST_VALIDATOR,
@@ -1073,7 +1076,7 @@ public class SmartContractRequestHandlerMiscTest {
   }
 
   public long getContractCreateGasPriceInTinyBars(Timestamp at) {
-    FeeData usagePrices = TEST_USAGE_PRICES.pricesGiven(HederaFunctionality.ContractCreate, at);
+    FeeData usagePrices = TEST_USAGE_PRICES.pricesGiven(HederaFunctionality.ContractCreate, at).get(SubType.DEFAULT);
     long feeInTinyCents = usagePrices.getServicedata().getGas() / 1000;
     long feeInTinyBars = FeeBuilder.getTinybarsFromTinyCents(rates.getCurrentRate(), feeInTinyCents);
     return feeInTinyBars == 0 ? 1 : feeInTinyBars;

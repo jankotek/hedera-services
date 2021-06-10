@@ -22,7 +22,6 @@ package com.hedera.services.txns.contract;
 
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.files.HederaFs;
-import com.hedera.services.legacy.handler.SmartContractRequestHandler;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.store.contracts.ContractsStore;
 import com.hedera.services.store.contracts.stubs.StubbedBlockchain;
@@ -30,14 +29,13 @@ import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
-import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import com.hederahashgraph.builder.RequestBuilder;
 import com.swirlds.common.CommonUtils;
+import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.Address;
 import org.hyperledger.besu.ethereum.core.Difficulty;
@@ -46,11 +44,9 @@ import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
 import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.Wei;
 import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
-import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
 import org.hyperledger.besu.ethereum.worldstate.DefaultMutableWorldState;
 
-import java.math.BigInteger;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Map;
@@ -147,10 +143,10 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			// TODO miningBeneficiary, blockHashLookup
 			// TODO we can remove SECPSignature from Transaction
 			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.fromHexString(contractByteCodeString), sender, Optional.empty());
-			var mutableWorldState = new DefaultMutableWorldState(store);
+			var defaultMutableWorld = new DefaultMutableWorldState(this.store);
 			var result = txProcessor.processTransaction(
 					stubbedBlockchain(),
-					mutableWorldState.updater(),
+					defaultMutableWorld.updater(),
 					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
 					evmTx,
 					Address.ZERO,
@@ -165,9 +161,9 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			// BlockHashLookup
 			// isPersistingPrivateState = false
 			// TransactionValidationParams
-//
+
 //			var legacyRecord = delegate.perform(contractCreateTxn, txnCtx.consensusTime(), inputs.getKey(), seqNo.get());
-//
+
 //			var outcome = legacyRecord.getReceipt().getStatus();
 //			txnCtx.setStatus();
 //			txnCtx.setCreateResult(legacyRecord.getContractCreateResult());
@@ -175,7 +171,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 //				txnCtx.setCreated(legacyRecord.getReceipt().getContractID());
 //			}
 			if (result.isSuccessful()) {
-				txnCtx.setStatus(SUCCESS);
+			txnCtx.setStatus(SUCCESS);
 			} else {
 				txnCtx.setStatus(FAIL_INVALID);
 			}

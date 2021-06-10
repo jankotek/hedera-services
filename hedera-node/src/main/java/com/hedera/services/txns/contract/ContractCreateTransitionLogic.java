@@ -116,6 +116,11 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			Instant startTime = RequestBuilder.convertProtoTimeStamp(transactionID.getTransactionValidStart());
 			AccountID senderAccount = transactionID.getAccountID();
 			Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
+			Address contractAddress = Address.fromHexString(asSolidityAddressHex(
+					AccountID.newBuilder()
+							.setShardNum(0)
+							.setRealmNum(senderAccount.getRealmNum())
+							.setAccountNum(seqNo.get().getAndIncrement()).build()));
 			// TODO max gas check?
 
 			var inputs = prepBytecode(op);
@@ -141,7 +146,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 
 			// TODO miningBeneficiary, blockHashLookup
 			// TODO we can remove SECPSignature from Transaction
-			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.fromHexString(contractByteCodeString), sender, Optional.empty());
+			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.empty(), value, null, Bytes.fromHexString(contractByteCodeString), sender, Optional.empty(), contractAddress);
 			var defaultMutableWorld = new DefaultMutableWorldState(this.store);
 			var updater = defaultMutableWorld.updater();
 			var result = txProcessor.processTransaction(
@@ -172,7 +177,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 //				txnCtx.setCreated(legacyRecord.getReceipt().getContractID());
 //			}
 			if (result.isSuccessful()) {
-			txnCtx.setStatus(SUCCESS);
+				txnCtx.setStatus(SUCCESS);
 			} else {
 				txnCtx.setStatus(FAIL_INVALID);
 			}

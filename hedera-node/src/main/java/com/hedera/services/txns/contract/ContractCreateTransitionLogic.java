@@ -154,7 +154,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 					updater,
 					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
 					evmTx,
-					Address.ZERO,
+					Address.fromHexString(asSolidityAddressHex(txnCtx.submittingNodeAccount())),
 					OperationTracer.NO_TRACING,
 					null,
 					false);

@@ -53,6 +53,7 @@ import org.hyperledger.besu.ethereum.core.Wei;
 import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
 import org.hyperledger.besu.ethereum.worldstate.AccountStorageMap;
 
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -79,7 +80,9 @@ public class ContractsStore implements AccountStateStore {
 		if (ledger.exists(accId)) {
 			var account = ledger.get(accId);
 			// TODO what we do with nonces?
-			return new EvmAccountImpl(address, Wei.of(account.getBalance()));
+			BigInteger bigInt = BigInteger.valueOf(account.getBalance());
+			bigInt = bigInt.multiply(BigInteger.valueOf(10).pow(10)); // TODO: find more adequate way
+			return new EvmAccountImpl(address, Wei.of(bigInt));
 		}
 
 		return null;
@@ -104,7 +107,8 @@ public class ContractsStore implements AccountStateStore {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
 		if (ledger.exists(accId)) {
 			final var account = ledger.get(accId);
-			ledger.adjustBalance(accId, balance.toLong() - account.getBalance()); // TOOD: switch from wei to tinybar
+			final BigInteger tinybarBalance = balance.getAsBigInteger().divide(BigInteger.valueOf(10).pow(10)); // TODO: make more adequate way of calculating this
+			ledger.adjustBalance(accId, tinybarBalance.longValue() - account.getBalance());
 			return;
 		}
 

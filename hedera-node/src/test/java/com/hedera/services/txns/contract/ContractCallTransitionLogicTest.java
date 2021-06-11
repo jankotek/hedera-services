@@ -84,7 +84,7 @@ public class ContractCallTransitionLogicTest {
 		validator = mock(OptionValidator.class);
 		withRubberstampingValidator();
 
-		subject = new ContractCallTransitionLogic(delegate, validator, txnCtx, () -> seqNo, () -> contracts);
+		subject = new ContractCallTransitionLogic(delegate, validator, txnCtx, () -> seqNo, () -> contracts, null, null);
 	}
 
 	@Test

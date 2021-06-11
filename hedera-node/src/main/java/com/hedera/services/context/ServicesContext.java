@@ -1304,7 +1304,7 @@ public class ServicesContext {
 								ledger(), contracts()::deleteContract, validator(), txnCtx(), this::accounts))),
 				entry(ContractCall,
 						List.of(new ContractCallTransitionLogic(
-								contracts()::contractCall, validator(), txnCtx(), this::seqNo, this::accounts))),
+								contracts()::contractCall, validator(), txnCtx(), this::seqNo, this::accounts, besuContracts(), contractsStore()))),
 				/* Consensus */
 				entry(ConsensusCreateTopic,
 						List.of(new TopicCreateTransitionLogic(

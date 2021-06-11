@@ -24,6 +24,7 @@ import com.hedera.services.context.TransactionContext;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.submerkle.SequenceNumber;
+import com.hedera.services.store.contracts.stubs.StubbedBlockchain;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.txns.validation.PureValidation;
@@ -33,12 +34,25 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import com.swirlds.common.CommonUtils;
 import com.swirlds.fcmap.FCMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tuweni.bytes.Bytes;
+import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.Address;
+import org.hyperledger.besu.ethereum.core.Difficulty;
+import org.hyperledger.besu.ethereum.core.Hash;
+import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
+import org.hyperledger.besu.ethereum.core.Transaction;
+import org.hyperledger.besu.ethereum.core.Wei;
+import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
+import org.hyperledger.besu.ethereum.vm.OperationTracer;
+import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
+import org.hyperledger.besu.ethereum.worldstate.DefaultMutableWorldState;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -48,6 +62,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGAT
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 public class ContractCallTransitionLogic implements TransitionLogic {
 	private static final Logger log = LogManager.getLogger(ContractCallTransitionLogic.class);
@@ -57,6 +72,8 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 	private final TransactionContext txnCtx;
 	private final Supplier<SequenceNumber> seqNo;
 	private final Supplier<FCMap<MerkleEntityId, MerkleAccount>> contracts;
+	private final MainnetTransactionProcessor txProcessor;
+	private final AccountStateStore store;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
@@ -65,13 +82,17 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 			OptionValidator validator,
 			TransactionContext txnCtx,
 			Supplier<SequenceNumber> seqNo,
-			Supplier<FCMap<MerkleEntityId, MerkleAccount>> contracts
+			Supplier<FCMap<MerkleEntityId, MerkleAccount>> contracts,
+			MainnetTransactionProcessor txProcessor,
+			AccountStateStore store
 	) {
 		this.delegate = delegate;
 		this.validator = validator;
 		this.txnCtx = txnCtx;
 		this.seqNo = seqNo;
 		this.contracts = contracts;
+		this.txProcessor = txProcessor;
+		this.store = store;
 	}
 
 	@FunctionalInterface
@@ -88,18 +109,43 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 			if (callResponseStatus != ResponseCodeEnum.OK) {
 				txnCtx.setStatus(FAIL_INVALID);
 				return;
-			} else {
-				TransactionID transactionID = contractCallTxn.getTransactionID();
-				AccountID senderAccount = transactionID.getAccountID();
-				Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
-				AccountID receiverAccount =
-						AccountID.newBuilder().setAccountNum(op.getContractID().getContractNum())
-								.setRealmNum(op.getContractID().getRealmNum())
-								.setShardNum(op.getContractID().getShardNum()).build();
-				Address receiver = Address.fromHexString(asSolidityAddressHex(receiverAccount));
-
-				// TODO
 			}
+
+			TransactionID transactionID = contractCallTxn.getTransactionID();
+			AccountID senderAccount = transactionID.getAccountID();
+			Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
+			AccountID receiverAccount =
+					AccountID.newBuilder().setAccountNum(op.getContractID().getContractNum())
+							.setRealmNum(op.getContractID().getRealmNum())
+							.setShardNum(op.getContractID().getShardNum()).build();
+			Address receiver = Address.fromHexString(asSolidityAddressHex(receiverAccount));
+			Wei gasPrice = Wei.of(1000000000L);
+			long gasLimit = 15000000L;
+
+			Wei value = Wei.ZERO;
+			if (op.getAmount() > 0) {
+				value = Wei.of(op.getAmount());
+			}
+
+			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.of(receiver), value, null, Bytes.fromHexString(CommonUtils.hex(op.getFunctionParameters().toByteArray())), sender, Optional.empty());
+			var defaultMutableWorld = new DefaultMutableWorldState(this.store);
+			var updater = defaultMutableWorld.updater();
+			var result = txProcessor.processTransaction(
+					stubbedBlockchain(),
+					updater,
+					stubbedBlockHeader(txnCtx.consensusTime().getEpochSecond()),
+					evmTx,
+					Address.fromHexString(asSolidityAddressHex(txnCtx.submittingNodeAccount())),
+					OperationTracer.NO_TRACING,
+					null,
+					false);
+			updater.commit();
+			if (result.isSuccessful()) {
+				txnCtx.setStatus(SUCCESS);
+			} else {
+				txnCtx.setStatus(FAIL_INVALID);
+			}
+			// TODO
 
 
 
@@ -143,5 +189,20 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 
 	public ResponseCodeEnum validateContractExistence(ContractID cid) {
 		return PureValidation.queryableContractStatus(cid, contracts.get());
+	}
+
+	private Blockchain stubbedBlockchain() {
+		return new StubbedBlockchain();
+	}
+
+	private ProcessableBlockHeader stubbedBlockHeader(long timestamp) {
+		return new ProcessableBlockHeader(
+				Hash.EMPTY,
+				Address.ZERO, //Coinbase might be the 0.98 address?
+				Difficulty.ONE,
+				0,
+				12_500_000L,
+				timestamp,
+				1000000000L);
 	}
 }

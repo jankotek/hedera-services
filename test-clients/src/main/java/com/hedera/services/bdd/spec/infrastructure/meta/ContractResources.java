@@ -24,6 +24,7 @@ import com.hedera.services.bdd.spec.HapiSpecSetup;
 
 public class ContractResources {
 	public static final String SIMPLE_STORAGE_BYTECODE_PATH = bytecodePath("simpleStorage");
+	public static final String SIMPLE_TWO_STORAGE_BYTECODE_PATH = bytecodePath("SimpleTwoStorage");
 	public static final String PAYABLE_CONTRACT_BYTECODE_PATH = bytecodePath("PayReceivable");
 	public static final String DELEGATING_CONTRACT_BYTECODE_PATH = bytecodePath("CreateTrivial");
 	public static final String BALANCE_LOOKUP_BYTECODE_PATH = bytecodePath("BalanceLookup");
@@ -88,6 +89,10 @@ public class ContractResources {
 			"\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}";
 	public static final String SIMPLE_STORAGE_GETTER_ABI = "{\"constant\":true," +
 			"\"inputs\":[],\"name\":\"get\"," +
+			"\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}]," +
+			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
+	public static final String SIMPLE_STORAGE_SECOND_GETTER_ABI = "{\"constant\":true," +
+			"\"inputs\":[],\"name\":\"getSecond\"," +
 			"\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}]," +
 			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
 	public static final String SET_NODES_ABI = "{\"constant\":false," +

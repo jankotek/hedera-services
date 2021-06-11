@@ -9,9 +9,9 @@ package com.hedera.services.bdd.suites.contract;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -80,22 +80,146 @@ public class ContractCallSuite extends HapiApiSuite {
 
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
-		return allOf(
-				positiveSpecs(),
-				negativeSpecs(),
-				Arrays.asList(
-						fridayThe13thSpec()
+		return allOf(List.of(
+				simpleStorageTestCall()
+//				twoStorageTwoCalls()
+//				simpleStorageTestCall()
+//				simpleStorageTwoCallsTestCall()
+//				depositSuccess()
 				)
+//				positiveSpecs(),
+//				negativeSpecs(),
+//				Arrays.asList(
+//						fridayThe13thSpec()
+//				)
 		);
+	}
+
+	private HapiApiSpec twoStorageTwoCalls() {
+		return defaultHapiSpec("SimpleStorage")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.SIMPLE_TWO_STORAGE_BYTECODE_PATH)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("immutableContract")
+								.payingWith("payer")
+								.bytecode("bytecode"),
+						contractCall(
+								"immutableContract",
+								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5
+						).via("storageTx"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getValue"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_SECOND_GETTER_ABI).via("getSecondValue"),
+						contractCall(
+								"immutableContract",
+								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 1000
+						).via("storageTx"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getValue"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_SECOND_GETTER_ABI).via("getSecondValue")
+				)
+				.then(
+//						getTxnRecord("storageTx").logged(),
+						getTxnRecord("getValue").logged(),
+						getTxnRecord("getSecondValue").logged()
+				);
+	}
+
+	private HapiApiSpec twoStorageOneCall() {
+		return defaultHapiSpec("SimpleStorage")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.SIMPLE_TWO_STORAGE_BYTECODE_PATH)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("immutableContract")
+								.payingWith("payer")
+								.bytecode("bytecode"),
+						contractCall(
+								"immutableContract",
+								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5
+						).via("storageTx"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getValue"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_SECOND_GETTER_ABI).via("getSecondValue")
+				)
+				.then(
+						getTxnRecord("getValue").logged(),
+						getTxnRecord("getSecondValue").logged()
+				);
+	}
+
+	private HapiApiSpec simpleStorageTestCall() {
+		return defaultHapiSpec("SimpleStorage")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.SIMPLE_STORAGE_BYTECODE_PATH)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("immutableContract")
+								.payingWith("payer")
+								.bytecode("bytecode"),
+						contractCall(
+								"immutableContract",
+								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5
+						).via("storageTx"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getValue"))
+				.then(
+						getTxnRecord("storageTx").logged(),
+						getTxnRecord("getValue").logged()
+				);
+	}
+
+	private HapiApiSpec simpleStorageTwoCallsTestCall() {
+		return defaultHapiSpec("SimpleStorage")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.SIMPLE_STORAGE_BYTECODE_PATH)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("immutableContract")
+								.payingWith("payer")
+								.bytecode("bytecode"),
+						contractCall(
+								"immutableContract",
+								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5
+						).via("storageTx"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getAfter1"),
+						contractCall(
+								"immutableContract",
+								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 256
+						).via("secondTx"),
+						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getAfter2")
+				)
+				.then(
+						getTxnRecord("storageTx").logged(),
+						getTxnRecord("getAfter1").logged(),
+						getTxnRecord("getAfter2").logged()
+				);
 	}
 
 	List<HapiApiSpec> negativeSpecs() {
 		return Arrays.asList(
-			insufficientFee(),
-			insufficientGas(),
-			invalidContract(),
-			invalidAbi(),
-			nonPayable()
+				insufficientFee(),
+				insufficientGas(),
+				invalidContract(),
+				invalidAbi(),
+				nonPayable()
 		);
 	}
 
@@ -288,7 +412,7 @@ public class ContractCallSuite extends HapiApiSuite {
 						contractDelete("payableContract").transferAccount("beneficiary"),
 						getAccountBalance("beneficiary")
 								.hasTinyBars(initBalance + depositAmount)
-						);
+				);
 	}
 
 	HapiApiSpec payableSuccess() {
@@ -324,16 +448,16 @@ public class ContractCallSuite extends HapiApiSuite {
 								.hasPriority(recordWith().contractCallResult(
 										resultWith().resultThruAbi(
 												ContractResources.GET_CHILD_RESULT_ABI,
-												isLiteralResult(new Object[] { BigInteger.valueOf(7L) })))),
+												isLiteralResult(new Object[]{BigInteger.valueOf(7L)})))),
 						getTxnRecord("getChildAddressTxn")
 								.hasPriority(recordWith().contractCallResult(
 										resultWith()
-											.resultThruAbi(
-													ContractResources.GET_CHILD_ADDRESS_ABI,
-													isContractWith(contractWith()
-															.nonNullContractId()
-															.propertiesInheritedFrom("parentInfo")))
-											.logs(inOrder()))),
+												.resultThruAbi(
+														ContractResources.GET_CHILD_ADDRESS_ABI,
+														isContractWith(contractWith()
+																.nonNullContractId()
+																.propertiesInheritedFrom("parentInfo")))
+												.logs(inOrder()))),
 						contractListWithPropertiesInheritedFrom("createChildCallResult", 1, "parentInfo")
 				);
 	}
@@ -377,7 +501,7 @@ public class ContractCallSuite extends HapiApiSuite {
 				).then(
 						getTxnRecord("callTxn").hasPriority(
 								recordWith().contractCallResult(
-									resultWith().logs(inOrder())))
+										resultWith().logs(inOrder())))
 				);
 	}
 

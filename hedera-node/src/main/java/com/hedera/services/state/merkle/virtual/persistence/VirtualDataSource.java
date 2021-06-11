@@ -11,16 +11,16 @@ import java.io.Closeable;
  */
 public interface VirtualDataSource extends Closeable {
     public byte[] loadParentHash(long parentPath);
-    public VirtualRecord loadLeaf(long leafPath);
-    public VirtualRecord loadLeaf(VirtualKey leafKey);
+    public VirtualNode loadLeaf(long leafPath);
+    public VirtualNode loadLeaf(VirtualKey leafKey);
 
     public VirtualValue getLeafValue(VirtualKey leafKey);
 
     public void saveParent(long parentPath, byte[] hash);
-    public void saveLeaf(VirtualRecord leaf);
+    public void saveLeaf(VirtualNode leaf);
 
     public void deleteParent(long parentPath);
-    public void deleteLeaf(VirtualRecord leaf);
+    public void deleteLeaf(VirtualNode leaf);
 
     /**
      * Writes the path for the very last leaf to durable storage. This is needed for

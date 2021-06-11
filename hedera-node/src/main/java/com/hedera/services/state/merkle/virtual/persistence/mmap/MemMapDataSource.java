@@ -4,7 +4,7 @@ import com.hedera.services.state.merkle.virtual.Account;
 import com.hedera.services.state.merkle.virtual.VirtualKey;
 import com.hedera.services.state.merkle.virtual.VirtualValue;
 import com.hedera.services.state.merkle.virtual.persistence.VirtualDataSource;
-import com.hedera.services.state.merkle.virtual.persistence.VirtualRecord;
+import com.hedera.services.state.merkle.virtual.persistence.VirtualNode;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -24,12 +24,12 @@ public final class MemMapDataSource implements VirtualDataSource {
     }
 
     @Override
-    public VirtualRecord loadLeaf(VirtualKey leafKey) {
+    public VirtualNode loadLeaf(VirtualKey leafKey) {
         return store.loadLeaf(account, leafKey);
     }
 
     @Override
-    public VirtualRecord loadLeaf(long leafPath) {
+    public VirtualNode loadLeaf(long leafPath) {
         return store.loadLeaf(account, leafPath);
     }
 
@@ -44,7 +44,7 @@ public final class MemMapDataSource implements VirtualDataSource {
     }
 
     @Override
-    public void saveLeaf(VirtualRecord leaf) {
+    public void saveLeaf(VirtualNode leaf) {
         store.saveLeaf(account, leaf);
     }
 
@@ -54,7 +54,7 @@ public final class MemMapDataSource implements VirtualDataSource {
     }
 
     @Override
-    public void deleteLeaf(VirtualRecord leaf) {
+    public void deleteLeaf(VirtualNode leaf) {
         store.deleteLeaf(account, leaf.getKey());
     }
 

@@ -10,7 +10,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public final class VirtualRecord {
+public final class VirtualNode {
     private static final byte[] NULL_HASH = CryptoFactory.getInstance().getNullHash().getValue();
 
     private long path;
@@ -18,6 +18,9 @@ public final class VirtualRecord {
     private final VirtualKey key;
     private VirtualValue value;
     private boolean dirty = false;
+
+    private VirtualNode leftChild;
+    private VirtualNode rightChild;
 
     /**
      * Creates a VirtualRecord suitable for a VirtualTreeLeaf.
@@ -27,7 +30,7 @@ public final class VirtualRecord {
      * @param key The key. Cannot be null.
      * @param value The value. May be null.
      */
-    public VirtualRecord(byte[] hash, long path, VirtualKey key, VirtualValue value) {
+    public VirtualNode(byte[] hash, long path, VirtualKey key, VirtualValue value) {
         this.hash = new ImmutableFuture<>(Objects.requireNonNull(hash));
         this.path = path;
         this.key = Objects.requireNonNull(key);
@@ -67,6 +70,10 @@ public final class VirtualRecord {
         return hash;
     }
 
+    public void setFutureHash(Future<byte[]> hash) {
+        this.hash = hash;
+    }
+
     /**
      * Gets the key. This is null for non-leaf nodes.
      *
@@ -101,5 +108,25 @@ public final class VirtualRecord {
 
     public void makeDirty() {
         this.dirty = true;
+    }
+
+    public VirtualNode getLeftChild() {
+        return leftChild;
+    }
+
+    public void setLeftChild(VirtualNode leftChild) {
+        this.leftChild = leftChild;
+    }
+
+    public VirtualNode getRightChild() {
+        return rightChild;
+    }
+
+    public void setRightChild(VirtualNode rightChild) {
+        this.rightChild = rightChild;
+    }
+
+    public void setDirty(boolean dirty) {
+        this.dirty = dirty;
     }
 }

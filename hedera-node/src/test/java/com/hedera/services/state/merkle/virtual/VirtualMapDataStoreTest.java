@@ -1,6 +1,6 @@
 package com.hedera.services.state.merkle.virtual;
 
-import com.hedera.services.state.merkle.virtual.persistence.VirtualRecord;
+import com.hedera.services.state.merkle.virtual.persistence.VirtualNode;
 import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
 import com.swirlds.common.crypto.Hash;
 import org.junit.jupiter.api.AfterEach;
@@ -66,7 +66,7 @@ public class VirtualMapDataStoreTest {
                 // write parent
                 store.saveParentHash(account, i, hash);
                 // write leaf
-                store.saveLeaf(account, new VirtualRecord(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
+                store.saveLeaf(account, new VirtualNode(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
                 // write path
                 store.savePath(account, i,i);
             }
@@ -83,7 +83,7 @@ public class VirtualMapDataStoreTest {
                 byte[] parentHash = store.loadParentHash(account,i);
                 Assertions.assertArrayEquals(parentHash, hash);
                 // read leaf by key
-                VirtualRecord record = store.loadLeaf(account,key);
+                VirtualNode record = store.loadLeaf(account,key);
                 Assertions.assertArrayEquals(record.getHash(), hash);
                 Assertions.assertEquals(record.getPath(), i);
                 Assertions.assertEquals(record.getKey(), key);
@@ -117,7 +117,7 @@ public class VirtualMapDataStoreTest {
                 // write parent
                 store.saveParentHash(account, i, hash);
                 // write leaf
-                store.saveLeaf(account, new VirtualRecord(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
+                store.saveLeaf(account, new VirtualNode(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
                 // write path
                 store.savePath(account, i,i);
             }
@@ -139,7 +139,7 @@ public class VirtualMapDataStoreTest {
                 byte[] parentHash = store.loadParentHash(account,i);
                 Assertions.assertArrayEquals(parentHash, hash);
                 // read leaf by key
-                VirtualRecord record = store.loadLeaf(account,key);
+                VirtualNode record = store.loadLeaf(account,key);
                 Assertions.assertArrayEquals(record.getHash(), hash);
                 Assertions.assertEquals(record.getPath(), i);
                 Assertions.assertEquals(record.getKey(), key);
@@ -178,7 +178,7 @@ public class VirtualMapDataStoreTest {
 //                // write parent
 //                store.saveParentHash(account, i, hash);
 //                // write leaf
-//                store.saveLeaf(account, new VirtualRecord(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
+//                store.saveLeaf(account, new VirtualNode(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
 //                // write path
 //                store.savePath(account, i,i);
 //            }
@@ -205,7 +205,7 @@ public class VirtualMapDataStoreTest {
 //                // write parent
 //                store.saveParentHash(account, i, hash);
 //                // write leaf
-//                store.saveLeaf(account, new VirtualRecord(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
+//                store.saveLeaf(account, new VirtualNode(hash,i, new VirtualKey(get32Bytes(i)), new VirtualValue(get32Bytes(i))));
 //                // write path
 //                store.savePath(account, i,i);
 //            }
@@ -227,7 +227,7 @@ public class VirtualMapDataStoreTest {
 //                Hash parentHash = store.loadParentHash(account,i);
 //                Assertions.assertEquals(parentHash, hash);
 //                // read leaf by key
-//                VirtualRecord record = store.loadLeaf(account,key);
+//                VirtualNode record = store.loadLeaf(account,key);
 ////                Assertions.assertEquals(record.getHash(), hash);
 //                Assertions.assertEquals(record.getPath(), i);
 //                Assertions.assertEquals(record.getKey(), key);

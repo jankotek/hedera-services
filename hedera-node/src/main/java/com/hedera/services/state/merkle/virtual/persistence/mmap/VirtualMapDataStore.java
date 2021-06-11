@@ -4,7 +4,7 @@ import com.hedera.services.state.merkle.virtual.Account;
 import com.hedera.services.state.merkle.virtual.VirtualKey;
 import com.hedera.services.state.merkle.virtual.VirtualTreePath;
 import com.hedera.services.state.merkle.virtual.VirtualValue;
-import com.hedera.services.state.merkle.virtual.persistence.VirtualRecord;
+import com.hedera.services.state.merkle.virtual.persistence.VirtualNode;
 import com.swirlds.common.crypto.Hash;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
 import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
@@ -265,9 +265,9 @@ public final class VirtualMapDataStore {
      *
      * @param account The account that the leaf belongs to
      * @param key The key of the leaf to find
-     * @return a loaded VirtualRecord or null if not found
+     * @return a loaded VirtualNode or null if not found
      */
-    public VirtualRecord loadLeaf(Account account, VirtualKey key){
+    public VirtualNode loadLeaf(Account account, VirtualKey key){
         long slotLocation = findLeaf(account,key);
         if (slotLocation != MemMapDataStore.NOT_FOUND_LOCATION) {
             ByteBuffer buffer = leafStore.accessSlot(slotLocation);
@@ -284,7 +284,7 @@ public final class VirtualMapDataStore {
             // Hash TODO we assume we can use data value as hash here
             byte[] hashBytes = new byte[HASH_SIZE_BYTES];
             System.arraycopy(valueBytes, 0, hashBytes, 0, valueBytes.length);
-            return new VirtualRecord(hashBytes, path, new VirtualKey(keyBytes), new VirtualValue(valueBytes));
+            return new VirtualNode(hashBytes, path, new VirtualKey(keyBytes), new VirtualValue(valueBytes));
         }
         return null;
     }
@@ -294,9 +294,9 @@ public final class VirtualMapDataStore {
      *
      * @param account The account the leaf belongs to
      * @param path The path to the leaf
-     * @return a loaded VirtualRecord or null if not found
+     * @return a loaded VirtualNode or null if not found
      */
-    public VirtualRecord loadLeaf(Account account, long path) {
+    public VirtualNode loadLeaf(Account account, long path) {
         long slotLocation = findLeaf(account, path);
         if (slotLocation != MemMapDataStore.NOT_FOUND_LOCATION) {
             ByteBuffer buffer = leafStore.accessSlot(slotLocation);
@@ -313,7 +313,7 @@ public final class VirtualMapDataStore {
             // Hash TODO we assume we can use data value as hash here
             byte[] hashBytes = new byte[HASH_SIZE_BYTES];
             System.arraycopy(valueBytes, 0, hashBytes, 0, valueBytes.length);
-            return new VirtualRecord(hashBytes, path, new VirtualKey(keyBytes), new VirtualValue(valueBytes));
+            return new VirtualNode(hashBytes, path, new VirtualKey(keyBytes), new VirtualValue(valueBytes));
         }
         return null;
     }
@@ -376,7 +376,7 @@ public final class VirtualMapDataStore {
      * @param account The account that the leaf belongs to
      * @param leaf The leaf to store
      */
-    public void saveLeaf(Account account, VirtualRecord leaf) {
+    public void saveLeaf(Account account, VirtualNode leaf) {
         // if already stored and if so it is an update
         long slotLocation = findLeaf(account,leaf.getKey());
         if (slotLocation == MemMapDataStore.NOT_FOUND_LOCATION) {

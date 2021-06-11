@@ -1,7 +1,7 @@
 package com.hedera.services.state.merkle.virtual;
 
 import com.hedera.services.state.merkle.virtual.persistence.VirtualDataSource;
-import com.hedera.services.state.merkle.virtual.persistence.VirtualRecord;
+import com.hedera.services.state.merkle.virtual.persistence.VirtualNode;
 import com.hedera.services.state.merkle.virtual.persistence.mmap.MemMapDataSource;
 import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
 import com.swirlds.common.FCMKey;
@@ -252,8 +252,8 @@ public class VirtualMapTest {
     // TODO Test hashing the tree
 
     private static final class InMemoryDataSource implements VirtualDataSource {
-        private Map<VirtualKey, VirtualRecord> leaves = new HashMap<>();
-        private Map<Long, VirtualRecord> leavesByPath = new HashMap<>();
+        private Map<VirtualKey, VirtualNode> leaves = new HashMap<>();
+        private Map<Long, VirtualNode> leavesByPath = new HashMap<>();
         private Map<Long, byte[]> parents = new HashMap<>();
         private long firstLeafPath = INVALID_PATH;
         private long lastLeafPath = INVALID_PATH;
@@ -265,12 +265,12 @@ public class VirtualMapTest {
         }
 
         @Override
-        public VirtualRecord loadLeaf(long leafPath) {
+        public VirtualNode loadLeaf(long leafPath) {
             return leavesByPath.get(leafPath);
         }
 
         @Override
-        public VirtualRecord loadLeaf(VirtualKey leafKey) {
+        public VirtualNode loadLeaf(VirtualKey leafKey) {
             return leaves.get(leafKey);
         }
 
@@ -286,7 +286,7 @@ public class VirtualMapTest {
         }
 
         @Override
-        public void saveLeaf(VirtualRecord leaf) {
+        public void saveLeaf(VirtualNode leaf) {
             leaves.put(leaf.getKey(), leaf);
             leavesByPath.put(leaf.getPath(), leaf);
         }
@@ -297,7 +297,7 @@ public class VirtualMapTest {
         }
 
         @Override
-        public void deleteLeaf(VirtualRecord leaf) {
+        public void deleteLeaf(VirtualNode leaf) {
             leaves.remove(leaf.getKey());
             leavesByPath.remove(leaf.getPath());
         }

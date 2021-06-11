@@ -81,7 +81,12 @@ public class ContractsStore implements AccountStateStore {
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
 		var map = ledger.get(accId).map();
-		map.init(new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum())));
+		if (!map.isInitialised()) {
+			map.init(
+					new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum()))
+			);
+		}
+
 		maps.put(accId, map);
 		return map;
 	}
@@ -94,13 +99,13 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public void putCode(Address address, Bytes code) {
-		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
-		if (maps.get(accId) == null) {
-			var map = ledger.get(accId).map();
-			map.init(new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum())));
-			maps.put(accId, map);
-		}
-		var map = maps.get(accId);
+//		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
+//		if (maps.get(accId) == null) {
+//			var map = ledger.get(accId).map();
+//			map.init(new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum())));
+//			maps.put(accId, map);
+//		}
+//		var map = maps.get(accId);
 		// TODO:
 	}
 

@@ -159,23 +159,6 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 					null,
 					false);
 			updater.commit();
-			// Blockchain -> we have to stub fake block
-			// WorldUpdater -> we have to implement it
-			// ProcessableBlockHeader -> we have to stub fake block header
-			// Transaction
-			// Address
-			// BlockHashLookup
-			// isPersistingPrivateState = false
-			// TransactionValidationParams
-
-//			var legacyRecord = delegate.perform(contractCreateTxn, txnCtx.consensusTime(), inputs.getKey(), seqNo.get());
-
-//			var outcome = legacyRecord.getReceipt().getStatus();
-//			txnCtx.setStatus();
-//			txnCtx.setCreateResult(legacyRecord.getContractCreateResult());
-//			if (outcome == SUCCESS) {
-//				txnCtx.setCreated(legacyRecord.getReceipt().getContractID());
-//			}
 			if (result.isSuccessful()) {
 				txnCtx.setStatus(SUCCESS);
 			} else {

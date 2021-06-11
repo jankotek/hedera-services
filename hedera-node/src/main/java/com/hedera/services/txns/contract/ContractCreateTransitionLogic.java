@@ -113,7 +113,6 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			var contractCreateTxn = txnCtx.accessor().getTxn();
 			var op = contractCreateTxn.getContractCreateInstance();
 			TransactionID transactionID = contractCreateTxn.getTransactionID();
-			Instant startTime = RequestBuilder.convertProtoTimeStamp(transactionID.getTransactionValidStart());
 			AccountID senderAccount = transactionID.getAccountID();
 			Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
 			Address contractAddress = Address.fromHexString(asSolidityAddressHex(

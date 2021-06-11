@@ -26,18 +26,24 @@ import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hedera.services.txns.validation.PureValidation;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import com.swirlds.fcmap.FCMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hyperledger.besu.ethereum.core.Address;
 
 import java.time.Instant;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_GAS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_NEGATIVE_VALUE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FAIL_INVALID;
@@ -77,11 +83,32 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 	public void doStateTransition() {
 		try {
 			var contractCallTxn = txnCtx.accessor().getTxn();
+			var op = contractCallTxn.getContractCall();
+			ResponseCodeEnum callResponseStatus = validateContractExistence(op.getContractID());
+			if (callResponseStatus != ResponseCodeEnum.OK) {
+				txnCtx.setStatus(FAIL_INVALID);
+				return;
+			} else {
+				TransactionID transactionID = contractCallTxn.getTransactionID();
+				AccountID senderAccount = transactionID.getAccountID();
+				Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
+				AccountID receiverAccount =
+						AccountID.newBuilder().setAccountNum(op.getContractID().getContractNum())
+								.setRealmNum(op.getContractID().getRealmNum())
+								.setShardNum(op.getContractID().getShardNum()).build();
+				Address receiver = Address.fromHexString(asSolidityAddressHex(receiverAccount));
 
-			var legacyRecord = delegate.perform(contractCallTxn, txnCtx.consensusTime(), seqNo.get());
+				// TODO
+			}
 
-			txnCtx.setStatus(legacyRecord.getReceipt().getStatus());
-			txnCtx.setCallResult(legacyRecord.getContractCallResult());
+
+
+
+
+//			var legacyRecord = delegate.perform(contractCallTxn, txnCtx.consensusTime(), seqNo.get());
+
+//			txnCtx.setStatus(legacyRecord.getReceipt().getStatus());
+//			txnCtx.setCallResult(legacyRecord.getContractCallResult());
 		} catch (Exception e) {
 			log.warn("Avoidable exception!", e);
 			txnCtx.setStatus(FAIL_INVALID);
@@ -112,5 +139,9 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 			return CONTRACT_NEGATIVE_VALUE;
 		}
 		return OK;
+	}
+
+	public ResponseCodeEnum validateContractExistence(ContractID cid) {
+		return PureValidation.queryableContractStatus(cid, contracts.get());
 	}
 }

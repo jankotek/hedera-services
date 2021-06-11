@@ -37,7 +37,6 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
-import com.hederahashgraph.builder.RequestBuilder;
 import com.swirlds.common.CommonUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
@@ -147,7 +146,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			}
 
 			// TODO Gas Price
-			Wei gasPrice = Wei.of(1000000000L);
+			Wei gasPrice = Wei.of(1);
 			long gasLimit = 15000000L;
 
 			Wei value = Wei.ZERO;
@@ -170,6 +169,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 					null,
 					false);
 			updater.commit();
+			ledger.commit();
 			if (result.isSuccessful()) {
 				txnCtx.setStatus(SUCCESS);
 			} else {

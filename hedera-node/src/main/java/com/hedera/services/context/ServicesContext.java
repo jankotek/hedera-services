@@ -1295,7 +1295,7 @@ public class ServicesContext {
 				/* Contract */
 				entry(ContractCreate,
 						List.of(new ContractCreateTransitionLogic(
-								hfs(), contracts()::createContract, this::seqNo, validator(), txnCtx(), besuContracts(), contractsStore()))),
+								ledger(), hfs(), contracts()::createContract, validator(), txnCtx(), besuContracts(), contractsStore()))),
 				entry(ContractUpdate,
 						List.of(new ContractUpdateTransitionLogic(
 								ledger(), validator(), txnCtx(), new UpdateCustomizerFactory(), this::accounts))),
@@ -1786,7 +1786,7 @@ public class ServicesContext {
 
 	public ContractsStore contractsStore () {
 		if (contractsStore == null) {
-			contractsStore = new ContractsStore(dataStore(), ledger());
+			contractsStore = new ContractsStore(bytecodeDb(), dataStore(), ledger());
 		}
 		return contractsStore;
 	}

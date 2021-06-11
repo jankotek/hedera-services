@@ -38,7 +38,9 @@ package com.hedera.services.store.contracts;/*
  * ‍
  */
 
+import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.ledger.HederaLedger;
+import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.virtual.VirtualMap;
 import com.hedera.services.state.merkle.virtual.persistence.mmap.MemMapDataSource;
 import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
@@ -58,12 +60,17 @@ public class ContractsStore implements AccountStateStore {
 	private final VirtualMapDataStore dataStore;
 	private final HederaLedger ledger;
 	private Map<AccountID, VirtualMap> maps;
+	private final BlobStorageSource blobStorageSource;
+	private Map<AccountID, MerkleAccount> provisionalAccounts;
 
 	public ContractsStore(
+			BlobStorageSource blobStorageSource,
 			VirtualMapDataStore dataStore, HederaLedger ledger) {
 		this.ledger = ledger;
 		this.dataStore = dataStore;
+		this.blobStorageSource = blobStorageSource;
 		this.maps = new HashMap<>();
+		this.provisionalAccounts = new HashMap<>();
 	}
 
 	@Override
@@ -74,6 +81,7 @@ public class ContractsStore implements AccountStateStore {
 			// TODO what we do with nonces?
 			return new EvmAccountImpl(address, Wei.of(account.getBalance()));
 		}
+
 		return null;
 	}
 
@@ -94,7 +102,13 @@ public class ContractsStore implements AccountStateStore {
 	@Override
 	public void put(Address address, long nonce, Wei balance) {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
-		// TODO: set provisionally
+		if (ledger.exists(accId)) {
+			final var account = ledger.get(accId);
+			ledger.adjustBalance(accId, balance.toLong() - account.getBalance()); // TOOD: switch from wei to tinybar
+			return;
+		}
+
+		System.out.printf("invalid address found: %s", accId);
 	}
 
 	@Override
@@ -111,7 +125,7 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public Bytes getCode(Address address) {
-		return null;
+		return Bytes.of(this.blobStorageSource.get(EntityIdUtils.accountParsedFromSolidityAddress(address.toArray()).toByteArray())); // 0.0.1001 - fileID // 0.0.1002 - contractID
 	}
 
 	@Override

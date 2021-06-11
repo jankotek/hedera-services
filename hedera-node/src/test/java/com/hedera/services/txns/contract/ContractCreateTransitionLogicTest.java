@@ -22,6 +22,7 @@ package com.hedera.services.txns.contract;
 
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.files.HederaFs;
+import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.PlatformTxnAccessor;
@@ -73,6 +74,7 @@ public class ContractCreateTransitionLogicTest {
 	final private byte[] bytecode = "NotReallyEvmBytecode".getBytes();
 
 	private Instant consensusTime;
+	private HederaLedger ledger;
 	private HederaFs hfs;
 	private SequenceNumber seqNo;
 	private OptionValidator validator;
@@ -86,6 +88,7 @@ public class ContractCreateTransitionLogicTest {
 	private void setup() {
 		consensusTime = Instant.now();
 
+		ledger = mock(HederaLedger.class);
 		delegate = mock(ContractCreateTransitionLogic.LegacyCreator.class);
 		txnCtx = mock(TransactionContext.class);
 		given(txnCtx.consensusTime()).willReturn(consensusTime);
@@ -95,7 +98,7 @@ public class ContractCreateTransitionLogicTest {
 		withRubberstampingValidator();
 		seqNo = mock(SequenceNumber.class);
 
-		subject = new ContractCreateTransitionLogic(hfs, delegate, () -> seqNo, validator, txnCtx, null, null);
+		subject = new ContractCreateTransitionLogic(ledger, hfs, delegate, validator, txnCtx, null, null);
 	}
 
 	@Test

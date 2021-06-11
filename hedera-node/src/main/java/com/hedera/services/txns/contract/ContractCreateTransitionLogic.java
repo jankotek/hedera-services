@@ -22,6 +22,10 @@ package com.hedera.services.txns.contract;
 
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.files.HederaFs;
+import com.hedera.services.ledger.HederaLedger;
+import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
+import com.hedera.services.legacy.core.jproto.JContractIDKey;
+import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.store.contracts.ContractsStore;
 import com.hedera.services.store.contracts.stubs.StubbedBlockchain;
@@ -54,8 +58,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
+import static com.hedera.services.utils.EntityIdUtils.asContract;
 import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.AUTORENEW_DURATION_NOT_IN_RANGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_FILE_EMPTY;
@@ -79,27 +83,27 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				SequenceNumber seqNum);
 	}
 
+	private final HederaLedger ledger;
 	private final HederaFs hfs;
 	private final LegacyCreator delegate;
 	private final OptionValidator validator;
 	private final TransactionContext txnCtx;
-	private final Supplier<SequenceNumber> seqNo;
 	private final MainnetTransactionProcessor txProcessor;
 	private final AccountStateStore store;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
 	public ContractCreateTransitionLogic(
+			HederaLedger ledger,
 			HederaFs hfs,
 			LegacyCreator delegate,
-			Supplier<SequenceNumber> seqNo,
 			OptionValidator validator,
 			TransactionContext txnCtx,
 			MainnetTransactionProcessor txProcessor,
 			ContractsStore store
 	) {
+		this.ledger = ledger;
 		this.hfs = hfs;
-		this.seqNo = seqNo;
 		this.txnCtx = txnCtx;
 		this.delegate = delegate;
 		this.validator = validator;
@@ -116,11 +120,19 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			Instant startTime = RequestBuilder.convertProtoTimeStamp(transactionID.getTransactionValidStart());
 			AccountID senderAccount = transactionID.getAccountID();
 			Address sender = Address.fromHexString(asSolidityAddressHex(senderAccount));
-			Address contractAddress = Address.fromHexString(asSolidityAddressHex(
-					AccountID.newBuilder()
-							.setShardNum(0)
-							.setRealmNum(senderAccount.getRealmNum())
-							.setAccountNum(seqNo.get().getAndIncrement()).build()));
+
+			var key = new JContractIDKey(asContract(senderAccount)); // TODO: fix key
+
+			HederaAccountCustomizer customizer = new HederaAccountCustomizer()
+					.key(key)
+					.memo(op.getMemo())
+					.proxy(EntityId.fromGrpcAccountId(senderAccount))
+					.expiry(txnCtx.consensusTime().getEpochSecond() + op.getAutoRenewPeriod().getSeconds())
+					.autoRenewPeriod(op.getAutoRenewPeriod().getSeconds())
+					.isSmartContract(true);
+
+			final var contractID = ledger.create(senderAccount, op.getInitialBalance(), customizer);
+			Address contractAddress = Address.fromHexString(asSolidityAddressHex(contractID));
 			// TODO max gas check?
 
 			var inputs = prepBytecode(op);
@@ -135,7 +147,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				contractByteCodeString += constructorParamsHexString;
 			}
 
-//			// TODO Gas Price
+			// TODO Gas Price
 			Wei gasPrice = Wei.of(1000000000L);
 			long gasLimit = 15000000L;
 

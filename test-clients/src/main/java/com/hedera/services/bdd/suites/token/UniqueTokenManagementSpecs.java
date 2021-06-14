@@ -25,13 +25,16 @@ import com.google.protobuf.ByteString;
 import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.utilops.UtilVerbs;
 import com.hedera.services.bdd.suites.HapiApiSuite;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenSupplyType;
 import com.hederahashgraph.api.proto.java.TokenType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
@@ -55,6 +58,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 	private static final String SUPPLY_KEY = "supplyKey";
 	private static final String NFT = "nft";
 	private static final String FUNGIBLE_TOKEN = "fungible";
+	private static final int BIGGER_THAN_LIMIT = 11;
 
 	public static void main(String... args) {
 		new UniqueTokenManagementSpecs().runSuiteSync();
@@ -65,6 +69,9 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 		return List.of(new HapiApiSpec[]{
 						getTokenNftInfoWorks(),
 						uniqueTokenHappyPath(),
+						failsWithLargeBatchSize(),
+						failsWithTooLongMetadata(),
+						failsWithInvalidMetadataFromBatch(),
 						tokenMintWorksWhenAccountsAreFrozenByDefault(),
 						failsWithDeletedToken(),
 						happyPathWithRepeatedMetadata(),
@@ -74,10 +81,80 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 		);
 	}
 
+	private HapiApiSpec failsWithTooLongMetadata() {
+		return defaultHapiSpec("failsWithTooLongMetadata")
+				.given(
+						newKeyNamed(SUPPLY_KEY),
+						cryptoCreate(TOKEN_TREASURY),
+						tokenCreate(NFT)
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.supplyType(TokenSupplyType.INFINITE)
+								.initialSupply(0)
+								.supplyKey(SUPPLY_KEY)
+								.treasury(TOKEN_TREASURY)
+				).when().then(
+						mintToken(NFT, List.of(
+								metadataOfLength(101)
+						)).hasPrecheck(ResponseCodeEnum.METADATA_TOO_LONG)
+				);
+	}
+
+	private HapiApiSpec failsWithInvalidMetadataFromBatch() {
+		return defaultHapiSpec("failsWithInvalidMetadataFromBatch")
+				.given(
+						newKeyNamed(SUPPLY_KEY),
+						cryptoCreate(TOKEN_TREASURY),
+						tokenCreate(NFT)
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.supplyType(TokenSupplyType.INFINITE)
+								.initialSupply(0)
+								.supplyKey(SUPPLY_KEY)
+								.treasury(TOKEN_TREASURY)
+				).when().then(
+						mintToken(NFT, List.of(
+								metadataOfLength(101),
+								metadataOfLength(1)
+						)).hasPrecheck(ResponseCodeEnum.METADATA_TOO_LONG)
+				);
+	}
+
+	private HapiApiSpec failsWithLargeBatchSize() {
+		return defaultHapiSpec("failsWithLargeBatchSize")
+				.given(
+						newKeyNamed(SUPPLY_KEY),
+						cryptoCreate(TOKEN_TREASURY),
+						tokenCreate(NFT)
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.supplyType(TokenSupplyType.INFINITE)
+								.initialSupply(0)
+								.supplyKey(SUPPLY_KEY)
+								.treasury(TOKEN_TREASURY)
+				).when().then(
+						mintToken(NFT, batchOfSize(BIGGER_THAN_LIMIT))
+								.hasPrecheck(ResponseCodeEnum.BATCH_SIZE_LIMIT_EXCEEDED)
+				);
+	}
+
+	private List<ByteString> batchOfSize(int size) {
+		var batch = new ArrayList<ByteString>();
+		for (int i = 0; i < size; i++) {
+			 batch.add(metadata("memo" + i));
+		}
+		return batch;
+	}
+
+	private ByteString metadataOfLength(int length) {
+		return ByteString.copyFrom(genRandomBytes(length));
+	}
+
+	private ByteString metadata(String contents) {
+		return ByteString.copyFromUtf8(contents);
+	}
+
 	private HapiApiSpec distinguishesFeeSubTypes() {
 		return defaultHapiSpec("happyPathFiveMintOneMetadata")
 				.given(
-						newKeyNamed("supplyKey"),
+						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
 						cryptoCreate("customPayer"),
 						tokenCreate(NFT)
@@ -168,6 +245,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.freezeDefault(true)
 								.initialSupply(0)
 								.treasury(TOKEN_TREASURY)
+								.via("mintTxn")
 				).when(
 						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo")))
 								.via("mintTxn")
@@ -241,7 +319,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.supplyKey(SUPPLY_KEY)
 								.initialSupply(0)
 								.treasury(TOKEN_TREASURY),
-						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).via("mintTxn")
+						mintToken(NFT, List.of(metadata("memo")))
 				).then(
 						getTokenNftInfo(NFT, 0)
 								.hasCostAnswerPrecheck(INVALID_TOKEN_NFT_SERIAL_NUMBER),
@@ -252,7 +330,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						getTokenNftInfo(NFT, 1)
 								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
-								.hasMetadata(ByteString.copyFromUtf8("memo"))
+								.hasMetadata(metadata("memo"))
 								.hasSerialNum(1)
 								.hasValidCreationTime()
 				);
@@ -261,7 +339,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 	private HapiApiSpec happyPathWithRepeatedMetadata() {
 		return defaultHapiSpec("happyPathWithRepeatedMetadata")
 				.given(
-						newKeyNamed(SUPPLY_KEY),
+						newKeyNamed("supplyKey"),
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
@@ -270,7 +348,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.initialSupply(0)
 								.treasury(TOKEN_TREASURY)
 				).when(
-						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo")))
+						mintToken(NFT, List.of(metadata("memo"), metadata("memo")))
 								.via("mintTxn")
 				).then(
 						getTokenNftInfo(NFT, 1)
@@ -293,4 +371,9 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 		return log;
 	}
 
+	private byte[] genRandomBytes(int numBytes) {
+		byte[] contents = new byte[numBytes];
+		(new Random()).nextBytes(contents);
+		return contents;
+	}
 }

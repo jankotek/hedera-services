@@ -195,12 +195,12 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
-								.supplyKey(SUPPLY_KEY)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
+								.supplyKey(SUPPLY_KEY)
 								.treasury(TOKEN_TREASURY)
 				).when(
-						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo1"))).via("mintTxn")
+						mintToken(NFT, List.of(metadata("memo"), metadata("memo1"))).via("mintTxn")
 				).then(
 
 						getTokenNftInfo(NFT, 1)
@@ -212,7 +212,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 
 						getTokenNftInfo(NFT, 2)
 								.hasSerialNum(2)
-								.hasMetadata(ByteString.copyFromUtf8("memo1"))
+								.hasMetadata(metadata("memo1"))
 								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
 								.hasValidCreationTime(),
@@ -247,7 +247,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.treasury(TOKEN_TREASURY)
 								.via("mintTxn")
 				).when(
-						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo")))
+						mintToken(NFT, List.of(metadata("memo")))
 								.via("mintTxn")
 				).then(
 						getTokenNftInfo(NFT, 1)
@@ -339,7 +339,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 	private HapiApiSpec happyPathWithRepeatedMetadata() {
 		return defaultHapiSpec("happyPathWithRepeatedMetadata")
 				.given(
-						newKeyNamed("supplyKey"),
+						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)

@@ -169,7 +169,6 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 					null,
 					false);
 			updater.commit();
-			ledger.commit();
 			if (result.isSuccessful()) {
 				txnCtx.setStatus(SUCCESS);
 			} else {

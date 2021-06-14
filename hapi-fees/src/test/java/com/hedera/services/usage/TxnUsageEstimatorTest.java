@@ -20,6 +20,7 @@ package com.hedera.services.usage;
  * ‍
  */
 
+import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,6 +60,7 @@ public class TxnUsageEstimatorTest {
 		given(utils.baseEstimate(txn, sigUsage)).willReturn(baseEstimate());
 		given(utils.withDefaultTxnPartitioning(
 				expectedEstimate().build(),
+				SubType.DEFAULT,
 				ESTIMATOR_UTILS.nonDegenerateDiv(2 * networkRbs, HRS_DIVISOR),
 				sigUsage.numPayerKeys())).willReturn(A_USAGES_MATRIX);
 		// and:
@@ -108,6 +110,7 @@ public class TxnUsageEstimatorTest {
 		given(utils.baseEstimate(txn, sigUsage)).willReturn(baseEstimate());
 		given(utils.withDefaultTxnPartitioning(
 				baseEstimate().build(),
+				SubType.DEFAULT,
 				ESTIMATOR_UTILS.nonDegenerateDiv(networkRbs, HRS_DIVISOR),
 				sigUsage.numPayerKeys())).willReturn(A_USAGES_MATRIX);
 

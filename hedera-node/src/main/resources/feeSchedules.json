@@ -845,7 +845,7 @@
     "transactionFeeSchedule" : {
       "hederaFunctionality" : "TokenMint",
       "fees" : [{
-        "subType": "FUNGIBLE_COMMON",
+        "subType": "TOKEN_FUNGIBLE_COMMON",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -884,7 +884,7 @@
         }
       },
         {
-          "subType": "NON_FUNGIBLE_UNIQUE",
+          "subType": "TOKEN_NON_FUNGIBLE_UNIQUE",
           "nodedata" : {
             "constant" : 94092119,
             "bpt" : 150425,
@@ -927,7 +927,7 @@
     "transactionFeeSchedule" : {
       "hederaFunctionality" : "TokenBurn",
       "fees" : [{
-        "subType": "FUNGIBLE_COMMON",
+        "subType": "TOKEN_FUNGIBLE_COMMON",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -966,7 +966,7 @@
         }
       },
         {
-          "subType": "NON_FUNGIBLE_UNIQUE",
+          "subType": "TOKEN_NON_FUNGIBLE_UNIQUE",
           "nodedata" : {
             "constant" : 94092119,
             "bpt" : 150425,
@@ -1261,7 +1261,7 @@
     "transactionFeeSchedule" : {
       "hederaFunctionality" : "TokenAccountWipe",
       "fees" : [{
-        "subType": "FUNGIBLE_COMMON",
+        "subType": "TOKEN_FUNGIBLE_COMMON",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -1299,7 +1299,7 @@
           "max" : 1000000000000000
         }
       },{
-        "subType": "NON_FUNGIBLE_UNIQUE",
+        "subType": "TOKEN_NON_FUNGIBLE_UNIQUE",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -3321,7 +3321,7 @@
     "transactionFeeSchedule" : {
       "hederaFunctionality" : "TokenMint",
       "fees" : [{
-        "subType": "FUNGIBLE_COMMON",
+        "subType": "TOKEN_FUNGIBLE_COMMON",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -3359,7 +3359,7 @@
           "max" : 1000000000000000
         }
       },{
-        "subType": "NON_FUNGIBLE_UNIQUE",
+        "subType": "TOKEN_NON_FUNGIBLE_UNIQUE",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -3402,7 +3402,7 @@
     "transactionFeeSchedule" : {
       "hederaFunctionality" : "TokenBurn",
       "fees" : [{
-        "subType": "FUNGIBLE_COMMON",
+        "subType": "TOKEN_FUNGIBLE_COMMON",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -3440,7 +3440,7 @@
           "max" : 1000000000000000
         }
       },{
-        "subType": "NON_FUNGIBLE_UNIQUE",
+        "subType": "TOKEN_NON_FUNGIBLE_UNIQUE",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -3735,7 +3735,7 @@
     "transactionFeeSchedule" : {
       "hederaFunctionality" : "TokenAccountWipe",
       "fees" : [{
-        "subType": "FUNGIBLE_COMMON",
+        "subType": "TOKEN_FUNGIBLE_COMMON",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,
@@ -3773,7 +3773,7 @@
           "max" : 1000000000000000
         }
       },{
-        "subType": "NON_FUNGIBLE_UNIQUE",
+        "subType": "TOKEN_NON_FUNGIBLE_UNIQUE",
         "nodedata" : {
           "constant" : 94092119,
           "bpt" : 150425,

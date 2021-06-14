@@ -29,6 +29,7 @@ import com.hedera.services.usage.token.TokenMintUsage;
 import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.TokenMintTransactionBody;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -50,6 +51,7 @@ public class HapiTokenMint extends HapiTxnOp<HapiTokenMint> {
 	private long amount;
 	private String token;
 	private List<ByteString> metadata;
+	private SubType subType;
 
 	@Override
 	public HederaFunctionality type() {
@@ -60,12 +62,13 @@ public class HapiTokenMint extends HapiTxnOp<HapiTokenMint> {
 		this.token = token;
 		this.amount = amount;
 		this.metadata = new ArrayList<>();
+		this.subType = figureSubType();
 	}
 
 	public HapiTokenMint(String token, List<ByteString> metadata){
 		this.token = token;
 		this.metadata = metadata;
-		this.amount = 0;
+		this.subType = figureSubType();
 	}
 
 	@Override
@@ -76,11 +79,23 @@ public class HapiTokenMint extends HapiTxnOp<HapiTokenMint> {
 	@Override
 	protected long feeFor(HapiApiSpec spec, Transaction txn, int numPayerKeys) throws Throwable {
 		return spec.fees().forActivityBasedOp(
-				HederaFunctionality.TokenMint, this::usageEstimate, txn, numPayerKeys);
+				HederaFunctionality.TokenMint, subType, this::usageEstimate, txn, numPayerKeys);
+	}
+
+	private SubType figureSubType() {
+		boolean isFungible = this.amount == 0 && !this.metadata.isEmpty();
+		boolean isNonFungible = this.amount > 0 && this.metadata.isEmpty();
+		if (isFungible) {
+			return SubType.TOKEN_NON_FUNGIBLE_UNIQUE;
+		}
+		if (isNonFungible) {
+			return SubType.TOKEN_FUNGIBLE_COMMON;
+		}
+		return SubType.DEFAULT;
 	}
 
 	private FeeData usageEstimate(TransactionBody txn, SigValueObj svo) {
-		return TokenMintUsage.newEstimate(txn, suFrom(svo)).get();
+		return TokenMintUsage.newEstimate(txn, suFrom(svo)).givenSubType(subType).get();
 	}
 
 	@Override

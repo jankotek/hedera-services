@@ -23,12 +23,14 @@ package com.hedera.services.bdd.suites.token;
 
 import com.google.protobuf.ByteString;
 import com.hedera.services.bdd.spec.HapiApiSpec;
+import com.hedera.services.bdd.spec.utilops.UtilVerbs;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenSupplyType;
 import com.hederahashgraph.api.proto.java.TokenType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.Assert;
 
 import java.util.List;
 
@@ -36,17 +38,20 @@ import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getReceipt;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfo;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.mintToken;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.tokenFreeze;
+import static com.hedera.services.bdd.spec.utilops.CustomSpecAssert.allRunFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_NFT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_NFT_SERIAL_NUMBER;
 
 public class UniqueTokenManagementSpecs extends HapiApiSuite {
 	private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(UniqueTokenManagementSpecs.class);
-	private static final String TOKEN_NAME = "token";
+	private static final String NFT = "nft";
+	private static final String FUNGIBLE_TOKEN = "fungible";
 
 	public static void main(String... args) {
 		new UniqueTokenManagementSpecs().runSuiteSync();
@@ -61,8 +66,46 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						uniqueTokenHappyPath(),
 						happyPathOneMintFiveMetadata(),
 						happyPathFiveMintOneMetadata(),
+						distinctsSubTypes(),
 				}
 		);
+	}
+
+	private HapiApiSpec distinctsSubTypes() {
+		return defaultHapiSpec("happyPathFiveMintOneMetadata")
+				.given(
+						newKeyNamed("supplyKey"),
+						cryptoCreate(TOKEN_TREASURY),
+						tokenCreate(NFT)
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.supplyType(TokenSupplyType.INFINITE)
+								.initialSupply(0)
+								.supplyKey("supplyKey")
+								.treasury(TOKEN_TREASURY),
+						tokenCreate(FUNGIBLE_TOKEN)
+								.tokenType(TokenType.FUNGIBLE_COMMON)
+								.supplyType(TokenSupplyType.FINITE)
+								.initialSupply(10)
+								.maxSupply(1100)
+								.supplyKey("supplyKey")
+								.treasury(TOKEN_TREASURY)
+				).when(
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).via("mintNFT"),
+						mintToken(FUNGIBLE_TOKEN, 100l).via("mintFungible")
+				).then(
+						UtilVerbs.withOpContext((spec, opLog) -> {
+							var mintNFT = getTxnRecord("mintNFT");
+							var mintFungible = getTxnRecord("mintFungible");
+							allRunFor(spec, mintNFT, mintFungible);
+							var nftFee = mintNFT.getResponseRecord().getTransactionFee();
+							var fungibleFee = mintFungible.getResponseRecord().getTransactionFee();
+							System.out.println(nftFee + " " + fungibleFee);
+							Assert.assertNotEquals(
+									"NFT Fee is equal to the Fungible Fee!",
+									nftFee,
+									fungibleFee);
+						})
+				);
 	}
 
 	private HapiApiSpec uniqueTokenHappyPath() {
@@ -70,31 +113,31 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				.given(
 						newKeyNamed("supplyKey"),
 						cryptoCreate(TOKEN_TREASURY),
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
 								.supplyKey("supplyKey")
 								.treasury(TOKEN_TREASURY)
 				).when(
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo1"))).via("mintTxn")
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo1"))).via("mintTxn")
 				).then(
 
 						getAccountBalance(TOKEN_TREASURY)
-								.hasTokenBalance(TOKEN_NAME, 2),
+								.hasTokenBalance(NFT, 2),
 
 						getReceipt("mintTxn")
 								.hasPriorityStatus(ResponseCodeEnum.SUCCESS),
 
-						getTokenNftInfo(TOKEN_NAME, 1)
+						getTokenNftInfo(NFT, 1)
 								.hasSerialNum(1)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
-								.hasTokenID(TOKEN_NAME),
+								.hasTokenID(NFT),
 
-						getTokenNftInfo(TOKEN_NAME, 2)
+						getTokenNftInfo(NFT, 2)
 								.hasSerialNum(2)
 								.hasMetadata(ByteString.copyFromUtf8("memo1"))
-								.hasTokenID(TOKEN_NAME)
+								.hasTokenID(NFT)
 				);
 	}
 
@@ -103,7 +146,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				.given(
 						newKeyNamed("supplyKey"),
 						cryptoCreate(TOKEN_TREASURY).balance(10000L),
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.FINITE)
 								.supplyKey("supplyKey")
@@ -113,7 +156,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.treasury(TOKEN_TREASURY)
 								.via("mintTxn")
 				).when(
-						mintToken(TOKEN_NAME, List.of(
+						mintToken(NFT, List.of(
 								ByteString.copyFromUtf8("memo"),
 								ByteString.copyFromUtf8("memo1"),
 								ByteString.copyFromUtf8("memo2"),
@@ -128,7 +171,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 
 						getTokenNftInfo("token", 5).hasSerialNum(5)
 								.hasMetadata(ByteString.copyFromUtf8("memo4"))
-								.hasTokenID(TOKEN_NAME)
+								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
 				);
 	}
@@ -138,25 +181,25 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				.given(
 						newKeyNamed("supplyKey"),
 						cryptoCreate(TOKEN_TREASURY),
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
 								.supplyKey("supplyKey")
 								.treasury(TOKEN_TREASURY)
 				).when(
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"))),
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"))),
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"))),
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"))),
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo")))
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))),
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))),
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))),
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))),
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo")))
 
 				).then(
-						getTokenNftInfo(TOKEN_NAME, 1).hasSerialNum(1).hasMetadata(ByteString.copyFromUtf8("memo")),
-						getTokenNftInfo(TOKEN_NAME, 2).hasSerialNum(2).hasMetadata(ByteString.copyFromUtf8("memo")),
-						getTokenNftInfo(TOKEN_NAME, 3).hasSerialNum(3).hasMetadata(ByteString.copyFromUtf8("memo")),
-						getTokenNftInfo(TOKEN_NAME, 4).hasSerialNum(4).hasMetadata(ByteString.copyFromUtf8("memo")),
-						getTokenNftInfo(TOKEN_NAME, 5).hasSerialNum(5).hasMetadata(ByteString.copyFromUtf8("memo"))
+						getTokenNftInfo(NFT, 1).hasSerialNum(1).hasMetadata(ByteString.copyFromUtf8("memo")),
+						getTokenNftInfo(NFT, 2).hasSerialNum(2).hasMetadata(ByteString.copyFromUtf8("memo")),
+						getTokenNftInfo(NFT, 3).hasSerialNum(3).hasMetadata(ByteString.copyFromUtf8("memo")),
+						getTokenNftInfo(NFT, 4).hasSerialNum(4).hasMetadata(ByteString.copyFromUtf8("memo")),
+						getTokenNftInfo(NFT, 5).hasSerialNum(5).hasMetadata(ByteString.copyFromUtf8("memo"))
 				);
 	}
 
@@ -166,7 +209,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed("supplyKey"),
 						newKeyNamed("tokenFreezeKey"),
 						cryptoCreate(TOKEN_TREASURY).balance(0L),
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
@@ -174,7 +217,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.freezeKey("tokenFreezeKey")
 								.treasury(TOKEN_TREASURY)
 				).when(
-						tokenFreeze(TOKEN_NAME, TOKEN_TREASURY)
+						tokenFreeze(NFT, TOKEN_TREASURY)
 				).then(
 						mintToken("token", List.of(ByteString.copyFromUtf8("memo"))).hasKnownStatus(ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN)
 				);
@@ -215,7 +258,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				.given(
 						newKeyNamed("supplyKey"),
 						cryptoCreate(TOKEN_TREASURY),
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
@@ -223,7 +266,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.treasury(TOKEN_TREASURY)
 				).when(
 				).then(
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo")))
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo")))
 								.hasKnownStatus(ResponseCodeEnum.INVALID_TRANSACTION_BODY)
 				);
 	}

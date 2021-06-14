@@ -22,6 +22,7 @@ package com.hedera.services.usage;
 
 import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
+import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransferList;
 
@@ -52,7 +53,7 @@ public enum SingletonEstimatorUtils implements EstimatorUtils {
 	}
 
 	@Override
-	public FeeData withDefaultTxnPartitioning(FeeComponents usage, long networkRbh, int numPayerKeys) {
+	public FeeData withDefaultTxnPartitioning(FeeComponents usage, SubType subType, long networkRbh, int numPayerKeys) {
 		var usages = FeeData.newBuilder();
 
 		var network = FeeComponents.newBuilder()
@@ -75,6 +76,7 @@ public enum SingletonEstimatorUtils implements EstimatorUtils {
 				.setNetworkdata(network)
 				.setNodedata(node)
 				.setServicedata(service)
+				.setSubType(subType)
 				.build();
 	}
 

@@ -24,6 +24,7 @@ import com.hedera.services.test.TxnUtils;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
+import com.hederahashgraph.api.proto.java.SubType;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
@@ -89,7 +90,7 @@ class SingletonEstimatorUtilsTest {
 		// expect:
 		assertEquals(
 				A_USAGES_MATRIX,
-				ESTIMATOR_UTILS.withDefaultTxnPartitioning(A_USAGE_VECTOR, NETWORK_RBH, NUM_PAYER_KEYS));
+				ESTIMATOR_UTILS.withDefaultTxnPartitioning(A_USAGE_VECTOR, SubType.DEFAULT, NETWORK_RBH, NUM_PAYER_KEYS));
 	}
 
 	@Test

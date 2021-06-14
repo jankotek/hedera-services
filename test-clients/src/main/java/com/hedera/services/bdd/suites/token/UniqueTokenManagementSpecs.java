@@ -66,16 +66,17 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						uniqueTokenHappyPath(),
 						happyPathOneMintFiveMetadata(),
 						happyPathFiveMintOneMetadata(),
-//						distinctsSubTypes(),
+						distinguishesFeeSubTypes(),
 				}
 		);
 	}
 
-	private HapiApiSpec distinctsSubTypes() {
+	private HapiApiSpec distinguishesFeeSubTypes() {
 		return defaultHapiSpec("happyPathFiveMintOneMetadata")
 				.given(
 						newKeyNamed("supplyKey"),
 						cryptoCreate(TOKEN_TREASURY),
+						cryptoCreate("customPayer"),
 						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
@@ -90,8 +91,8 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.supplyKey("supplyKey")
 								.treasury(TOKEN_TREASURY)
 				).when(
-						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).via("mintNFT"),
-						mintToken(FUNGIBLE_TOKEN, 100l).via("mintFungible")
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).payingWith("customPayer").signedBy("customPayer", "supplyKey").via("mintNFT"),
+						mintToken(FUNGIBLE_TOKEN, 100L).payingWith("customPayer").signedBy("customPayer", "supplyKey").via("mintFungible")
 				).then(
 						UtilVerbs.withOpContext((spec, opLog) -> {
 							var mintNFT = getTxnRecord("mintNFT");
@@ -99,9 +100,8 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 							allRunFor(spec, mintNFT, mintFungible);
 							var nftFee = mintNFT.getResponseRecord().getTransactionFee();
 							var fungibleFee = mintFungible.getResponseRecord().getTransactionFee();
-							System.out.println(nftFee + " " + fungibleFee);
 							Assert.assertNotEquals(
-									"NFT Fee is equal to the Fungible Fee!",
+									"NFT Fee should NOT equal to the Fungible Fee!",
 									nftFee,
 									fungibleFee);
 						})

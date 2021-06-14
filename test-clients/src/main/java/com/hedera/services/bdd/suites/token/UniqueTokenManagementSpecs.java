@@ -52,7 +52,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELE
 
 public class UniqueTokenManagementSpecs extends HapiApiSuite {
 	private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(UniqueTokenManagementSpecs.class);
-	private static final String TOKEN_NAME = "token";
 	private static final String SUPPLY_KEY = "supplyKey";
 	private static final String NFT = "nft";
 	private static final String FUNGIBLE_TOKEN = "fungible";
@@ -127,32 +126,32 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo1"))).via("mintTxn")
 				).then(
 
-						getTokenNftInfo(TOKEN_NAME, 1)
+						getTokenNftInfo(NFT, 1)
 								.hasSerialNum(1)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
-								.hasTokenID(TOKEN_NAME)
+								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
 								.hasValidCreationTime(),
 
-						getTokenNftInfo(TOKEN_NAME, 2)
+						getTokenNftInfo(NFT, 2)
 								.hasSerialNum(2)
 								.hasMetadata(ByteString.copyFromUtf8("memo1"))
-								.hasTokenID(TOKEN_NAME)
+								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
 								.hasValidCreationTime(),
 
-						getTokenNftInfo(TOKEN_NAME, 3)
+						getTokenNftInfo(NFT, 3)
 								.hasCostAnswerPrecheck(INVALID_NFT_ID),
 
 						getAccountBalance(TOKEN_TREASURY)
-								.hasTokenBalance(TOKEN_NAME, 2),
+								.hasTokenBalance(NFT, 2),
 
-						getTokenInfo(TOKEN_NAME)
+						getTokenInfo(NFT)
 								.hasTreasury(TOKEN_TREASURY)
 								.hasTotalSupply(2),
 
 						getAccountInfo(TOKEN_TREASURY)
-								.hasToken(relationshipWith(TOKEN_NAME))
+								.hasToken(relationshipWith(NFT))
 				);
 	}
 
@@ -162,7 +161,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed(SUPPLY_KEY),
 						newKeyNamed("tokenFreezeKey"),
 						cryptoCreate(TOKEN_TREASURY).balance(0L),
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyKey(SUPPLY_KEY)
 								.freezeKey("tokenFreezeKey")
@@ -170,11 +169,11 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								.initialSupply(0)
 								.treasury(TOKEN_TREASURY)
 				).when(
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo")))
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo")))
 								.via("mintTxn")
 				).then(
-						getTokenNftInfo(TOKEN_NAME, 1)
-								.hasTokenID(TOKEN_NAME)
+						getTokenNftInfo(NFT, 1)
+								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
 								.hasValidCreationTime()
@@ -186,21 +185,21 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				newKeyNamed(SUPPLY_KEY),
 				newKeyNamed("adminKey"),
 				cryptoCreate(TOKEN_TREASURY),
-				tokenCreate(TOKEN_NAME)
+				tokenCreate(NFT)
 						.supplyKey(SUPPLY_KEY)
 						.adminKey("adminKey")
 						.treasury(TOKEN_TREASURY)
 		).when(
-				tokenDelete(TOKEN_NAME)
+				tokenDelete(NFT)
 		).then(
-				mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo")))
+				mintToken(NFT, List.of(ByteString.copyFromUtf8("memo")))
 						.via("mintTxn")
 						.hasKnownStatus(TOKEN_WAS_DELETED),
 
-				getTokenNftInfo(TOKEN_NAME, 1)
+				getTokenNftInfo(NFT, 1)
 						.hasCostAnswerPrecheck(INVALID_NFT_ID),
 
-				getTokenInfo(TOKEN_NAME)
+				getTokenInfo(NFT)
 						.isDeleted()
 		);
 	}
@@ -212,20 +211,20 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						cryptoCreate(TOKEN_TREASURY)
 				)
 				.when(
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.supplyKey(SUPPLY_KEY)
 								.initialSupply(0)
 								.treasury(TOKEN_TREASURY),
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"))).via("mintTxn")
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).via("mintTxn")
 				)
 				.then(
-						getTokenNftInfo(TOKEN_NAME, 0)
+						getTokenNftInfo(NFT, 0)
 								.hasCostAnswerPrecheck(INVALID_TOKEN_NFT_SERIAL_NUMBER),
-						getTokenNftInfo(TOKEN_NAME, -1)
+						getTokenNftInfo(NFT, -1)
 								.hasCostAnswerPrecheck(INVALID_TOKEN_NFT_SERIAL_NUMBER),
-						getTokenNftInfo(TOKEN_NAME, 2)
+						getTokenNftInfo(NFT, 2)
 								.hasCostAnswerPrecheck(INVALID_NFT_ID)
 				);
 	}
@@ -236,22 +235,22 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY)
 				).when(
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.supplyKey(SUPPLY_KEY)
 								.initialSupply(0)
 								.treasury(TOKEN_TREASURY),
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"))).via("mintTxn")
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).via("mintTxn")
 				).then(
-						getTokenNftInfo(TOKEN_NAME, 0)
+						getTokenNftInfo(NFT, 0)
 								.hasCostAnswerPrecheck(INVALID_TOKEN_NFT_SERIAL_NUMBER),
-						getTokenNftInfo(TOKEN_NAME, -1)
+						getTokenNftInfo(NFT, -1)
 								.hasCostAnswerPrecheck(INVALID_TOKEN_NFT_SERIAL_NUMBER),
-						getTokenNftInfo(TOKEN_NAME, 2)
+						getTokenNftInfo(NFT, 2)
 								.hasCostAnswerPrecheck(INVALID_NFT_ID),
-						getTokenNftInfo(TOKEN_NAME, 1)
-								.hasTokenID(TOKEN_NAME)
+						getTokenNftInfo(NFT, 1)
+								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
 								.hasSerialNum(1)
@@ -264,28 +263,28 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				.given(
 						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
-						tokenCreate(TOKEN_NAME)
+						tokenCreate(NFT)
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.supplyKey(SUPPLY_KEY)
 								.initialSupply(0)
 								.treasury(TOKEN_TREASURY)
 				).when(
-						mintToken(TOKEN_NAME, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo")))
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"), ByteString.copyFromUtf8("memo")))
 								.via("mintTxn")
 				).then(
-						getTokenNftInfo(TOKEN_NAME, 1)
+						getTokenNftInfo(NFT, 1)
 								.hasSerialNum(1)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
 								.hasAccountID(TOKEN_TREASURY)
-								.hasTokenID(TOKEN_NAME)
+								.hasTokenID(NFT)
 								.hasValidCreationTime(),
 
-						getTokenNftInfo(TOKEN_NAME, 2)
+						getTokenNftInfo(NFT, 2)
 								.hasSerialNum(2)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
 								.hasAccountID(TOKEN_TREASURY)
-								.hasTokenID(TOKEN_NAME)
+								.hasTokenID(NFT)
 								.hasValidCreationTime()
 				);
 	}

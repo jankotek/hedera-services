@@ -169,13 +169,15 @@ public class ContractCallSuite extends HapiApiSuite {
 				.when(
 						contractCreate("immutableContract")
 								.payingWith("payer")
-								.bytecode("bytecode"),
+								.bytecode("bytecode")
+								.via("creationTx"),
 						contractCall(
 								"immutableContract",
 								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5
 						).via("storageTx"),
 						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getValue"))
 				.then(
+						getTxnRecord("creationTx").logged(),
 						getTxnRecord("storageTx").logged(),
 						getTxnRecord("getValue").logged()
 				);

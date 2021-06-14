@@ -21,6 +21,7 @@ package com.hedera.services.txns.contract;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.contracts.execution.DomainUtils;
 import com.hedera.services.files.HederaFs;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
@@ -31,8 +32,10 @@ import com.hedera.services.store.contracts.ContractsStore;
 import com.hedera.services.store.contracts.stubs.StubbedBlockchain;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
+import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
@@ -170,6 +173,14 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 					false);
 			updater.commit();
 			if (result.isSuccessful()) {
+				var contractFunctionResult = ContractFunctionResult.newBuilder()
+						.setGasUsed(result.getEstimateGasUsedByTransaction())
+						.setErrorMessage(result.getRevertReason().toString())
+						.setContractID(EntityIdUtils.asContract(contractID));
+				result.getLogs().stream().map(DomainUtils::asBesuHapiLog).forEach(contractFunctionResult::addLogInfo);
+
+				txnCtx.setCreateResult(contractFunctionResult.build());
+				txnCtx.setCreated(EntityIdUtils.asContract(contractID));
 				txnCtx.setStatus(SUCCESS);
 			} else {
 				txnCtx.setStatus(FAIL_INVALID);

@@ -25,6 +25,7 @@ import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.tuweni.bytes.Bytes;
 import org.ethereum.core.Block;
 import org.ethereum.core.Bloom;
 import org.ethereum.core.Transaction;
@@ -34,6 +35,7 @@ import org.ethereum.util.ByteUtil;
 import org.ethereum.vm.DataWord;
 import org.ethereum.vm.LogInfo;
 import org.ethereum.vm.program.ProgramResult;
+import org.hyperledger.besu.ethereum.core.Log;
 
 import java.time.Instant;
 import java.util.List;
@@ -152,6 +154,28 @@ public class DomainUtils {
 				.stream()
 				.flatMap(List::stream)
 				.map(DataWord::getData)
+				.map(ByteString::copyFrom)
+				.forEach(log::addTopic);
+
+		return log.build();
+	}
+
+	public static ContractLoginfo asBesuHapiLog(Log logInfo) {
+		var log = ContractLoginfo.newBuilder();
+
+		log.setContractID(contractParsedFromSolidityAddress(logInfo.getLogger().toArray()));
+		// TODO: Blooms
+		// Optional.ofNullable(logInfo.get))
+		// 				.map(Bloom::getData)
+		// 				.map(ByteString::copyFrom)
+		// 				.ifPresent(log::setBloom);
+		Optional.ofNullable(logInfo.getData().toArray())
+				.map(ByteString::copyFrom)
+				.ifPresent(log::setData);
+		Optional.ofNullable(logInfo.getTopics())
+				.stream()
+				.flatMap(List::stream)
+				.map(Bytes::toArray)
 				.map(ByteString::copyFrom)
 				.forEach(log::addTopic);
 

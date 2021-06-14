@@ -20,6 +20,7 @@ package com.hedera.services.txns.contract;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
@@ -29,6 +30,7 @@ import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.txns.validation.PureValidation;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -119,7 +121,7 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 							.setRealmNum(op.getContractID().getRealmNum())
 							.setShardNum(op.getContractID().getShardNum()).build();
 			Address receiver = Address.fromHexString(asSolidityAddressHex(receiverAccount));
-			Wei gasPrice = Wei.of(1000000000L);
+			Wei gasPrice = Wei.of(1);
 			long gasLimit = 15000000L;
 
 			Wei value = Wei.ZERO;
@@ -141,6 +143,13 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 					false);
 			updater.commit();
 			if (result.isSuccessful()) {
+				var contractFunctionResult = ContractFunctionResult.newBuilder()
+						.setGasUsed(result.getEstimateGasUsedByTransaction())
+						.setErrorMessage(result.getRevertReason().toString());
+				Optional.ofNullable(result.getOutput().toArray())
+						.map(ByteString::copyFrom)
+						.ifPresent(contractFunctionResult::setContractCallResult);
+				txnCtx.setCallResult(contractFunctionResult.build());
 				txnCtx.setStatus(SUCCESS);
 			} else {
 				txnCtx.setStatus(FAIL_INVALID);

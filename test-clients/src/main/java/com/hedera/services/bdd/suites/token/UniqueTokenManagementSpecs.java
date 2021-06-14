@@ -66,7 +66,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						uniqueTokenHappyPath(),
 						happyPathOneMintFiveMetadata(),
 						happyPathFiveMintOneMetadata(),
-						distinctsSubTypes(),
+//						distinctsSubTypes(),
 				}
 		);
 	}
@@ -164,12 +164,12 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 								ByteString.copyFromUtf8("memo4")
 						))
 				).then(
-						getTokenNftInfo("token", 1).hasSerialNum(1).hasMetadata(ByteString.copyFromUtf8("memo")),
-						getTokenNftInfo("token", 2).hasSerialNum(2).hasMetadata(ByteString.copyFromUtf8("memo1")),
-						getTokenNftInfo("token", 3).hasSerialNum(3).hasMetadata(ByteString.copyFromUtf8("memo2")),
-						getTokenNftInfo("token", 4).hasSerialNum(4).hasMetadata(ByteString.copyFromUtf8("memo3")),
+						getTokenNftInfo(NFT, 1).hasSerialNum(1).hasMetadata(ByteString.copyFromUtf8("memo")),
+						getTokenNftInfo(NFT, 2).hasSerialNum(2).hasMetadata(ByteString.copyFromUtf8("memo1")),
+						getTokenNftInfo(NFT, 3).hasSerialNum(3).hasMetadata(ByteString.copyFromUtf8("memo2")),
+						getTokenNftInfo(NFT, 4).hasSerialNum(4).hasMetadata(ByteString.copyFromUtf8("memo3")),
 
-						getTokenNftInfo("token", 5).hasSerialNum(5)
+						getTokenNftInfo(NFT, 5).hasSerialNum(5)
 								.hasMetadata(ByteString.copyFromUtf8("memo4"))
 								.hasTokenID(NFT)
 								.hasAccountID(TOKEN_TREASURY)
@@ -219,7 +219,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				).when(
 						tokenFreeze(NFT, TOKEN_TREASURY)
 				).then(
-						mintToken("token", List.of(ByteString.copyFromUtf8("memo"))).hasKnownStatus(ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN)
+						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).hasKnownStatus(ResponseCodeEnum.ACCOUNT_FROZEN_FOR_TOKEN)
 				);
 	}
 

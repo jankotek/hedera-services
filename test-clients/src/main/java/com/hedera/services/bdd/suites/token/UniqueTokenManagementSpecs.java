@@ -52,6 +52,7 @@ import static com.hedera.services.bdd.spec.utilops.UtilVerbs.newKeyNamed;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_NFT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_NFT_SERIAL_NUMBER;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
+import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 
 public class UniqueTokenManagementSpecs extends HapiApiSuite {
 	private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(UniqueTokenManagementSpecs.class);
@@ -87,7 +88,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
 								.supplyKey(SUPPLY_KEY)
@@ -105,7 +106,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
 								.supplyKey(SUPPLY_KEY)
@@ -124,7 +125,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
 								.supplyKey(SUPPLY_KEY)
@@ -158,17 +159,17 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						cryptoCreate(TOKEN_TREASURY),
 						cryptoCreate("customPayer"),
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
-								.supplyKey("supplyKey")
+								.supplyKey(SUPPLY_KEY)
 								.treasury(TOKEN_TREASURY),
 						tokenCreate(FUNGIBLE_TOKEN)
 								.tokenType(TokenType.FUNGIBLE_COMMON)
 								.supplyType(TokenSupplyType.FINITE)
 								.initialSupply(10)
 								.maxSupply(1100)
-								.supplyKey("supplyKey")
+								.supplyKey(SUPPLY_KEY)
 								.treasury(TOKEN_TREASURY)
 				).when(
 						mintToken(NFT, List.of(ByteString.copyFromUtf8("memo"))).payingWith("customPayer").signedBy("customPayer", "supplyKey").via("mintNFT"),
@@ -194,7 +195,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.initialSupply(0)
 								.supplyKey(SUPPLY_KEY)
@@ -239,7 +240,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed("tokenFreezeKey"),
 						cryptoCreate(TOKEN_TREASURY).balance(0L),
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyKey(SUPPLY_KEY)
 								.freezeKey("tokenFreezeKey")
 								.freezeDefault(true)
@@ -290,7 +291,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 				)
 				.when(
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.supplyKey(SUPPLY_KEY)
 								.initialSupply(0)
@@ -314,7 +315,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						cryptoCreate(TOKEN_TREASURY)
 				).when(
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.supplyKey(SUPPLY_KEY)
 								.initialSupply(0)
@@ -342,7 +343,7 @@ public class UniqueTokenManagementSpecs extends HapiApiSuite {
 						newKeyNamed(SUPPLY_KEY),
 						cryptoCreate(TOKEN_TREASURY),
 						tokenCreate(NFT)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.tokenType(NON_FUNGIBLE_UNIQUE)
 								.supplyType(TokenSupplyType.INFINITE)
 								.supplyKey(SUPPLY_KEY)
 								.initialSupply(0)

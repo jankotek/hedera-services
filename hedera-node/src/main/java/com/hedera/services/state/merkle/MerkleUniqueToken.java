@@ -131,6 +131,10 @@ public class MerkleUniqueToken extends AbstractMerkleLeaf implements FCMValue, I
 		return new MerkleUniqueToken(owner, metadata, creationTime);
 	}
 
+	public void setOwner(EntityId owner) {
+		this.owner = owner;
+	}
+
 	public EntityId getOwner() {
 		return owner;
 	}

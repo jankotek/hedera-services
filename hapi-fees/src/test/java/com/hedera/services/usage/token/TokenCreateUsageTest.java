@@ -116,8 +116,8 @@ public class TokenCreateUsageTest {
 		verify(base).addBpt(expectedBytes);
 		verify(base).addRbs(expectedBytes * autoRenewPeriod);
 		verify(base).addRbs(
-				TOKEN_ENTITY_SIZES.bytesUsedToRecordTokenTransfers(1, 1) *
-				USAGE_PROPERTIES.legacyReceiptStorageSecs());
+				TOKEN_ENTITY_SIZES.bytesUsedToRecordTokenTransfers(1, 1, 1) *
+						USAGE_PROPERTIES.legacyReceiptStorageSecs());
 		verify(base).addNetworkRbs(BASIC_ENTITY_ID_SIZE * USAGE_PROPERTIES.legacyReceiptStorageSecs());
 	}
 

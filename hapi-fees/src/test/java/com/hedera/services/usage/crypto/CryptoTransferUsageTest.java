@@ -102,7 +102,7 @@ public class CryptoTransferUsageTest {
 				+ 2 * M * (FeeBuilder.BASIC_ENTITY_ID_SIZE + 8)
 				+ 3 * (FeeBuilder.BASIC_ENTITY_ID_SIZE + 8));
 		verify(base).addRbs(
-				TOKEN_ENTITY_SIZES.bytesUsedToRecordTokenTransfers(3 * M, 7 * M) *
+				TOKEN_ENTITY_SIZES.bytesUsedToRecordTokenTransfers(3 * M, 7 * M, 0 * M) *
 						USAGE_PROPERTIES.legacyReceiptStorageSecs());
 		verify(base).addRbs((3 * USAGE_PROPERTIES.accountAmountBytes()) * USAGE_PROPERTIES.legacyReceiptStorageSecs());
 	}

@@ -52,6 +52,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 
 	static final List<EntityId> NO_TOKENS = null;
 	static final List<CurrencyAdjustments> NO_TOKEN_ADJUSTMENTS = null;
+	static final List<NftAdjustments> NO_NFT_TOKEN_ADJUSTMENTS = null;
 	static final EntityId NO_SCHEDULE_REF = null;
 
 	private static final byte[] MISSING_TXN_HASH = new byte[0];
@@ -59,7 +60,8 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 	static final int RELEASE_070_VERSION = 1;
 	static final int RELEASE_080_VERSION = 2;
 	static final int RELEASE_0120_VERSION = 3;
-	static final int MERKLE_VERSION = RELEASE_0120_VERSION;
+	static final int RELEASE_0150_VERSION = 4;
+	static final int MERKLE_VERSION = RELEASE_0150_VERSION;
 
 	static final int MAX_MEMO_BYTES = 32 * 1_024;
 	static final int MAX_TXN_HASH_BYTES = 1_024;
@@ -83,6 +85,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 	private SolidityFnResult contractCreateResult;
 	private List<EntityId> tokens = NO_TOKENS;
 	private List<CurrencyAdjustments> tokenAdjustments = NO_TOKEN_ADJUSTMENTS;
+	private List<NftAdjustments> nftTokenAdjustments = NO_NFT_TOKEN_ADJUSTMENTS;
 	private EntityId scheduleRef = NO_SCHEDULE_REF;
 
 	@Override
@@ -116,6 +119,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 				createResult,
 				NO_TOKENS,
 				NO_TOKEN_ADJUSTMENTS,
+				NO_NFT_TOKEN_ADJUSTMENTS,
 				NO_SCHEDULE_REF);
 	}
 
@@ -131,6 +135,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 			SolidityFnResult createResult,
 			List<EntityId> tokens,
 			List<CurrencyAdjustments> tokenTransferLists,
+			List<NftAdjustments> nftTokenTransferList,
 			EntityId scheduleRef
 	) {
 		this.receipt = receipt;
@@ -144,6 +149,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 		this.contractCreateResult = createResult;
 		this.tokens = tokens;
 		this.tokenAdjustments = tokenTransferLists;
+		this.nftTokenAdjustments = nftTokenTransferList;
 		this.scheduleRef = scheduleRef;
 	}
 
@@ -208,6 +214,9 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 				Objects.equals(this.hbarAdjustments, that.hbarAdjustments) &&
 				Objects.equals(this.tokens, that.tokens) &&
 				Objects.equals(this.tokenAdjustments, that.tokenAdjustments) &&
+				((nftTokenAdjustments != null && !nftTokenAdjustments.isEmpty()) ?
+						Objects.equals(this.nftTokenAdjustments, that.nftTokenAdjustments)
+						: true) &&
 				Objects.equals(this.scheduleRef, that.scheduleRef);
 	}
 
@@ -226,6 +235,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 				submittingMember,
 				tokens,
 				tokenAdjustments,
+				nftTokenAdjustments,
 				scheduleRef);
 		return result * 31 + Arrays.hashCode(txnHash);
 	}
@@ -264,6 +274,8 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 		out.writeSerializableList(tokenAdjustments, true, true);
 
 		serdes.writeNullableSerializable(scheduleRef, out);
+
+		out.writeSerializableList(nftTokenAdjustments, true, true);
 	}
 
 	@Override
@@ -286,6 +298,9 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 		if (version > RELEASE_080_VERSION) {
 			scheduleRef = serdes.readNullableSerializable(in);
 		}
+		if (version >= RELEASE_0150_VERSION) {
+			nftTokenAdjustments = in.readSerializableList(MAX_INVOLVED_TOKENS);
+		}
 	}
 
 	@Override
@@ -300,7 +315,9 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 
 	/* --- Object --- */
 
-	public EntityId getScheduleRef() { return scheduleRef; }
+	public EntityId getScheduleRef() {
+		return scheduleRef;
+	}
 
 	public List<EntityId> getTokens() {
 		return tokens;
@@ -308,6 +325,10 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 
 	public List<CurrencyAdjustments> getTokenAdjustments() {
 		return tokenAdjustments;
+	}
+
+	public List<NftAdjustments> getNftTokenAdjustments() {
+		return nftTokenAdjustments;
 	}
 
 	public TxnReceipt getReceipt() {
@@ -379,13 +400,20 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 	public static ExpirableTxnRecord fromGprc(TransactionRecord record) {
 		List<EntityId> tokens = NO_TOKENS;
 		List<CurrencyAdjustments> tokenAdjustments = NO_TOKEN_ADJUSTMENTS;
+		List<NftAdjustments> nftTokenAdjustments = NO_NFT_TOKEN_ADJUSTMENTS;
 		int n = record.getTokenTransferListsCount();
 		if (n > 0) {
 			tokens = new ArrayList<>();
 			tokenAdjustments = new ArrayList<>();
+			nftTokenAdjustments = new ArrayList<>();
 			for (TokenTransferList tokenTransfers : record.getTokenTransferListsList()) {
 				tokens.add(EntityId.fromGrpcTokenId(tokenTransfers.getToken()));
-				tokenAdjustments.add(CurrencyAdjustments.fromGrpc(tokenTransfers.getTransfersList()));
+				if (!tokenTransfers.getTransfersList().isEmpty()) {
+					tokenAdjustments.add(CurrencyAdjustments.fromGrpc(tokenTransfers.getTransfersList()));
+				}
+				if (!tokenTransfers.getNftTransfersList().isEmpty()) {
+					nftTokenAdjustments.add(NftAdjustments.fromGrpc(tokenTransfers.getNftTransfersList()));
+				}
 			}
 
 		}
@@ -401,6 +429,7 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 				record.hasContractCreateResult() ? SolidityFnResult.fromGrpc(record.getContractCreateResult()) : null,
 				tokens,
 				tokenAdjustments,
+				nftTokenAdjustments,
 				record.hasScheduleRef() ? fromGrpcScheduleId(record.getScheduleRef()) : null);
 	}
 
@@ -441,9 +470,15 @@ public class ExpirableTxnRecord implements FCQueueElement<ExpirableTxnRecord> {
 		}
 		if (tokens != NO_TOKENS) {
 			for (int i = 0, n = tokens.size(); i < n; i++) {
-				grpc.addTokenTransferLists(TokenTransferList.newBuilder()
-						.setToken(tokens.get(i).toGrpcTokenId())
-						.addAllTransfers(tokenAdjustments.get(i).toGrpc().getAccountAmountsList()));
+				var tokenTransferList = TokenTransferList.newBuilder()
+						.setToken(tokens.get(i).toGrpcTokenId());
+				if (!tokenAdjustments.isEmpty()) {
+					tokenTransferList.addAllTransfers(tokenAdjustments.get(i).toGrpc().getAccountAmountsList());
+				}
+				if (!nftTokenAdjustments.isEmpty()) {
+					tokenTransferList.addAllNftTransfers(nftTokenAdjustments.get(i).toGrpc().getNftTransfersList());
+				}
+				grpc.addTokenTransferLists(tokenTransferList);
 			}
 		}
 

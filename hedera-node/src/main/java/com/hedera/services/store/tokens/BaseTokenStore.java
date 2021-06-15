@@ -46,6 +46,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -249,7 +250,7 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 
 	@Override
 	public boolean associationExists(AccountID aId, TokenID tId) {
-		return checkExistence(aId, tId) == OK && tokenRelsLedger.exists(asTokenRel(aId, tId));
+		return checkAccountUsability(aId) == OK && checkTokenExistence(tId) == OK && tokenRelsLedger.exists(asTokenRel(aId, tId));
 	}
 
 	@Override
@@ -447,22 +448,36 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 	}
 
 	protected ResponseCodeEnum tryAdjustment(AccountID aId, TokenID tId, long adjustment) {
+		var resultFrozenOrKYC = checkRelFrozenOrKYC(Arrays.asList(aId), tId);
+		if (!resultFrozenOrKYC.equals(OK)) {
+			return resultFrozenOrKYC;
+		}
+
 		var relationship = asTokenRel(aId, tId);
-		if ((boolean) tokenRelsLedger.get(relationship, IS_FROZEN)) {
-			return ACCOUNT_FROZEN_FOR_TOKEN;
-		}
-		if (!(boolean) tokenRelsLedger.get(relationship, IS_KYC_GRANTED)) {
-			return ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
-		}
 		long balance = (long) tokenRelsLedger.get(relationship, TOKEN_BALANCE);
 		long newBalance = balance + adjustment;
 		if (newBalance < 0) {
 			return INSUFFICIENT_TOKEN_BALANCE;
 		}
 		tokenRelsLedger.set(relationship, TOKEN_BALANCE, newBalance);
-		// TODO this should and will be updated in another PR
 		hederaLedger.updateTokenXfers(tId, aId, adjustment);
 		return OK;
+	}
+
+	protected ResponseCodeEnum checkRelFrozenOrKYC(List<AccountID> aIdList, TokenID tId) {
+		var result = OK;
+
+		for (AccountID aId : aIdList) {
+			var relationship = asTokenRel(aId, tId);
+			if ((boolean) tokenRelsLedger.get(relationship, IS_FROZEN)) {
+				return ACCOUNT_FROZEN_FOR_TOKEN;
+			}
+			if (!(boolean) tokenRelsLedger.get(relationship, IS_KYC_GRANTED)) {
+				return ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
+			}
+		}
+
+		return result;
 	}
 
 	private boolean isValidAutoRenewPeriod(long secs) {
@@ -709,7 +724,11 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 			TokenID tId,
 			Function<MerkleToken, ResponseCodeEnum> action
 	) {
-		var validity = checkExistence(aId, tId);
+		var validity = checkAccountUsability(aId);
+		if (validity != OK) {
+			return validity;
+		}
+		validity = checkTokenExistence(tId);
 		if (validity != OK) {
 			return validity;
 		}
@@ -720,6 +739,34 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		}
 
 		var key = asTokenRel(aId, tId);
+		if (!tokenRelsLedger.exists(key)) {
+			return TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
+		}
+
+		return action.apply(token);
+	}
+
+	protected ResponseCodeEnum sanityChecked(AccountID senderAId, AccountID receiverAId, TokenID tId,
+											 Function<MerkleToken, ResponseCodeEnum> action) {
+		var validity = checkAccountUsability(senderAId);
+		if (validity != OK) {
+			return validity;
+		}
+		validity = checkAccountUsability(receiverAId);
+		if (validity != OK) {
+			return validity;
+		}
+		validity = checkTokenExistence(tId);
+		if (validity != OK) {
+			return validity;
+		}
+
+		var token = get(tId);
+		if (token.isDeleted()) {
+			return TOKEN_WAS_DELETED;
+		}
+
+		var key = asTokenRel(senderAId, tId);
 		if (!tokenRelsLedger.exists(key)) {
 			return TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 		}
@@ -745,17 +792,14 @@ public abstract class BaseTokenStore extends HederaStore implements TokenStore {
 		return action.apply(token);
 	}
 
-	private ResponseCodeEnum checkExistence(AccountID aId, TokenID tId) {
-		var validity = checkAccountUsability(aId);
-		if (validity != OK) {
-			return validity;
-		}
+	private ResponseCodeEnum checkTokenExistence(TokenID tId) {
 		return exists(tId) ? OK : INVALID_TOKEN_ID;
 	}
 
 	Map<AccountID, Set<TokenID>> getKnownTreasuries() {
 		return knownTreasuries;
 	}
+
 	protected TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> getTokenRelsLedger() {
 		return tokenRelsLedger;
 	}

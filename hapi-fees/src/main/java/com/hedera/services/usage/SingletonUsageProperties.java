@@ -34,6 +34,11 @@ public enum SingletonUsageProperties implements UsageProperties {
 	}
 
 	@Override
+	public int nftTransferBytes() {
+		return LONG_SIZE + 2 * BASIC_ENTITY_ID_SIZE;
+	}
+
+	@Override
 	public int legacyReceiptStorageSecs() {
 		return 180;
 	}

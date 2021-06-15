@@ -45,13 +45,18 @@ import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static com.hedera.services.ledger.accounts.BackingTokenRels.asTokenRel;
+import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
 import static com.hedera.services.state.merkle.MerkleEntityId.fromTokenId;
 import static com.hedera.services.state.merkle.MerkleUniqueTokenId.fromNftID;
 import static com.hedera.services.utils.EntityIdUtils.readableId;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_NFT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSACTION_BODY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_SUPPLY_KEY;
@@ -85,7 +90,7 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 	@Override
 	public CreationResult<List<Long>> mint(final TokenMintTransactionBody txBody, final RichInstant creationTime) {
 		var provisionalUniqueTokens = new ArrayList<Pair<MerkleUniqueTokenId, MerkleUniqueToken>>();
-		var lastMintedSerialNumbers = new ArrayList<Long>();
+		var mintedSerialNumbers = new ArrayList<Long>();
 		var tokenId = txBody.getToken();
 		var provisionalSanityCheck = tokenSanityCheck(tokenId, merkleToken -> {
 			if (!merkleToken.hasSupplyKey()) {
@@ -100,15 +105,17 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 				final var nftId = new MerkleUniqueTokenId(eId, serialNum);
 				final var nft = new MerkleUniqueToken(owner, el.toByteArray(), creationTime);
 				provisionalUniqueTokens.add(Pair.of(nftId, nft));
-				lastMintedSerialNumbers.add(serialNum);
+				mintedSerialNumbers.add(serialNum);
 			}
 			if (!checkProvisional(provisionalUniqueTokens)) {
 				return INVALID_TRANSACTION_BODY;
 			}
-			var adjustmentResult = tryAdjustment(merkleToken.treasury().toGrpcAccountId(), tokenId, provisionalUniqueTokens.size());
+
+			var adjustmentResult = tryNftAdjustment(merkleToken.treasury().toGrpcAccountId(), tokenId, mintedSerialNumbers);
 			if (!adjustmentResult.equals(OK)) {
 				return adjustmentResult;
 			}
+
 			return OK;
 		});
 		if (!provisionalSanityCheck.equals(OK)) {
@@ -121,9 +128,9 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 			var nftId = pair.getKey();
 			uniqueTokenSupplier.get().put(nftId, nft);
 		}
-		token.setSerialNum(token.getCurrentSerialNum() + lastMintedSerialNumbers.size());
+		token.setSerialNum(token.getCurrentSerialNum() + mintedSerialNumbers.size());
 		getTokens().get().replace(fromTokenId(tokenId), token);
-		return CreationResult.success(lastMintedSerialNumbers);
+		return CreationResult.success(mintedSerialNumbers);
 	}
 
 	private boolean checkProvisional(List<Pair<MerkleUniqueTokenId, MerkleUniqueToken>> provisionalUniqueTokens) {
@@ -141,6 +148,72 @@ public class UniqueTokenStore extends BaseTokenStore implements UniqueStore {
 		throwIfMissing(id);
 
 		return uniqueTokenSupplier.get().get(fromNftID(id));
+	}
+
+	@Override
+	public ResponseCodeEnum adjustBalance(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
+		var validity = sanityChecked(senderAId, receiverAId, tId, token -> tryAdjustment(senderAId, receiverAId, tId, serialNumber));
+		if (validity == OK) {
+			var nftId = NftID.newBuilder().setTokenID(tId).setSerialNumber(serialNumber).build();
+			if (nftExists(nftId)) {
+				get(nftId).setOwner(EntityId.fromGrpcAccountId(receiverAId));
+
+				adjustOwnedNfts(senderAId, false);
+				adjustOwnedNfts(receiverAId, true);
+			} else {
+				validity = INVALID_NFT_ID;
+			}
+		}
+
+		return validity;
+	}
+
+	public void adjustOwnedNfts(AccountID aId, Boolean isAdded) {
+		var merkleAccount = hederaLedger.get(aId);
+		long nftsOwned = merkleAccount.getNftsOwned();
+		if (Boolean.TRUE.equals(isAdded)) {
+			merkleAccount.setNftsOwned(nftsOwned + 1);
+		} else {
+			merkleAccount.setNftsOwned(nftsOwned - 1);
+		}
+	}
+
+	private ResponseCodeEnum tryNftAdjustment(AccountID aId, TokenID tId, List<Long> serialNumbers) {
+		var resultFrozenOrKYC = checkRelFrozenOrKYC(Arrays.asList(aId), tId);
+		if (!resultFrozenOrKYC.equals(OK)) {
+			return resultFrozenOrKYC;
+		}
+
+		var relationship = asTokenRel(aId, tId);
+		long balance = (long) getTokenRelsLedger().get(relationship, TOKEN_BALANCE);
+		long newBalance = balance + serialNumbers.size();
+		getTokenRelsLedger().set(relationship, TOKEN_BALANCE, newBalance);
+
+		for (Long serialNumber : serialNumbers) {
+			hederaLedger.updateTokenXfers(tId, null, aId, serialNumber);
+		}
+		return OK;
+	}
+
+	private ResponseCodeEnum tryAdjustment(AccountID senderAId, AccountID receiverAId, TokenID tId, long serialNumber) {
+		var relationshipSender = asTokenRel(senderAId, tId);
+		var relationshipReceiver = asTokenRel(receiverAId, tId);
+
+		var resultFrozenOrKYC = checkRelFrozenOrKYC(Arrays.asList(senderAId, receiverAId), tId);
+		if (!resultFrozenOrKYC.equals(OK)) {
+			return resultFrozenOrKYC;
+		}
+
+		long balanceSender = (long) getTokenRelsLedger().get(relationshipSender, TOKEN_BALANCE);
+		long balanceReceiver = (long) getTokenRelsLedger().get(relationshipReceiver, TOKEN_BALANCE);
+		if (balanceSender <= 0) {
+			return INSUFFICIENT_TOKEN_BALANCE;
+		}
+		getTokenRelsLedger().set(relationshipSender, TOKEN_BALANCE, balanceSender - 1);
+		getTokenRelsLedger().set(relationshipReceiver, TOKEN_BALANCE, balanceReceiver + 1);
+		hederaLedger.updateTokenXfers(tId, senderAId, receiverAId, serialNumber);
+
+		return OK;
 	}
 
 	private void throwIfMissing(NftID id) {

@@ -140,7 +140,7 @@ public class TokenUpdateUsage extends TokenTxnUsage<TokenUpdateUsage> {
 		long txnBytes = newMutableRb + BASIC_ENTITY_ID_SIZE + noRbImpactBytes(op);
 		usageEstimator.addBpt(txnBytes);
 		if (op.hasTreasury()) {
-			addTokenTransfersRecordRb(1, 2);
+			addTokenTransfersRecordRb(1, 2, 1);
 		}
 
 		return usageEstimator.get();

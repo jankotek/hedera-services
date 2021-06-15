@@ -81,7 +81,7 @@ public class TokenMintUsageTest {
 		// and:
 		verify(base).addBpt(FeeBuilder.BASIC_ENTITY_ID_SIZE);
 		verify(base).addRbs(
-				TOKEN_ENTITY_SIZES.bytesUsedToRecordTokenTransfers(1, 1) *
+				TOKEN_ENTITY_SIZES.bytesUsedToRecordTokenTransfers(1, 1, 1) *
 						USAGE_PROPERTIES.legacyReceiptStorageSecs());
 	}
 

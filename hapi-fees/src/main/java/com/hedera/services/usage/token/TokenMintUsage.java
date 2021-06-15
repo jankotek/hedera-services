@@ -67,7 +67,7 @@ public class TokenMintUsage extends TokenTxnUsage<TokenMintUsage> {
 			addAmountBpt();
 		}
 		addEntityBpt();
-		addTokenTransfersRecordRb(1, 1);
+		addTokenTransfersRecordRb(1, 1, 1);
 		return usageEstimator.get();
 	}
 }

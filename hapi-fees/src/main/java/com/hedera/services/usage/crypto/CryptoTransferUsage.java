@@ -57,17 +57,20 @@ public class CryptoTransferUsage extends CryptoTxnUsage<CryptoTransferUsage> {
 
 		int hbarXfers = op.getTransfers().getAccountAmountsCount();
 		int tokenXfers = 0;
+		int uniqueTokenXfers = 0;
 		long xferBytes = 0;
 		for (TokenTransferList transfer : op.getTokenTransfersList()) {
 			xferBytes += tokenMultiplier * BASIC_ENTITY_ID_SIZE;
 			tokenXfers += tokenMultiplier * transfer.getTransfersCount();
+			uniqueTokenXfers += tokenMultiplier * transfer.getNftTransfersCount();
 		}
-		xferBytes += (hbarXfers + tokenXfers) * usageProperties.accountAmountBytes();
+		xferBytes += (hbarXfers + tokenXfers) * usageProperties.accountAmountBytes()
+				+ uniqueTokenXfers * usageProperties.nftTransferBytes();
 		usageEstimator.addBpt(xferBytes);
 		if (hbarXfers > 0) {
 			addRecordRb(hbarXfers * usageProperties.accountAmountBytes());
 		}
-		addTokenTransfersRecordRb(tokenMultiplier * op.getTokenTransfersCount(), tokenXfers);
+		addTokenTransfersRecordRb(tokenMultiplier * op.getTokenTransfersCount(), tokenXfers, uniqueTokenXfers);
 
 		return usageEstimator.get();
 	}

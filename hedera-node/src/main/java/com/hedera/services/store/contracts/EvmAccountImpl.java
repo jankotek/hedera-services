@@ -56,11 +56,17 @@ public class EvmAccountImpl implements EvmAccount {
 	private final Address address;
 	private final Wei balance;
 	private final Hash addressHash;
+	private final Bytes code;
 
 	public EvmAccountImpl (Address address, Wei balance) {
+		this(address, balance, null);
+	}
+
+	public EvmAccountImpl (Address address, Wei balance, Bytes code) {
 		this.address = address;
 		this.balance = balance;
 		this.addressHash = Hash.hash(address);
+		this.code = code;
 	}
 
 	@Override
@@ -90,7 +96,7 @@ public class EvmAccountImpl implements EvmAccount {
 
 	@Override
 	public Bytes getCode() {
-		return null;
+		return code;
 	}
 
 	@Override

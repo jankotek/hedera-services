@@ -212,6 +212,6 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 				0,
 				12_500_000L,
 				timestamp,
-				1000000000L);
+				0L);
 	}
 }

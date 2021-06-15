@@ -23,6 +23,7 @@ package com.hedera.services.txns.token;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.txns.TransitionLogic;
+import com.hedera.services.txns.validation.OptionValidator;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenDissociateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -51,11 +52,14 @@ public class TokenDissociateTransitionLogic implements TransitionLogic {
 
 	private final TokenStore store;
 	private final TransactionContext txnCtx;
+	private final OptionValidator validator;
 
 	public TokenDissociateTransitionLogic(
+			OptionValidator validator,
 			TokenStore store,
 			TransactionContext txnCtx
 	) {
+		this.validator = validator;
 		this.store = store;
 		this.txnCtx = txnCtx;
 	}

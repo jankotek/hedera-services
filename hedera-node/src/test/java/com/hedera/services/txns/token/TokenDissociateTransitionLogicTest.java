@@ -22,6 +22,7 @@ package com.hedera.services.txns.token;
 
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.store.tokens.TokenStore;
+import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.PlatformTxnAccessor;
 import com.hedera.test.utils.IdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -52,6 +53,7 @@ class TokenDissociateTransitionLogicTest {
 	private AccountID account = IdUtils.asAccount("1.2.4");
 	private TokenID id = IdUtils.asToken("1.2.3");
 
+	private OptionValidator validator;
 	private TokenStore tokenStore;
 	private TransactionContext txnCtx;
 	private PlatformTxnAccessor accessor;
@@ -63,10 +65,11 @@ class TokenDissociateTransitionLogicTest {
 	private void setup() {
 		tokenStore = mock(TokenStore.class);
 		accessor = mock(PlatformTxnAccessor.class);
+		validator = mock(OptionValidator.class);
 
 		txnCtx = mock(TransactionContext.class);
 
-		subject = new TokenDissociateTransitionLogic(tokenStore, txnCtx);
+		subject = new TokenDissociateTransitionLogic(validator, tokenStore, txnCtx);
 	}
 
 	@Test
@@ -167,5 +170,6 @@ class TokenDissociateTransitionLogicTest {
 						.addTokens(id)
 						.addTokens(id))
 				.build();
+		given(validator.maxNftTransfersLenCheck(5)).willReturn(OK);
 	}
 }

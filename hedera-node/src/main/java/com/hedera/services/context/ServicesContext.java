@@ -1335,7 +1335,7 @@ public class ServicesContext {
 				entry(TokenAssociateToAccount,
 						List.of(new TokenAssociateTransitionLogic(tokenStore(), txnCtx()))),
 				entry(TokenDissociateFromAccount,
-						List.of(new TokenDissociateTransitionLogic(tokenStore(), txnCtx()))),
+						List.of(new TokenDissociateTransitionLogic(validator(), tokenStore(), txnCtx()))),
 				/* Schedule */
 				entry(ScheduleCreate,
 						List.of(new ScheduleCreateTransitionLogic(

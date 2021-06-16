@@ -73,11 +73,12 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 		static final int RELEASE_090_RECORDS = 1;
 		static final int RELEASE_090_ASSOCIATED_TOKENS = 2;
 		static final int RELEASE_0150_SMART_CONTRACTS = 4;
-		static final int NUM_090_CHILDREN = 5;
+		static final int NUM_090_CHILDREN = 3;
+		static final int NUM_0150_CHILDREN = 5;
 	}
 
 	public MerkleAccount(List<MerkleNode> children) {
-		super(ChildIndices.NUM_090_CHILDREN);
+		super(ChildIndices.NUM_0150_CHILDREN);
 		addDeserializedChildren(children, MERKLE_VERSION);
 	}
 
@@ -106,8 +107,10 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 			return ChildIndices.NUM_081_CHILDREN;
 		} else if (version == RELEASE_090_ALPHA_VERSION) {
 			return ChildIndices.NUM_090_ALPHA_CHILDREN;
-		} else {
+		} else if (version == RELEASE_090_VERSION) {
 			return ChildIndices.NUM_090_CHILDREN;
+		} else {
+			return ChildIndices.NUM_0150_CHILDREN;
 		}
 	}
 

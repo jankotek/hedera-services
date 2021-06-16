@@ -343,6 +343,7 @@ public class ContractResources {
 			"\"stateMutability\":\"payable\",\"type\":\"function\"}";
 
 	public static final String SINGLE_SSTORE = "{ \"constant\": false, \"inputs\": [ { \"internalType\": \"bytes32\", \"name\": \"_singleProp\", \"type\": \"bytes32\" } ], \"name\": \"singleSSTORE\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+	public static final String SINGLE_MLOAD = "{ \"constant\": true, \"inputs\": [], \"name\": \"singleMLOAD\", \"outputs\": [ { \"name\": \"\", \"type\": \"bytes32\" } ], \"payable\": false, \"stateMutability\": \"view\", \"type\": \"function\" }";
 	public static final String SSTORE_CREATE = "{ \"constant\": false, \"inputs\": [ { \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreCreate\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 
 	public static final String bytecodePath(String bytecode) {

@@ -341,6 +341,7 @@ import org.hyperledger.besu.ethereum.core.Account;
 import org.hyperledger.besu.ethereum.core.PrivacyParameters;
 import org.hyperledger.besu.ethereum.core.fees.CoinbaseFeePriceCalculator;
 import org.hyperledger.besu.ethereum.core.fees.TransactionPriceCalculator;
+import org.hyperledger.besu.ethereum.mainnet.ConstantinopleGasCalculator;
 import org.hyperledger.besu.ethereum.mainnet.FrontierGasCalculator;
 import org.hyperledger.besu.ethereum.mainnet.MainnetContractCreationProcessor;
 import org.hyperledger.besu.ethereum.mainnet.MainnetEvmRegistries;
@@ -1762,9 +1763,9 @@ public class ServicesContext {
 
 	public MainnetTransactionProcessor besuContracts() {
 		if (besuContracts == null) {
-			var gasCalculator = new FrontierGasCalculator();
+			var gasCalculator = new ConstantinopleGasCalculator();
 			var transactionValidator = new MainnetTransactionValidator(gasCalculator, false, Optional.empty(), false);
-			var evm = MainnetEvmRegistries.istanbul(gasCalculator, BigInteger.ONE);
+			var evm = MainnetEvmRegistries.constantinople(gasCalculator);
 			var contractCreateProcessor = new MainnetContractCreationProcessor(gasCalculator, evm,false,Collections.singletonList(MaxCodeSizeRule.of(24576)),0);
 			var privacyParameters = new PrivacyParameters.Builder().setEnabled(false).build();
 			var precompiledContractConfiguration = new PrecompiledContractConfiguration(gasCalculator, privacyParameters);

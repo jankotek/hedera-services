@@ -347,7 +347,7 @@ public final class VirtualMap
 
     @Override
     public void setHash(Hash hash) {
-        throw new UnsupportedOperationException("Cannot set the hash on this node, it is computed");
+//        throw new UnsupportedOperationException("Cannot set the hash on this node, it is computed");
     }
 
     private static final class HashJobData {

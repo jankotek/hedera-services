@@ -100,15 +100,11 @@ public class ContractsStore implements AccountStateStore {
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
-		var map = ledger.get(accId).map();
-		if (!map.isInitialised()) {
-			map.init(
-					new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum()))
-			);
+		var merkleAccount = ledger.get(accId);
+		if (merkleAccount.map() == null) {
+			merkleAccount.setVirtualMap(new VirtualMap(new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum()))));
 		}
-
-		maps.put(accId, map);
-		return map;
+		return merkleAccount.map();
 	}
 
 	@Override

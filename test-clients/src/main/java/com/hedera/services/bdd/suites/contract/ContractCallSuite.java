@@ -182,7 +182,7 @@ public class ContractCallSuite extends HapiApiSuite {
 //						)
 						contractCall(
 								"immutableContract",
-								ContractResources.SINGLE_SSTORE, Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97")).via("storageTx"))
+								ContractResources.SINGLE_SSTORE, Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()).via("storageTx"))
 //						contractCall(
 //								"immutableContract",
 //								ContractResources.SSTORE_CREATE, 10

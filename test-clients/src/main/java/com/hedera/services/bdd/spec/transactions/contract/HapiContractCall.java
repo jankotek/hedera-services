@@ -30,7 +30,6 @@ import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionResponse;
-import org.apache.tuweni.bytes.Bytes;
 import org.ethereum.core.CallTransaction;
 
 import java.util.Arrays;
@@ -116,7 +115,7 @@ public class HapiContractCall extends HapiTxnOp<HapiContractCall> {
 		}
 
 		byte[] callData = (abi != FALLBACK_ABI)
-				? ((Bytes)(params[0])).toArray() : new byte[] {};
+				? CallTransaction.Function.fromJsonInterface(abi).encode(params) : new byte[] {};
 
 		ContractCallTransactionBody opBody = spec
 				.txns()

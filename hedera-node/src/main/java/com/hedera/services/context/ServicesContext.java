@@ -355,6 +355,7 @@ import org.hyperledger.besu.ethereum.mainnet.contractvalidation.MaxCodeSizeRule;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Collections;
@@ -1295,7 +1296,7 @@ public class ServicesContext {
 				/* Contract */
 				entry(ContractCreate,
 						List.of(new ContractCreateTransitionLogic(
-								ledger(), hfs(), contracts()::createContract, validator(), txnCtx(), besuContracts(), contractsStore()))),
+								ledger(), hfs(), contracts()::createContract, validator(), txnCtx(), besuContracts(), contractsStore(), this::seqNo))),
 				entry(ContractUpdate,
 						List.of(new ContractUpdateTransitionLogic(
 								ledger(), validator(), txnCtx(), new UpdateCustomizerFactory(), this::accounts))),
@@ -1763,7 +1764,7 @@ public class ServicesContext {
 		if (besuContracts == null) {
 			var gasCalculator = new FrontierGasCalculator();
 			var transactionValidator = new MainnetTransactionValidator(gasCalculator, false, Optional.empty(), false);
-			var evm = MainnetEvmRegistries.frontier(gasCalculator);
+			var evm = MainnetEvmRegistries.istanbul(gasCalculator, BigInteger.ONE);
 			var contractCreateProcessor = new MainnetContractCreationProcessor(gasCalculator, evm,false,Collections.singletonList(MaxCodeSizeRule.of(24576)),0);
 			var privacyParameters = new PrivacyParameters.Builder().setEnabled(false).build();
 			var precompiledContractConfiguration = new PrecompiledContractConfiguration(gasCalculator, privacyParameters);

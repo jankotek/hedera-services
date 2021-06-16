@@ -40,12 +40,14 @@ package com.hedera.services.store.contracts;/*
 
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.ledger.HederaLedger;
+import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.virtual.VirtualMap;
 import com.hedera.services.state.merkle.virtual.persistence.mmap.MemMapDataSource;
 import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
+import javafx.util.Pair;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.core.Account;
 import org.hyperledger.besu.ethereum.core.Address;
@@ -61,8 +63,9 @@ public class ContractsStore implements AccountStateStore {
 	private final HederaLedger ledger;
 	private Map<AccountID, VirtualMap> maps;
 	private final BlobStorageSource blobStorageSource;
-	private Map<AccountID, MerkleAccount> provisionalAccounts;
 	private Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
+	private Map<Address, EvmAccountImpl> provisionalAccountUpdates = new HashMap<>();
+	private Map<AccountID, Pair<AccountID, HederaAccountCustomizer>> provisionalAccountCreations = new HashMap<>();
 
 	public ContractsStore(
 			BlobStorageSource blobStorageSource,
@@ -71,7 +74,10 @@ public class ContractsStore implements AccountStateStore {
 		this.dataStore = dataStore;
 		this.blobStorageSource = blobStorageSource;
 		this.maps = new HashMap<>();
-		this.provisionalAccounts = new HashMap<>();
+	}
+
+	public void prepareAccountCreation(AccountID sponsor, AccountID target, HederaAccountCustomizer customizer) {
+		provisionalAccountCreations.put(target, new Pair<>(sponsor, customizer));
 	}
 
 	// The EVM is executing this call everytime it needs to access a contract/address. F.e getting recipient address multiple times during 1 contract executions
@@ -107,14 +113,7 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public void put(Address address, long nonce, Wei balance) {
-		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
-		if (ledger.exists(accId)) {
-			final var account = ledger.get(accId);
-			ledger.adjustBalance(accId, balance.toLong() - account.getBalance());
-			return;
-		}
-
-		System.out.printf("invalid address found: %s", accId);
+		provisionalAccountUpdates.put(address, new EvmAccountImpl(address, balance));
 	}
 
 	@Override
@@ -143,6 +142,19 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public void commit() {
+
+		provisionalAccountUpdates.forEach((address, evmAccount) -> {
+			final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
+			if (ledger.exists(accId)) {
+				final var account = ledger.get(accId);
+				ledger.adjustBalance(accId, evmAccount.getBalance().toLong() - account.getBalance());
+			} else {
+				var pair = this.provisionalAccountCreations.get(accId);
+				ledger.create(pair.getKey(), accId, evmAccount.getBalance().toLong(), pair.getValue());
+			}
+		});
+
+
 		/* Commit code updates for each updated address */
 		provisionalCodeUpdates.forEach((address, code) -> {
 			blobStorageSource.put(address.toArray(), code.toArray());
@@ -150,6 +162,10 @@ public class ContractsStore implements AccountStateStore {
 
 		/* Commit Account Storage updates for each updated account*/
 		maps.forEach((key, value) -> value.commit());
-		// TODO: commit the provisional changes
+
+		provisionalCodeUpdates.clear();
+		provisionalAccountUpdates.clear();
+		provisionalAccountCreations.clear();
+		maps.clear();
 	}
 }

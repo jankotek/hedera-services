@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static com.hedera.services.utils.EntityIdUtils.asContract;
 import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
@@ -91,7 +92,8 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	private final OptionValidator validator;
 	private final TransactionContext txnCtx;
 	private final MainnetTransactionProcessor txProcessor;
-	private final AccountStateStore store;
+	private final ContractsStore store;
+	private final Supplier<SequenceNumber> seqNo;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
@@ -102,7 +104,8 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			OptionValidator validator,
 			TransactionContext txnCtx,
 			MainnetTransactionProcessor txProcessor,
-			ContractsStore store
+			ContractsStore store,
+			Supplier<SequenceNumber> seqNo
 	) {
 		this.ledger = ledger;
 		this.hfs = hfs;
@@ -111,6 +114,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 		this.validator = validator;
 		this.txProcessor = txProcessor;
 		this.store = store;
+		this.seqNo = seqNo;
 	}
 
 	@Override
@@ -131,9 +135,10 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 					.expiry(txnCtx.consensusTime().getEpochSecond() + op.getAutoRenewPeriod().getSeconds())
 					.autoRenewPeriod(op.getAutoRenewPeriod().getSeconds())
 					.isSmartContract(true);
-
-			final var contractID = ledger.create(senderAccount, op.getInitialBalance(), customizer);
+			var contractID = AccountID.newBuilder().setRealmNum(senderAccount.getRealmNum()).setShardNum(senderAccount.getShardNum()).setAccountNum(seqNo.get().getAndIncrement()).build();
 			Address contractAddress = Address.fromHexString(asSolidityAddressHex(contractID));
+			this.store.prepareAccountCreation(senderAccount, contractID, customizer);
+
 			// TODO max gas check?
 
 			var inputs = prepBytecode(op);

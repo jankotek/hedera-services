@@ -403,6 +403,17 @@ public class HederaLedger {
 		return id;
 	}
 
+	public AccountID create(AccountID sponsor, AccountID target, long balance, HederaAccountCustomizer customizer) {
+		long newSponsorBalance = computeNewBalance(sponsor, -1 * balance);
+		setBalance(sponsor, newSponsorBalance);
+
+		spawn(target, balance, customizer);
+
+		updateXfers(sponsor, -1 * balance, netTransfers);
+
+		return target;
+	}
+
 	public void spawn(AccountID id, long balance, HederaAccountCustomizer customizer) {
 		accountsLedger.create(id);
 		setBalance(id, balance);

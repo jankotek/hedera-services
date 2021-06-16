@@ -98,7 +98,7 @@ public class ContractCreateTransitionLogicTest {
 		withRubberstampingValidator();
 		seqNo = mock(SequenceNumber.class);
 
-		subject = new ContractCreateTransitionLogic(ledger, hfs, delegate, validator, txnCtx, null, null);
+		subject = new ContractCreateTransitionLogic(ledger, hfs, delegate, validator, txnCtx, null, null, null);
 	}
 
 	@Test

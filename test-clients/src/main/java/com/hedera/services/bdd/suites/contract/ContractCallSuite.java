@@ -28,6 +28,7 @@ import com.hedera.services.bdd.spec.utilops.CustomSpecAssert;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tuweni.bytes.Bytes;
 
 import java.math.BigInteger;
 import java.time.Instant;
@@ -162,24 +163,35 @@ public class ContractCallSuite extends HapiApiSuite {
 						cryptoCreate("payer")
 								.balance(10 * ONE_HUNDRED_HBARS),
 						fileCreate("bytecode")
-								.path(ContractResources.SIMPLE_STORAGE_BYTECODE_PATH)
+								.path(ContractResources.bytecodePath("BenchmarkContract"))
 								.memo("test-memo-contract")
 								.payingWith("payer")
+//						fileCreate("bytecode")
+//								.path(ContractResources.SIMPLE_STORAGE_BYTECODE_PATH)
+//								.memo("test-memo-contract")
+//								.payingWith("payer")
 				)
 				.when(
 						contractCreate("immutableContract")
 								.payingWith("payer")
 								.bytecode("bytecode")
 								.via("creationTx"),
+//						contractCall(
+//								"immutableContract",
+//								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5)
+//						)
 						contractCall(
 								"immutableContract",
-								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5
-						).via("storageTx"),
-						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getValue"))
+								ContractResources.SINGLE_SSTORE, Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97")).via("storageTx"))
+//						contractCall(
+//								"immutableContract",
+//								ContractResources.SSTORE_CREATE, 10
+//						).via("storageTx"))
+//						contractCall("immutableContract", ContractResources.SIMPLE_STORAGE_GETTER_ABI).via("getValue"))
 				.then(
-						getTxnRecord("creationTx").logged(),
-						getTxnRecord("storageTx").logged(),
-						getTxnRecord("getValue").logged()
+						getTxnRecord("creationTx").logged()
+//						getTxnRecord("storageTx").logged()
+//						getTxnRecord("getValue").logged()
 				);
 	}
 

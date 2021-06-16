@@ -50,6 +50,7 @@ public class ContractResources {
 	public static final String MINTERS_BYTECODE_PATH = bytecodePath("Minters");
 	public static final String PAY_TEST_BYTECODE_PATH = bytecodePath("PayTest");
 	public static final String DOUBLE_SEND_BYTECODE_PATH = bytecodePath("DoubleSend");
+	public static final String BENCHMARK_CONTRACT = bytecodePath("BenchmarkContract");
 
 	public static final String CREATE_CHILD_ABI = "{\"constant\":false," +
 			"\"inputs\":[],\"name\":\"create\"," +
@@ -328,7 +329,7 @@ public class ContractResources {
 			"\"inputs\":[],\"name\":\"seven\"," +
 			"\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}]," +
 			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
-	public static final String MINT_OWNER_ABI ="{\"constant\":true," +
+	public static final String MINT_OWNER_ABI = "{\"constant\":true," +
 			"\"inputs\":[],\"name\":\"owner\"," +
 			"\"outputs\":[{\"name\":\"\",\"type\":\"address\"}]," +
 			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
@@ -341,6 +342,8 @@ public class ContractResources {
 			"\"type\":\"uint32\"}],\"name\":\"donate\",\"outputs\":[],\"payable\":true," +
 			"\"stateMutability\":\"payable\",\"type\":\"function\"}";
 
+	public static final String SINGLE_SSTORE = "{ \"constant\": false, \"inputs\": [ { \"internalType\": \"bytes32\", \"name\": \"_singleProp\", \"type\": \"bytes32\" } ], \"name\": \"singleSSTORE\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+	public static final String SSTORE_CREATE = "{ \"constant\": false, \"inputs\": [ { \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreCreate\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 
 	public static final String bytecodePath(String bytecode) {
 		return String.format("src/main/resource/contract/bytecodes/%s.bin", bytecode);

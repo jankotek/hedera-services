@@ -202,7 +202,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				0,
 				12_500_000L,
 				timestamp,
-				0L);
+				1L);
 	}
 
 	private Map.Entry<byte[], ResponseCodeEnum> prepBytecode(ContractCreateTransactionBody op) {

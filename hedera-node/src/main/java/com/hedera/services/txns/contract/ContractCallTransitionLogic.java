@@ -129,6 +129,8 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 				value = Wei.of(op.getAmount());
 			}
 
+			System.out.println("CALL TX OPCODES");
+
 			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.of(receiver), value, null, Bytes.fromHexString(CommonUtils.hex(op.getFunctionParameters().toByteArray())), sender, Optional.empty());
 			var defaultMutableWorld = new DefaultMutableWorldState(this.store);
 			var updater = defaultMutableWorld.updater();
@@ -212,6 +214,6 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 				0,
 				12_500_000L,
 				timestamp,
-				0L);
+				1L);
 	}
 }

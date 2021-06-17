@@ -82,10 +82,10 @@ public class ContractCallSuite extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return allOf(List.of(
+				benchmarkSingleSetter(),
 				benchmarkNCreations(),
 				benchmarkNCreationsWithUpdates(),
 				benchBigSSTORE()
-//				benchmarkSingleSetter()
 //				twoStorageTwoCalls()
 //				simpleStorageTestCall()
 //				simpleStorageTwoCallsTestCall()
@@ -99,7 +99,7 @@ public class ContractCallSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec benchBigSSTORE() {
-		final int N = 150;
+		final int N = 15;
 		final int[] arr = new int[N];
 
 		return defaultHapiSpec("BenchmarkCreations")
@@ -120,14 +120,14 @@ public class ContractCallSuite extends HapiApiSuite {
 								"benchmarkContract",
 								ContractResources.BIG_SSTORE,
 								arr
-						).via("createTx")
+						).via("callTx")
 				)
 				.then(
 				);
 	}
 
 	private HapiApiSpec benchmarkNCreations() {
-		final int N = 360;
+		final int N = 5;
 
 		return defaultHapiSpec("BenchmarkCreations")
 				.given(
@@ -147,14 +147,14 @@ public class ContractCallSuite extends HapiApiSuite {
 								"benchmarkContract",
 								ContractResources.SSTORE_CREATE,
 								N
-						).via("createTx")
+						).via("callTx")
 				)
 				.then(
 				);
 	}
 
 	private HapiApiSpec benchmarkNCreationsWithUpdates() {
-		final int N = 360;
+		final int N = 10;
 
 		return defaultHapiSpec("BenchmarkCreations")
 				.given(
@@ -205,7 +205,6 @@ public class ContractCallSuite extends HapiApiSuite {
 								ContractResources.SINGLE_SSTORE,
 								Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
 						).via("storageTx"),
-
 						contractCall("immutableContract", ContractResources.SINGLE_MLOAD).via("getValue"))
 				.then(
 						getTxnRecord("getValue").logged()

@@ -74,7 +74,7 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 		static final int RELEASE_090_ASSOCIATED_TOKENS = 2;
 		static final int RELEASE_0150_SMART_CONTRACTS = 4;
 		static final int NUM_090_CHILDREN = 3;
-		static final int NUM_0150_CHILDREN = 5;
+		static final int NUM_0150_CHILDREN = 4;
 	}
 
 	public MerkleAccount(List<MerkleNode> children) {

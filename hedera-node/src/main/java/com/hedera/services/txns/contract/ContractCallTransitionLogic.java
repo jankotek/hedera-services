@@ -122,14 +122,12 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 							.setShardNum(op.getContractID().getShardNum()).build();
 			Address receiver = Address.fromHexString(asSolidityAddressHex(receiverAccount));
 			Wei gasPrice = Wei.of(1);
-			long gasLimit = 15000000L;
+			long gasLimit = 1_000_000L; // 1М gas limit
 
 			Wei value = Wei.ZERO;
 			if (op.getAmount() > 0) {
 				value = Wei.of(op.getAmount());
 			}
-
-			System.out.println("CALL TX OPCODES");
 
 			var evmTx = new Transaction(0, gasPrice, gasLimit, Optional.of(receiver), value, null, Bytes.fromHexString(CommonUtils.hex(op.getFunctionParameters().toByteArray())), sender, Optional.empty());
 			var defaultMutableWorld = new DefaultMutableWorldState(this.store);
@@ -144,28 +142,18 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 					null,
 					false);
 			updater.commit();
+			var contractFunctionResult = ContractFunctionResult.newBuilder()
+					.setGasUsed(result.getEstimateGasUsedByTransaction())
+					.setErrorMessage(result.getRevertReason().toString());
+			Optional.ofNullable(result.getOutput().toArray())
+					.map(ByteString::copyFrom)
+					.ifPresent(contractFunctionResult::setContractCallResult);
+			txnCtx.setCallResult(contractFunctionResult.build());
 			if (result.isSuccessful()) {
-				var contractFunctionResult = ContractFunctionResult.newBuilder()
-						.setGasUsed(result.getEstimateGasUsedByTransaction())
-						.setErrorMessage(result.getRevertReason().toString());
-				Optional.ofNullable(result.getOutput().toArray())
-						.map(ByteString::copyFrom)
-						.ifPresent(contractFunctionResult::setContractCallResult);
-				txnCtx.setCallResult(contractFunctionResult.build());
 				txnCtx.setStatus(SUCCESS);
 			} else {
 				txnCtx.setStatus(FAIL_INVALID);
 			}
-			// TODO
-
-
-
-
-
-//			var legacyRecord = delegate.perform(contractCallTxn, txnCtx.consensusTime(), seqNo.get());
-
-//			txnCtx.setStatus(legacyRecord.getReceipt().getStatus());
-//			txnCtx.setCallResult(legacyRecord.getContractCallResult());
 		} catch (Exception e) {
 			log.warn("Avoidable exception!", e);
 			txnCtx.setStatus(FAIL_INVALID);

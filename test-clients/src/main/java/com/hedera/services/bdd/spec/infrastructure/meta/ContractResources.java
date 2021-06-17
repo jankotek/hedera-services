@@ -345,6 +345,8 @@ public class ContractResources {
 	public static final String SINGLE_SSTORE = "{ \"constant\": false, \"inputs\": [ { \"internalType\": \"bytes32\", \"name\": \"_singleProp\", \"type\": \"bytes32\" } ], \"name\": \"singleSSTORE\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 	public static final String SINGLE_MLOAD = "{ \"constant\": true, \"inputs\": [], \"name\": \"singleMLOAD\", \"outputs\": [ { \"name\": \"\", \"type\": \"bytes32\" } ], \"payable\": false, \"stateMutability\": \"view\", \"type\": \"function\" }";
 	public static final String SSTORE_CREATE = "{ \"constant\": false, \"inputs\": [ { \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreCreate\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+	public static final String SSTORE_UPDATE = "{ \"constant\": false, \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreUpdate\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\"}";
+	public static final String BIG_SSTORE = "{ \"constant\": false, \"inputs\": [ { \"internalType\": \"uint256[]\", \"name\": \"data\", \"type\": \"uint256[]\" } ], \"name\": \"bigSSTORE\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 
 	public static final String bytecodePath(String bytecode) {
 		return String.format("src/main/resource/contract/bytecodes/%s.bin", bytecode);

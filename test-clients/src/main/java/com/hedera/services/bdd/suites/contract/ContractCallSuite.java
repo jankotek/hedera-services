@@ -82,18 +82,134 @@ public class ContractCallSuite extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return allOf(List.of(
-				simpleStorageTestCall()
+				benchmarkNCreations(),
+				benchmarkNCreationsWithUpdates(),
+				benchBigSSTORE()
+//				benchmarkSingleSetter()
 //				twoStorageTwoCalls()
 //				simpleStorageTestCall()
 //				simpleStorageTwoCallsTestCall()
 //				depositSuccess()
-				)
 //				positiveSpecs(),
 //				negativeSpecs(),
 //				Arrays.asList(
 //						fridayThe13thSpec()
 //				)
-		);
+		));
+	}
+
+	private HapiApiSpec benchBigSSTORE() {
+		final int N = 150;
+		final int[] arr = new int[N];
+
+		return defaultHapiSpec("BenchmarkCreations")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.BENCHMARK_CONTRACT)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("benchmarkContract")
+								.payingWith("payer")
+								.bytecode("bytecode")
+								.via("creationTx"),
+						contractCall(
+								"benchmarkContract",
+								ContractResources.BIG_SSTORE,
+								arr
+						).via("createTx")
+				)
+				.then(
+				);
+	}
+
+	private HapiApiSpec benchmarkNCreations() {
+		final int N = 360;
+
+		return defaultHapiSpec("BenchmarkCreations")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.BENCHMARK_CONTRACT)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("benchmarkContract")
+								.payingWith("payer")
+								.bytecode("bytecode")
+								.via("creationTx"),
+						contractCall(
+								"benchmarkContract",
+								ContractResources.SSTORE_CREATE,
+								N
+						).via("createTx")
+				)
+				.then(
+				);
+	}
+
+	private HapiApiSpec benchmarkNCreationsWithUpdates() {
+		final int N = 360;
+
+		return defaultHapiSpec("BenchmarkCreations")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.BENCHMARK_CONTRACT)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("benchmarkContract")
+								.payingWith("payer")
+								.bytecode("bytecode")
+								.via("creationTx"),
+						contractCall(
+								"benchmarkContract",
+								ContractResources.SSTORE_CREATE,
+								N
+						).via("createTx"),
+						contractCall(
+								"benchmarkContract",
+								ContractResources.SSTORE_UPDATE,
+								N
+						)
+				)
+				.then(
+				);
+	}
+
+	private HapiApiSpec benchmarkSingleSetter() {
+		return defaultHapiSpec("SimpleStorage")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.BENCHMARK_CONTRACT)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("immutableContract")
+								.payingWith("payer")
+								.bytecode("bytecode")
+								.via("creationTx"),
+						contractCall(
+								"immutableContract",
+								ContractResources.SINGLE_SSTORE,
+								Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
+						).via("storageTx"),
+
+						contractCall("immutableContract", ContractResources.SINGLE_MLOAD).via("getValue"))
+				.then(
+						getTxnRecord("getValue").logged()
+				);
 	}
 
 	private HapiApiSpec twoStorageTwoCalls() {
@@ -154,44 +270,6 @@ public class ContractCallSuite extends HapiApiSuite {
 				.then(
 						getTxnRecord("getValue").logged(),
 						getTxnRecord("getSecondValue").logged()
-				);
-	}
-
-	private HapiApiSpec simpleStorageTestCall() {
-		return defaultHapiSpec("SimpleStorage")
-				.given(
-						cryptoCreate("payer")
-								.balance(10 * ONE_HUNDRED_HBARS),
-						fileCreate("bytecode")
-								.path(ContractResources.bytecodePath("BenchmarkContract"))
-								.memo("test-memo-contract")
-								.payingWith("payer")
-//						fileCreate("bytecode")
-//								.path(ContractResources.SIMPLE_STORAGE_BYTECODE_PATH)
-//								.memo("test-memo-contract")
-//								.payingWith("payer")
-				)
-				.when(
-						contractCreate("immutableContract")
-								.payingWith("payer")
-								.bytecode("bytecode")
-								.via("creationTx"),
-//						contractCall(
-//								"immutableContract",
-//								ContractResources.SIMPLE_STORAGE_SETTER_ABI, 5)
-//						)
-						contractCall(
-								"immutableContract",
-								ContractResources.SINGLE_SSTORE, Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()).via("storageTx"),
-//						contractCall(
-//								"immutableContract",
-//								ContractResources.SSTORE_CREATE, 10
-//						).via("storageTx"))
-						contractCall("immutableContract", ContractResources.SINGLE_MLOAD).via("getValue"))
-				.then(
-//						getTxnRecord("creationTx").logged(),
-//						getTxnRecord("storageTx").logged()
-						getTxnRecord("getValue").logged()
 				);
 	}
 

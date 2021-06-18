@@ -35,6 +35,7 @@ import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCall;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.finishThroughputObs;
 
 public class ContractCallPerfSuite extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(ContractCallPerfSuite.class);
@@ -61,18 +62,24 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec contractCallPerf() {
-		final int NUM_CALLS = 10_000;
+		final int NUM_CALLS = 20_000;
 
 		return defaultHapiSpec("ContractCallPerf")
 				.given(
 						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
 						contractCreate("perf").bytecode("contractBytecode")
 				).when(
-						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(5000L)
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(150),
+						UtilVerbs.inParallel(
+								asOpArray(NUM_CALLS, i ->
+									contractCall(
+											"perf", ContractResources.SINGLE_SSTORE, Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
+									).deferStatusResolution().hasAnyStatusAtAll()
+								)
+						)
 				).then(
-						UtilVerbs.inParallel(asOpArray(NUM_CALLS, i ->
-								contractCall("perf",ContractResources.SINGLE_SSTORE,Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray())
-										.deferStatusResolution()))
+
+						finishThroughputObs("contractCall")
 				);
 	}
 

@@ -123,7 +123,11 @@ public class ContractFnResultAsserts extends BaseErroringAssertsProvider<Contrac
 		try {
 			for (int i = 0; i < Math.max(expected.length, actual.length); i++) {
 				try {
-					Assert.assertEquals(expected[i], actual[i]);
+					if (expected.getClass().isArray() && actual.getClass().isArray()) {
+						Assert.assertArrayEquals((byte[]) expected[i], (byte[]) actual[i]);
+					} else {
+						Assert.assertEquals(expected[i], actual[i]);
+					}
 				} catch (Throwable t) {
 					return Optional.of(t);
 				}

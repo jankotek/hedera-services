@@ -22,6 +22,7 @@ package com.hedera.services.bdd.suites.contract;
 
 import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.HapiSpecSetup;
+import com.hedera.services.bdd.spec.assertions.ContractFnResultAsserts;
 import com.hedera.services.bdd.spec.infrastructure.meta.ContractResources;
 import com.hedera.services.bdd.spec.keys.KeyShape;
 import com.hedera.services.bdd.spec.utilops.CustomSpecAssert;
@@ -46,6 +47,7 @@ import static com.hedera.services.bdd.spec.assertions.ContractLogAsserts.logWith
 import static com.hedera.services.bdd.spec.assertions.TransactionRecordAsserts.recordWith;
 import static com.hedera.services.bdd.spec.keys.KeyFactory.KeyType.THRESHOLD;
 import static com.hedera.services.bdd.spec.keys.KeyShape.listOf;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.contractCallLocal;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getContractInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
@@ -82,10 +84,10 @@ public class ContractCallSuite extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return allOf(List.of(
-				benchmarkSingleSetter(),
-				benchmarkNCreations(),
-				benchmarkNCreationsWithUpdates(),
-				benchBigSSTORE()
+				benchmarkSingleSetter()
+//				benchmarkNCreations(),
+//				benchmarkNCreationsWithUpdates(),
+//				benchBigSSTORE()
 //				twoStorageTwoCalls()
 //				simpleStorageTestCall()
 //				simpleStorageTwoCallsTestCall()
@@ -205,9 +207,19 @@ public class ContractCallSuite extends HapiApiSuite {
 								ContractResources.SINGLE_SSTORE,
 								Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
 						).via("storageTx"),
-						contractCall("immutableContract", ContractResources.SINGLE_MLOAD).via("getValue"))
-				.then(
-						getTxnRecord("getValue").logged()
+						contractCallLocal("immutableContract", ContractResources.SINGLE_MLOAD)
+								.nodePayment(1_234_567)
+								.has(
+										ContractFnResultAsserts.resultWith()
+												.resultThruAbi(
+														ContractResources.SINGLE_MLOAD,
+														ContractFnResultAsserts.isLiteralResult(
+																new Object[]{
+																		Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
+														})
+												)
+								)
+				).then(
 				);
 	}
 

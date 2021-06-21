@@ -342,7 +342,6 @@ import org.hyperledger.besu.ethereum.core.PrivacyParameters;
 import org.hyperledger.besu.ethereum.core.fees.CoinbaseFeePriceCalculator;
 import org.hyperledger.besu.ethereum.core.fees.TransactionPriceCalculator;
 import org.hyperledger.besu.ethereum.mainnet.ConstantinopleGasCalculator;
-import org.hyperledger.besu.ethereum.mainnet.FrontierGasCalculator;
 import org.hyperledger.besu.ethereum.mainnet.MainnetContractCreationProcessor;
 import org.hyperledger.besu.ethereum.mainnet.MainnetEvmRegistries;
 import org.hyperledger.besu.ethereum.mainnet.MainnetMessageCallProcessor;
@@ -356,7 +355,6 @@ import org.hyperledger.besu.ethereum.mainnet.contractvalidation.MaxCodeSizeRule;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Collections;
@@ -1011,7 +1009,7 @@ public class ServicesContext {
 							new GetContractInfoResourceUsage(),
 							new GetContractRecordsResourceUsage(contractFees),
 							new ContractCallLocalResourceUsage(
-									contracts()::contractCallLocal, contractFees, globalDynamicProperties()),
+									contracts()::contractCallLocal, contractFees, globalDynamicProperties(), besuContracts(), this::accounts, ledger(), contractsStore()),
 							/* Token */
 							new GetTokenInfoResourceUsage(),
 							/* Schedule */

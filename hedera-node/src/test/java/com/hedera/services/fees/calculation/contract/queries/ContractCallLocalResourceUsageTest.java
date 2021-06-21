@@ -81,7 +81,7 @@ class ContractCallLocalResourceUsageTest {
 		delegate = mock(ContractCallLocalAnswer.LegacyLocalCaller.class);
 		usageEstimator = mock(SmartContractFeeBuilder.class);
 
-		subject = new ContractCallLocalResourceUsage(delegate, usageEstimator, properties);
+		subject = new ContractCallLocalResourceUsage(delegate, usageEstimator, properties, null, null, null, null);
 	}
 
 	@Test

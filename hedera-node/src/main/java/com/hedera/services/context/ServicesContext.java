@@ -238,6 +238,7 @@ import com.hedera.services.stats.MiscSpeedometers;
 import com.hedera.services.stats.RunningAvgFactory;
 import com.hedera.services.stats.ServicesStatsManager;
 import com.hedera.services.stats.SpeedometerFactory;
+import com.hedera.services.store.contracts.ContractsStateView;
 import com.hedera.services.store.contracts.ContractsStore;
 import com.hedera.services.store.schedule.HederaScheduleStore;
 import com.hedera.services.store.schedule.ScheduleStore;
@@ -558,6 +559,7 @@ public class ServicesContext {
 	private SmartContractRequestHandler contracts;
 	private MainnetTransactionProcessor besuContracts;
 	private ContractsStore contractsStore;
+	private ContractsStateView contractsStateView;
 	private TxnAwareSoliditySigsVerifier soliditySigsVerifier;
 	private ValidatingCallbackInterceptor apiPermissionsReloading;
 	private ValidatingCallbackInterceptor applicationPropertiesReloading;
@@ -1009,7 +1011,7 @@ public class ServicesContext {
 							new GetContractInfoResourceUsage(),
 							new GetContractRecordsResourceUsage(contractFees),
 							new ContractCallLocalResourceUsage(
-									contracts()::contractCallLocal, contractFees, globalDynamicProperties(), besuContracts(), this::accounts, ledger(), contractsStore()),
+									contracts()::contractCallLocal, contractFees, globalDynamicProperties(), besuContracts(), this::accounts, ledger(), contractsStateView()),
 							/* Token */
 							new GetTokenInfoResourceUsage(),
 							/* Schedule */
@@ -1789,6 +1791,13 @@ public class ServicesContext {
 			contractsStore = new ContractsStore(bytecodeDb(), dataStore(), ledger());
 		}
 		return contractsStore;
+	}
+
+	public ContractsStateView contractsStateView() {
+		if (contractsStateView == null) {
+			contractsStateView = new ContractsStateView(bytecodeDb(), dataStore(), this::accounts);
+		}
+		return contractsStateView;
 	}
 
 	public SysFileCallbacks sysFileCallbacks() {

@@ -61,7 +61,6 @@ import java.util.Map;
 public class ContractsStore implements AccountStateStore {
 	private final VirtualMapDataStore dataStore;
 	private final HederaLedger ledger;
-	private Map<AccountID, VirtualMap> maps;
 	private final BlobStorageSource blobStorageSource;
 	private Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
 	private Map<Address, EvmAccountImpl> provisionalAccountUpdates = new HashMap<>();
@@ -73,7 +72,6 @@ public class ContractsStore implements AccountStateStore {
 		this.ledger = ledger;
 		this.dataStore = dataStore;
 		this.blobStorageSource = blobStorageSource;
-		this.maps = new HashMap<>();
 	}
 
 	public void prepareAccountCreation(AccountID sponsor, AccountID target, HederaAccountCustomizer customizer) {
@@ -85,13 +83,13 @@ public class ContractsStore implements AccountStateStore {
 	public Account get(Address address) {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
 		if (ledger.exists(accId)) {
-			var account = ledger.get(accId);
-			if (account.isSmartContract()) {
+			var balance = ledger.getBalance(accId);
+			if (ledger.isSmartContract(accId)) {
 				var code = provisionalCodeUpdates.containsKey(address) ? provisionalCodeUpdates.get(address) : Bytes.of(blobStorageSource.get(address.toArray()));
-				return new EvmAccountImpl(address, Wei.of(account.getBalance()), code);
+				return new EvmAccountImpl(address, Wei.of(balance), code);
 			}
 			// TODO what we do with nonces?
-			return new EvmAccountImpl(address, Wei.of(account.getBalance()));
+			return new EvmAccountImpl(address, Wei.of(balance));
 		}
 
 		return null;
@@ -138,7 +136,6 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public void commit() {
-
 		provisionalAccountUpdates.forEach((address, evmAccount) -> {
 			final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
 			if (ledger.exists(accId)) {
@@ -156,12 +153,9 @@ public class ContractsStore implements AccountStateStore {
 			blobStorageSource.put(address.toArray(), code.toArray());
 		});
 
-		/* Commit Account Storage updates for each updated account*/
-		maps.forEach((key, value) -> value.commit());
-
+		/* Clear any provisional changes */
 		provisionalCodeUpdates.clear();
 		provisionalAccountUpdates.clear();
 		provisionalAccountCreations.clear();
-		maps.clear();
 	}
 }

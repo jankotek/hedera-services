@@ -67,14 +67,14 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec contractCallPerf() {
-		final int NUM_CALLS = 1_00;
+		final int NUM_CALLS = 10;
 
 		return defaultHapiSpec("ContractCallPerf")
 				.given(
 						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
 						contractCreate("perf").bytecode("contractBytecode")
 				).when(
-						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(1000),
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(100),
 						UtilVerbs.inParallel(
 								asOpArray(NUM_CALLS, i ->
 										contractCall(
@@ -83,7 +83,6 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 										)
 												.hasKnownStatusFrom(SUCCESS, OK)
 												.deferStatusResolution()
-												.hasAnyStatusAtAll()
 								)
 						)
 				).then(

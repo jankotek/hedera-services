@@ -207,16 +207,28 @@ public class ContractCallSuite extends HapiApiSuite {
 								ContractResources.SINGLE_SSTORE,
 								Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
 						).via("storageTx"),
-						contractCallLocal("immutableContract", ContractResources.SINGLE_MLOAD)
+//						contractCallLocal("immutableContract", ContractResources.SINGLE_MLOAD)
+//								.nodePayment(1_234_567)
+//								.has(
+//										ContractFnResultAsserts.resultWith()
+//												.resultThruAbi(
+//														ContractResources.SINGLE_MLOAD,
+//														ContractFnResultAsserts.isLiteralResult(
+//																new Object[]{
+//																		Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
+//																})
+//												)
+//								),
+						contractCallLocal("immutableContract", ContractResources.BENCHMARK_I_GET)
 								.nodePayment(1_234_567)
 								.has(
 										ContractFnResultAsserts.resultWith()
 												.resultThruAbi(
-														ContractResources.SINGLE_MLOAD,
+														ContractResources.BENCHMARK_I_GET,
 														ContractFnResultAsserts.isLiteralResult(
-																new Object[]{
-																		Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
-														})
+//																new Object[]{Bytes.fromHexStringLenient("1", 32).toArray()}
+																new Object[] { BigInteger.valueOf(1L)}
+														)
 												)
 								)
 				).then(

@@ -172,8 +172,6 @@ public class ContractCallLocalResourceUsage implements QueryResourceUsageEstimat
 							OperationTracer.NO_TRACING,
 							null,
 							false);
-					ledger.begin();
-					updater.commit();
 					var contractFunctionResult = ContractFunctionResult.newBuilder()
 							.setGasUsed(result.getEstimateGasUsedByTransaction())
 							.setErrorMessage(result.getRevertReason().toString());

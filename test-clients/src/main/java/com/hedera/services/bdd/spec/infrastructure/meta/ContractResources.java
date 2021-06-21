@@ -346,6 +346,7 @@ public class ContractResources {
 	public static final String SINGLE_MLOAD = "{ \"constant\": true, \"inputs\": [], \"name\": \"singleMLOAD\", \"outputs\": [ { \"name\": \"\", \"type\": \"bytes32\" } ], \"payable\": false, \"stateMutability\": \"view\", \"type\": \"function\" }";
 	public static final String SSTORE_CREATE = "{ \"constant\": false, \"inputs\": [ { \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreCreate\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 	public static final String SSTORE_UPDATE = "{ \"constant\": false, \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreUpdate\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\"}";
+	public static final String BENCHMARK_I_GET = "{ \"inputs\": [], \"name\": \"i\", \"outputs\": [ { \"internalType\": \"uint256\", \"name\": \"\", \"type\": \"uint256\" } ], \"stateMutability\": \"view\", \"type\": \"function\" }";
 	public static final String BIG_SSTORE = "{ \"constant\": false, \"inputs\": [ { \"internalType\": \"uint256[]\", \"name\": \"data\", \"type\": \"uint256[]\" } ], \"name\": \"bigSSTORE\", \"outputs\": [], \"payable\": false, \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 
 	public static final String bytecodePath(String bytecode) {

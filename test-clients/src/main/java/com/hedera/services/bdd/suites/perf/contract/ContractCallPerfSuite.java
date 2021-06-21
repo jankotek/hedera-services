@@ -21,6 +21,7 @@ package com.hedera.services.bdd.suites.perf.contract;
  */
 
 import com.hedera.services.bdd.spec.HapiApiSpec;
+import com.hedera.services.bdd.spec.assertions.ContractFnResultAsserts;
 import com.hedera.services.bdd.spec.infrastructure.meta.ContractResources;
 import com.hedera.services.bdd.spec.utilops.UtilVerbs;
 import com.hedera.services.bdd.suites.HapiApiSuite;
@@ -28,14 +29,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.tuweni.bytes.Bytes;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.contractCallLocal;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCall;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.finishThroughputObs;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 public class ContractCallPerfSuite extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(ContractCallPerfSuite.class);
@@ -62,25 +67,38 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec contractCallPerf() {
-		final int NUM_CALLS = 20_000;
+		final int NUM_CALLS = 1_00;
 
 		return defaultHapiSpec("ContractCallPerf")
 				.given(
 						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
 						contractCreate("perf").bytecode("contractBytecode")
 				).when(
-						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(150),
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(1000),
 						UtilVerbs.inParallel(
 								asOpArray(NUM_CALLS, i ->
-									contractCall(
-											"perf", ContractResources.SINGLE_SSTORE, Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
-									).deferStatusResolution().hasAnyStatusAtAll()
+										contractCall(
+												"perf", ContractResources.SINGLE_SSTORE,
+												Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
+										)
+												.hasKnownStatusFrom(SUCCESS, OK)
+												.deferStatusResolution()
+												.hasAnyStatusAtAll()
 								)
 						)
 				).then(
-
-						finishThroughputObs("contractCall")
-				);
+						finishThroughputObs("contractCall").gatedByQuery(
+								() ->
+										contractCallLocal("perf", ContractResources.BENCHMARK_I_GET)
+												.nodePayment(1_234_567)
+												.has(
+														ContractFnResultAsserts.resultWith()
+																.resultThruAbi(
+																		ContractResources.BENCHMARK_I_GET,
+																		ContractFnResultAsserts.isLiteralResult(new Object[]{BigInteger.valueOf(NUM_CALLS)})
+																)
+												)
+						));
 	}
 
 	@Override

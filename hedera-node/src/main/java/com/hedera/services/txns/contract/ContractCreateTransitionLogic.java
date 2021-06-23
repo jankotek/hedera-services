@@ -191,6 +191,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				txnCtx.setStatus(FAIL_INVALID);
 			}
 		} catch (Exception e) {
+			System.out.println(e);
 			txnCtx.setStatus(FAIL_INVALID);
 		}
 	}

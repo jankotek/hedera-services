@@ -53,7 +53,10 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
-		return Arrays.asList(contractCallPerf());
+		return Arrays.asList(
+				contractCallPerf()
+//				manySStores()
+		);
 	}
 
 	@Override
@@ -74,11 +77,11 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
 						contractCreate("perf").bytecode("contractBytecode")
 				).when(
-						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(1000),
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(1500),
 						UtilVerbs.inParallel(
 								asOpArray(NUM_CALLS, i ->
 										contractCall(
-												"perf", ContractResources.SINGLE_SSTORE,
+												"perf", ContractResources.TWO_SSTORES,
 												Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
 										)
 												.hasKnownStatusFrom(SUCCESS, OK)
@@ -88,12 +91,46 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 				).then(
 						finishThroughputObs("contractCall").gatedByQuery(
 								() ->
-										contractCallLocal("perf", ContractResources.BENCHMARK_I_GET)
+										contractCallLocal("perf", ContractResources.BENCHMARK_GET_COUNTER)
 												.nodePayment(1_234_567)
 												.has(
 														ContractFnResultAsserts.resultWith()
 																.resultThruAbi(
-																		ContractResources.BENCHMARK_I_GET,
+																		ContractResources.BENCHMARK_GET_COUNTER,
+																		ContractFnResultAsserts.isLiteralResult(new Object[]{BigInteger.valueOf(NUM_CALLS)})
+																)
+												)
+						));
+	}
+
+	private HapiApiSpec manySStores() {
+		final int NUM_CALLS = 5;
+
+		return defaultHapiSpec("ContractCallPerfManySSTOREs")
+				.given(
+						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
+						contractCreate("perf").bytecode("contractBytecode")
+				).when(
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(100),
+						UtilVerbs.inParallel(
+								asOpArray(NUM_CALLS, i ->
+										contractCall(
+												"perf", ContractResources.SSTORE_CREATE,
+												5
+										)
+												.hasKnownStatusFrom(SUCCESS, OK)
+												.deferStatusResolution()
+								)
+						)
+				).then(
+						finishThroughputObs("contractCall").gatedByQuery(
+								() ->
+										contractCallLocal("perf", ContractResources.BENCHMARK_GET_COUNTER)
+												.nodePayment(1_234_567)
+												.has(
+														ContractFnResultAsserts.resultWith()
+																.resultThruAbi(
+																		ContractResources.BENCHMARK_GET_COUNTER,
 																		ContractFnResultAsserts.isLiteralResult(new Object[]{BigInteger.valueOf(NUM_CALLS)})
 																)
 												)

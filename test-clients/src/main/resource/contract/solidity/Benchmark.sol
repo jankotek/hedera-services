@@ -8,16 +8,16 @@ contract Benchmarks {
     mapping(bytes32 => bytes32) public benchmarkingMap;
     bytes32[] public mapKeys;
     mapping(bytes32 => uint256[]) public bigArray;
-    uint256 public i = 0;
+    uint256 public counter;
 
     /**
      * Triggers the execution of a single SSTORE opcode
      * @dev Stores to provided variable into storage. Example variable: 0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97
      * @param _singleProp value to store
      */
-    function singleSSTORE(bytes32 _singleProp) public {
+    function twoSSTOREs(bytes32 _singleProp) public {
         singleProp = _singleProp;
-        i++;
+        counter++;
     }
     /**
      * Triggers the execution of the MLOAD opcode. Loads the stored variable from storage
@@ -37,6 +37,7 @@ contract Benchmarks {
             benchmarkingMap[pseudoRandom] = pseudoRandom;
             mapKeys.push(pseudoRandom);
         }
+        counter++;
     }
     /**
      * Updates N number of bytes32 variables. Triggers N number of SSTORE (update)
@@ -49,6 +50,7 @@ contract Benchmarks {
                 keccak256(abi.encodePacked(bytes32(i), block.number));
             benchmarkingMap[mapKeys[i]] = pseudoRandom;
         }
+        counter++;
     }
     /**
      * Stores arbitrary array of bytes32 at a pseudo random key.
@@ -57,5 +59,6 @@ contract Benchmarks {
     function bigSSTORE(uint256[] memory data) public {
         bytes32 pseudoRandomKey = keccak256(abi.encodePacked(block.number));
         bigArray[pseudoRandomKey] = data;
+        counter++;
     }
 }

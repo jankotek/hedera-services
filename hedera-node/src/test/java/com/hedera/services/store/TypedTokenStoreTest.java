@@ -9,9 +9,9 @@ package com.hedera.services.store;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -46,20 +46,49 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.function.Supplier;
-
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class TypedTokenStoreTest {
+	private final long expiry = 1_234_567L;
+	private final long balance = 1_000L;
+	private final long miscAccountNum = 1_234L;
+	private final long treasuryAccountNum = 2_234L;
+	private final long autoRenewAccountNum = 3_234L;
+	private final Id miscId = new Id(0, 0, miscAccountNum);
+	private final Id treasuryId = new Id(0, 0, treasuryAccountNum);
+	private final Id autoRenewId = new Id(0, 0, autoRenewAccountNum);
+	private final Account miscAccount = new Account(miscId);
+	private final Account treasuryAccount = new Account(treasuryId);
+	private final Account autoRenewAccount = new Account(autoRenewId);
+	private final JKey kycKey = TxnHandlingScenario.TOKEN_KYC_KT.asJKeyUnchecked();
+	private final JKey freezeKey = TxnHandlingScenario.TOKEN_FREEZE_KT.asJKeyUnchecked();
+	private final JKey supplyKey = TxnHandlingScenario.TOKEN_SUPPLY_KT.asJKeyUnchecked();
+	private final long tokenNum = 4_234L;
+	private final long tokenSupply = 777L;
+	private final String name = "Testing123";
+	private final String symbol = "T123";
+	private final MerkleEntityId merkleTokenId = new MerkleEntityId(0, 0, tokenNum);
+	private final Id tokenId = new Id(0, 0, tokenNum);
+	private final Token token = new Token(tokenId);
+	private final boolean frozen = false;
+	private final boolean kycGranted = true;
+	private final boolean freezeDefault = true;
+	private final MerkleEntityAssociation miscTokenRelId = new MerkleEntityAssociation(
+			0, 0, miscAccountNum,
+			0, 0, tokenNum);
+	private final TokenRelationship miscTokenRel = new TokenRelationship(token, miscAccount);
 	@Mock
 	private AccountStore accountStore;
 	@Mock
@@ -72,8 +101,9 @@ class TypedTokenStoreTest {
 	private FCMap<MerkleEntityAssociation, MerkleTokenRelStatus> tokenRels;
 	@Mock
 	private BackingTokenRels backingTokenRels;
-
 	private TypedTokenStore subject;
+	private MerkleToken merkleToken;
+	private MerkleTokenRelStatus miscTokenMerkleRel;
 
 	@BeforeEach
 	void setUp() {
@@ -218,6 +248,18 @@ class TypedTokenStoreTest {
 		verify(transactionRecordService).includeChangesToToken(modelToken);
 	}
 
+	@Test
+	void loadsUniqueTokenAsExpected() {
+		var merkleUniqueToken = mock(MerkleUniqueToken.class);
+		given(tokens.get(any())).willReturn(merkleToken);
+		// passing a non-mock would be better, instead of mocking each getter
+		given(merkleUniqueToken.getOwner()).willReturn(new EntityId(1, 1, 1));
+		given(uniqueTokens.get(any())).willReturn(merkleUniqueToken);
+
+		var loadedToken = subject.loadUniqueToken(tokenId, 1);
+		assertNotNull(loadedToken);
+	}
+
 	private void givenRelationship(MerkleEntityAssociation anAssoc, MerkleTokenRelStatus aRelationship) {
 		given(tokenRels.get(anAssoc)).willReturn(aRelationship);
 	}
@@ -272,38 +314,4 @@ class TypedTokenStoreTest {
 		miscTokenRel.setKycGranted(kycGranted);
 		miscTokenRel.setNotYetPersisted(false);
 	}
-
-	private final long expiry = 1_234_567L;
-	private final long balance = 1_000L;
-	private final long miscAccountNum = 1_234L;
-	private final long treasuryAccountNum = 2_234L;
-	private final long autoRenewAccountNum = 3_234L;
-	private final Id miscId = new Id(0, 0, miscAccountNum);
-	private final Id treasuryId = new Id(0, 0, treasuryAccountNum);
-	private final Id autoRenewId = new Id(0, 0, autoRenewAccountNum);
-	private final Account miscAccount = new Account(miscId);
-	private final Account treasuryAccount = new Account(treasuryId);
-	private final Account autoRenewAccount = new Account(autoRenewId);
-
-	private final JKey kycKey = TxnHandlingScenario.TOKEN_KYC_KT.asJKeyUnchecked();
-	private final JKey freezeKey = TxnHandlingScenario.TOKEN_FREEZE_KT.asJKeyUnchecked();
-	private final JKey supplyKey = TxnHandlingScenario.TOKEN_SUPPLY_KT.asJKeyUnchecked();
-	private final long tokenNum = 4_234L;
-	private final long tokenSupply = 777L;
-	private final String name = "Testing123";
-	private final String symbol = "T123";
-	private final MerkleEntityId merkleTokenId = new MerkleEntityId(0, 0, tokenNum);
-	private final Id tokenId = new Id(0, 0, tokenNum);
-	private final Token token = new Token(tokenId);
-
-	private final boolean frozen = false;
-	private final boolean kycGranted = true;
-	private final boolean freezeDefault = true;
-	private final MerkleEntityAssociation miscTokenRelId = new MerkleEntityAssociation(
-			0, 0, miscAccountNum,
-			0, 0, tokenNum);
-	private final TokenRelationship miscTokenRel = new TokenRelationship(token, miscAccount);
-
-	private MerkleToken merkleToken;
-	private MerkleTokenRelStatus miscTokenMerkleRel;
 }

@@ -84,7 +84,9 @@ public class ContractCallSuite extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return allOf(List.of(
-				benchmarkSingleSetter()
+//				benchmarkSingleSetter()
+				benchmarkLoadTx()
+//				SSTORE()
 //				benchmarkNCreations(),
 //				benchmarkNCreationsWithUpdates(),
 //				benchBigSSTORE()
@@ -98,6 +100,69 @@ public class ContractCallSuite extends HapiApiSuite {
 //						fridayThe13thSpec()
 //				)
 		));
+	}
+
+	private HapiApiSpec SSTORE() {
+		final int N = 6;
+
+		return defaultHapiSpec("BenchmarkSSTORE")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.BENCHMARK_CONTRACT)
+								.memo("test-memo-contract")
+								.payingWith("payer"),
+						contractCreate("immutableContract")
+								.payingWith("payer")
+								.bytecode("bytecode")
+								.via("creationTx")
+				)
+				.when(
+						contractCall(
+								"immutableContract",
+								ContractResources.SSTORE_CREATE,
+								2
+						),
+						contractCall(
+								"immutableContract",
+								ContractResources.SSTORE_CREATE,
+								2
+						),
+						contractCall(
+								"immutableContract",
+								ContractResources.SSTORE_CREATE,
+								2
+						),
+						contractCall(
+								"immutableContract",
+								ContractResources.SSTORE_CREATE,
+								2
+						),
+						contractCall(
+								"immutableContract",
+								ContractResources.SSTORE_CREATE,
+								2
+						),
+						contractCall(
+								"immutableContract",
+								ContractResources.SSTORE_CREATE,
+								2
+						)
+				)
+				.then(
+						contractCallLocal("immutableContract", ContractResources.BENCHMARK_GET_COUNTER)
+								.nodePayment(1_234_567)
+								.has(
+										ContractFnResultAsserts.resultWith()
+												.resultThruAbi(
+														ContractResources.BENCHMARK_GET_COUNTER,
+														ContractFnResultAsserts.isLiteralResult(
+																new Object[]{BigInteger.valueOf(N)}
+														)
+												)
+								)
+				);
 	}
 
 	private HapiApiSpec benchBigSSTORE() {
@@ -187,6 +252,44 @@ public class ContractCallSuite extends HapiApiSuite {
 				);
 	}
 
+	private HapiApiSpec benchmarkLoadTx() {
+		final int EXPECTED_COUNTER = 1;
+		final int LOADS = 1000;
+		return defaultHapiSpec("BenchmarkLoad")
+				.given(
+						cryptoCreate("payer")
+								.balance(10 * ONE_HUNDRED_HBARS),
+						fileCreate("bytecode")
+								.path(ContractResources.BENCHMARK_CONTRACT)
+								.memo("test-memo-contract")
+								.payingWith("payer")
+				)
+				.when(
+						contractCreate("immutableContract")
+								.payingWith("payer")
+								.bytecode("bytecode")
+								.via("creationTx"),
+						contractCall(
+								"immutableContract",
+								ContractResources.LOAD_TX,
+								LOADS
+						).via("loadTx")
+				).then(
+						contractCallLocal("immutableContract", ContractResources.BENCHMARK_GET_COUNTER)
+								.nodePayment(1_234_567)
+								.has(
+										ContractFnResultAsserts.resultWith()
+												.resultThruAbi(
+														ContractResources.BENCHMARK_GET_COUNTER,
+														ContractFnResultAsserts.isLiteralResult(
+																new Object[]{BigInteger.valueOf(EXPECTED_COUNTER)}
+														)
+												)
+								),
+						getTxnRecord("loadTx").logged()
+				);
+	}
+
 	private HapiApiSpec benchmarkSingleSetter() {
 		return defaultHapiSpec("SimpleStorage")
 				.given(
@@ -206,7 +309,8 @@ public class ContractCallSuite extends HapiApiSuite {
 								"immutableContract",
 								ContractResources.TWO_SSTORES,
 								Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
-						).via("storageTx"),
+						).via("storageTx")
+				).then(
 						contractCallLocal("immutableContract", ContractResources.BENCHMARK_GET_COUNTER)
 								.nodePayment(1_234_567)
 								.has(
@@ -214,11 +318,10 @@ public class ContractCallSuite extends HapiApiSuite {
 												.resultThruAbi(
 														ContractResources.BENCHMARK_GET_COUNTER,
 														ContractFnResultAsserts.isLiteralResult(
-																new Object[] { BigInteger.valueOf(1L)}
+																new Object[]{BigInteger.valueOf(1L)}
 														)
 												)
 								)
-				).then(
 				);
 	}
 

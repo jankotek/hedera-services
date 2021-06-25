@@ -54,7 +54,8 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return Arrays.asList(
-				contractCallPerf()
+				contractCallManyLoads()
+//				contractCallPerf()
 //				manySStores()
 		);
 	}
@@ -83,6 +84,41 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 										contractCall(
 												"perf", ContractResources.TWO_SSTORES,
 												Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
+										)
+												.hasKnownStatusFrom(SUCCESS, OK)
+												.deferStatusResolution()
+								)
+						)
+				).then(
+						finishThroughputObs("contractCall").gatedByQuery(
+								() ->
+										contractCallLocal("perf", ContractResources.BENCHMARK_GET_COUNTER)
+												.nodePayment(1_234_567)
+												.has(
+														ContractFnResultAsserts.resultWith()
+																.resultThruAbi(
+																		ContractResources.BENCHMARK_GET_COUNTER,
+																		ContractFnResultAsserts.isLiteralResult(new Object[]{BigInteger.valueOf(NUM_CALLS)})
+																)
+												)
+						));
+	}
+
+	private HapiApiSpec contractCallManyLoads() {
+		final int NUM_CALLS = 6000;
+		final int N = 1000;
+
+		return defaultHapiSpec("ContractCallLoadTx")
+				.given(
+						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
+						contractCreate("perf").bytecode("contractBytecode")
+				).when(
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(1500),
+						UtilVerbs.inParallel(
+								asOpArray(NUM_CALLS, i ->
+										contractCall(
+												"perf", ContractResources.TWO_SSTORES,
+												N
 										)
 												.hasKnownStatusFrom(SUCCESS, OK)
 												.deferStatusResolution()

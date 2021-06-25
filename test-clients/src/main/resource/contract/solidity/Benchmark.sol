@@ -61,4 +61,12 @@ contract Benchmarks {
         bigArray[pseudoRandomKey] = data;
         counter++;
     }
+
+    function loadTx(uint256 n) public {
+        singleProp = keccak256(abi.encodePacked(bytes32(n), block.timestamp));
+        for (uint256 i = 0; i < n; i++) {
+            bytes32 loadProp = singleProp;
+        }
+        counter++;
+    }
 }

@@ -33,6 +33,7 @@ import com.hedera.services.state.merkle.MerkleUniqueTokenId;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.models.Account;
 import com.hedera.services.store.models.Id;
+import com.hedera.services.store.models.OwnershipTracker;
 import com.hedera.services.store.models.Token;
 import com.hedera.services.store.models.TokenRelationship;
 import com.hedera.services.store.tokens.unique.OwnerIdentifier;
@@ -258,6 +259,12 @@ class TypedTokenStoreTest {
 
 		var loadedToken = subject.loadUniqueToken(tokenId, 1);
 		assertNotNull(loadedToken);
+	}
+	@Test
+	void savesOwnershipTrackers(){
+		var changes = new OwnershipTracker();
+		subject.persistTrackers(changes);
+		verify(transactionRecordService).includeOwnershipChanges(changes);
 	}
 
 	private void givenRelationship(MerkleEntityAssociation anAssoc, MerkleTokenRelStatus aRelationship) {

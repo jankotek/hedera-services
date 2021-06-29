@@ -1,8 +1,10 @@
 package com.hedera.services.txns.contract;
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.contracts.EvmAccountImpl;
 import com.hedera.services.store.contracts.stubs.StubbedBlockchain;
+import com.hederahashgraph.api.proto.java.AccountID;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.*;
@@ -19,6 +21,8 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Optional;
 
+import static com.hedera.services.utils.EntityIdUtils.asAccount;
+import static com.hedera.services.utils.EntityIdUtils.asSolidityAddressHex;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -33,9 +37,13 @@ public class ContractCallStateTransitionBesuInternal {
     long gasLimit = 1_000_000L; // 1М gas limit
     Wei value = Wei.of(1);
 
-    private final Address senderAddress = Address.fromHexString("1");
-    private final Address collectorAddress = Address.fromHexString("2");
-    private final Address contractAddress = Address.fromHexString("3");
+    private final AccountID sender = asAccount(new EntityId(0, 0, 1001));
+    private final AccountID collector = asAccount(new EntityId(0, 0, 98));
+    private final AccountID contract = asAccount(new EntityId(0, 0, 1002));
+
+    private final Address senderAddress = Address.fromHexString(asSolidityAddressHex(sender));
+    private final Address collectorAddress = Address.fromHexString(asSolidityAddressHex(collector));
+    private final Address contractAddress = Address.fromHexString(asSolidityAddressHex(contract));
 
     public void setUp() {
 

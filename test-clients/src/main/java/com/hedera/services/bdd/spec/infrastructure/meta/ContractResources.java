@@ -24,6 +24,7 @@ import com.hedera.services.bdd.spec.HapiSpecSetup;
 
 public class ContractResources {
 	public static final String SIMPLE_STORAGE_BYTECODE_PATH = bytecodePath("simpleStorage");
+	public static final String SIMPLE_TWO_STORAGE_BYTECODE_PATH = bytecodePath("SimpleTwoStorage");
 	public static final String PAYABLE_CONTRACT_BYTECODE_PATH = bytecodePath("PayReceivable");
 	public static final String DELEGATING_CONTRACT_BYTECODE_PATH = bytecodePath("CreateTrivial");
 	public static final String BALANCE_LOOKUP_BYTECODE_PATH = bytecodePath("BalanceLookup");
@@ -49,6 +50,7 @@ public class ContractResources {
 	public static final String MINTERS_BYTECODE_PATH = bytecodePath("Minters");
 	public static final String PAY_TEST_BYTECODE_PATH = bytecodePath("PayTest");
 	public static final String DOUBLE_SEND_BYTECODE_PATH = bytecodePath("DoubleSend");
+	public static final String BENCHMARK_CONTRACT = bytecodePath("BenchmarkContract");
 
 	public static final String CREATE_CHILD_ABI = "{\"constant\":false," +
 			"\"inputs\":[],\"name\":\"create\"," +
@@ -88,6 +90,10 @@ public class ContractResources {
 			"\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}";
 	public static final String SIMPLE_STORAGE_GETTER_ABI = "{\"constant\":true," +
 			"\"inputs\":[],\"name\":\"get\"," +
+			"\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}]," +
+			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
+	public static final String SIMPLE_STORAGE_SECOND_GETTER_ABI = "{\"constant\":true," +
+			"\"inputs\":[],\"name\":\"getSecond\"," +
 			"\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}]," +
 			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
 	public static final String SET_NODES_ABI = "{\"constant\":false," +
@@ -323,7 +329,7 @@ public class ContractResources {
 			"\"inputs\":[],\"name\":\"seven\"," +
 			"\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}]," +
 			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
-	public static final String MINT_OWNER_ABI ="{\"constant\":true," +
+	public static final String MINT_OWNER_ABI = "{\"constant\":true," +
 			"\"inputs\":[],\"name\":\"owner\"," +
 			"\"outputs\":[{\"name\":\"\",\"type\":\"address\"}]," +
 			"\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}";
@@ -336,6 +342,13 @@ public class ContractResources {
 			"\"type\":\"uint32\"}],\"name\":\"donate\",\"outputs\":[],\"payable\":true," +
 			"\"stateMutability\":\"payable\",\"type\":\"function\"}";
 
+	public static final String TWO_SSTORES = "{ \"inputs\": [ { \"internalType\": \"bytes32\", \"name\": \"_singleProp\", \"type\": \"bytes32\" } ], \"name\": \"twoSSTOREs\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+	public static final String SINGLE_MLOAD = "{ \"constant\": true, \"inputs\": [], \"name\": \"singleMLOAD\", \"outputs\": [ { \"name\": \"\", \"type\": \"bytes32\" } ], \"payable\": false, \"stateMutability\": \"view\", \"type\": \"function\" }";
+	public static final String SSTORE_CREATE = "{ \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreCreate\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+	public static final String SSTORE_UPDATE = "{ \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"sstoreUpdate\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+	public static final String BENCHMARK_GET_COUNTER = "{ \"inputs\": [], \"name\": \"counter\", \"outputs\": [ { \"internalType\": \"uint256\", \"name\": \"\", \"type\": \"uint256\" } ], \"stateMutability\": \"view\", \"type\": \"function\" }";
+	public static final String BIG_SSTORE = "{ \"inputs\": [ { \"internalType\": \"uint256[]\", \"name\": \"data\", \"type\": \"uint256[]\" } ], \"name\": \"bigSSTORE\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+	public static final String LOAD_TX = "{ \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"loadTx\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 
 	public static final String bytecodePath(String bytecode) {
 		return String.format("src/main/resource/contract/bytecodes/%s.bin", bytecode);

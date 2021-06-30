@@ -9,9 +9,9 @@ package com.hedera.services.bdd.suites.perf.contract;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,38 +21,42 @@ package com.hedera.services.bdd.suites.perf.contract;
  */
 
 import com.hedera.services.bdd.spec.HapiApiSpec;
+import com.hedera.services.bdd.spec.assertions.ContractFnResultAsserts;
 import com.hedera.services.bdd.spec.infrastructure.meta.ContractResources;
 import com.hedera.services.bdd.spec.utilops.UtilVerbs;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tuweni.bytes.Bytes;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
-import static com.hedera.services.bdd.spec.assertions.ContractFnResultAsserts.isLiteralResult;
-import static com.hedera.services.bdd.spec.assertions.ContractFnResultAsserts.resultWith;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.contractCallLocal;
-import static com.hedera.services.bdd.spec.queries.QueryVerbs.getContractInfo;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCall;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.contractCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
+import static com.hedera.services.bdd.spec.utilops.UtilVerbs.finishThroughputObs;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 public class ContractCallPerfSuite extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(ContractCallPerfSuite.class);
 
 	public static void main(String... args) {
-		/* Has a static initializer whose behavior seems influenced by initialization of ForkJoinPool#commonPool. */
-		new org.ethereum.crypto.HashUtil();
-
-		new ContractCallPerfSuite().runSuiteSync();
+		ContractCallPerfSuite suite = new ContractCallPerfSuite();
+		suite.setReportStats(true);
+		suite.runSuiteSync();
 	}
 
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
-		return List.of(
+		return Arrays.asList(
+//				contractCallManyLoads()
 				contractCallPerf()
+//				manySStores()
 		);
 	}
 
@@ -66,43 +70,107 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 		return true;
 	}
 
-	HapiApiSpec contractCallPerf() {
-		final int NUM_CALLS = 1_000;
-		final long ENDING_BALANCE = NUM_CALLS * (NUM_CALLS + 1)	 / 2;
-		final String DEPOSIT_MEMO = "So we out-danced thought, body perfection brought...";
+	private HapiApiSpec contractCallPerf() {
+		final int NUM_CALLS = 1000;
 
 		return defaultHapiSpec("ContractCallPerf")
 				.given(
-						fileCreate("contractBytecode").path(ContractResources.VERBOSE_DEPOSIT_BYTECODE_PATH),
-						contractCreate("perf").bytecode("contractBytecode"),
-						fileCreate("lookupBytecode").path(ContractResources.BALANCE_LOOKUP_BYTECODE_PATH),
-						contractCreate("balanceLookup").bytecode("lookupBytecode").balance(1L)
+						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
+						contractCreate("perf").bytecode("contractBytecode")
 				).when(
-						getContractInfo("perf").hasExpectedInfo().logged(),
-						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(50L)
-				).then(
-						UtilVerbs.inParallel(asOpArray(NUM_CALLS, i ->
-								contractCall("perf", ContractResources.VERBOSE_DEPOSIT_ABI, i + 1, 0, DEPOSIT_MEMO)
-										.sending(i + 1)
-										.deferStatusResolution())),
-						UtilVerbs.finishThroughputObs("contractCall")
-								.gatedByQuery(() ->
-										contractCallLocal(
-												"balanceLookup",
-												ContractResources.BALANCE_LOOKUP_ABI,
-												spec -> new Object[] {
-													spec.registry().getContractId("perf").getContractNum()
-												}
-										).has(
-												resultWith().resultThruAbi(
-														ContractResources.BALANCE_LOOKUP_ABI,
-														isLiteralResult(
-																new Object[] { BigInteger.valueOf(ENDING_BALANCE) }
-														)
-												)
-										).noLogging()
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(1500),
+						UtilVerbs.inParallel(
+								asOpArray(NUM_CALLS, i ->
+										contractCall(
+												"perf", ContractResources.TWO_SSTORES,
+												Bytes.fromHexString("0xf2eeb729e636a8cb783be044acf6b7b1e2c5863735b60d6daae84c366ee87d97").toArray()
+										)
+												.hasKnownStatusFrom(SUCCESS, OK)
+												.deferStatusResolution()
 								)
-				);
+						)
+				).then(
+						finishThroughputObs("contractCall").gatedByQuery(
+								() ->
+										contractCallLocal("perf", ContractResources.BENCHMARK_GET_COUNTER)
+												.nodePayment(1_234_567)
+												.has(
+														ContractFnResultAsserts.resultWith()
+																.resultThruAbi(
+																		ContractResources.BENCHMARK_GET_COUNTER,
+																		ContractFnResultAsserts.isLiteralResult(new Object[]{BigInteger.valueOf(NUM_CALLS)})
+																)
+												)
+						));
+	}
+
+	private HapiApiSpec contractCallManyLoads() {
+		final int NUM_CALLS = 6000;
+		final int N = 1000;
+
+		return defaultHapiSpec("ContractCallLoadTx")
+				.given(
+						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
+						contractCreate("perf").bytecode("contractBytecode")
+				).when(
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(1500),
+						UtilVerbs.inParallel(
+								asOpArray(NUM_CALLS, i ->
+										contractCall(
+												"perf", ContractResources.TWO_SSTORES,
+												N
+										)
+												.hasKnownStatusFrom(SUCCESS, OK)
+												.deferStatusResolution()
+								)
+						)
+				).then(
+						finishThroughputObs("contractCall").gatedByQuery(
+								() ->
+										contractCallLocal("perf", ContractResources.BENCHMARK_GET_COUNTER)
+												.nodePayment(1_234_567)
+												.has(
+														ContractFnResultAsserts.resultWith()
+																.resultThruAbi(
+																		ContractResources.BENCHMARK_GET_COUNTER,
+																		ContractFnResultAsserts.isLiteralResult(new Object[]{BigInteger.valueOf(NUM_CALLS)})
+																)
+												)
+						));
+	}
+
+	private HapiApiSpec manySStores() {
+		final int NUM_CALLS = 5;
+
+		return defaultHapiSpec("ContractCallPerfManySSTOREs")
+				.given(
+						fileCreate("contractBytecode").path(ContractResources.BENCHMARK_CONTRACT),
+						contractCreate("perf").bytecode("contractBytecode")
+				).when(
+						UtilVerbs.startThroughputObs("contractCall").msToSaturateQueues(100),
+						UtilVerbs.inParallel(
+								asOpArray(NUM_CALLS, i ->
+										contractCall(
+												"perf", ContractResources.SSTORE_CREATE,
+												5
+										)
+												.hasKnownStatusFrom(SUCCESS, OK)
+												.deferStatusResolution()
+								)
+						)
+				).then(
+						finishThroughputObs("contractCall").gatedByQuery(
+								() ->
+										contractCallLocal("perf", ContractResources.BENCHMARK_GET_COUNTER)
+												.nodePayment(1_234_567)
+												.has(
+														ContractFnResultAsserts.resultWith()
+																.resultThruAbi(
+																		ContractResources.BENCHMARK_GET_COUNTER,
+																		ContractFnResultAsserts.isLiteralResult(new Object[]{BigInteger.valueOf(NUM_CALLS)})
+																)
+												)
+						));
 	}
 
 	@Override

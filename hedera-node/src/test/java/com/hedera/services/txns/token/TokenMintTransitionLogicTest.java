@@ -109,7 +109,7 @@ class TokenMintTransitionLogicTest {
 		// then:
 		verify(token).mint(treasuryRel, amount);
 		verify(store).persistToken(token);
-		verify(store).persistTokenRelationship(treasuryRel);
+		verify(store).persistTokenRelationships(List.of(treasuryRel));
 	}
 
 	@Test

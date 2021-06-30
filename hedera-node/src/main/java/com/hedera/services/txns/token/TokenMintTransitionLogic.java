@@ -35,6 +35,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -94,7 +95,7 @@ public class TokenMintTransitionLogic implements TransitionLogic {
 
 		/* --- Persist the updated models --- */
 		tokenStore.persistToken(token);
-		tokenStore.persistTokenRelationship(treasuryRel);
+		tokenStore.persistTokenRelationships(List.of(treasuryRel));
 		tokenStore.persistTrackers(ownershipTracker);
 		accountStore.persistAccount(token.getTreasury());
 	}

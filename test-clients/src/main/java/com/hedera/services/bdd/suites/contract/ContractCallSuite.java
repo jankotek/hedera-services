@@ -85,8 +85,8 @@ public class ContractCallSuite extends HapiApiSuite {
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return allOf(List.of(
 //				benchmarkSingleSetter()
-				benchmarkLoadTx()
-//				SSTORE()
+//				benchmarkLoadTx()
+				SSTORE()
 //				benchmarkNCreations(),
 //				benchmarkNCreationsWithUpdates(),
 //				benchBigSSTORE()
@@ -122,32 +122,32 @@ public class ContractCallSuite extends HapiApiSuite {
 						contractCall(
 								"immutableContract",
 								ContractResources.SSTORE_CREATE,
-								2
+								3
 						),
 						contractCall(
 								"immutableContract",
 								ContractResources.SSTORE_CREATE,
-								2
+								3
 						),
 						contractCall(
 								"immutableContract",
 								ContractResources.SSTORE_CREATE,
-								2
+								3
 						),
 						contractCall(
 								"immutableContract",
 								ContractResources.SSTORE_CREATE,
-								2
+								3
 						),
 						contractCall(
 								"immutableContract",
 								ContractResources.SSTORE_CREATE,
-								2
+								3
 						),
 						contractCall(
 								"immutableContract",
 								ContractResources.SSTORE_CREATE,
-								2
+								3
 						)
 				)
 				.then(

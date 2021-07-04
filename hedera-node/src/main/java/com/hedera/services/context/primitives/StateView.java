@@ -385,6 +385,18 @@ public class StateView {
 			return Optional.empty();
 		}
 		final var targetNft = currentNfts.get(targetKey);
+
+		if (targetNft.getOwner().equals(MISSING_ENTITY_ID)) {
+			for (var entityId : uniqueTokenAccountOwnerships.get().getKeySet()) {
+				uniqueTokenAccountOwnerships.get().get(entityId).forEachRemaining(nft -> {
+					if (nft.equals(targetKey)) {
+						targetNft.setOwner(entityId);
+						return;
+					}
+				});
+			}
+		}
+
 		final var info = TokenNftInfo.newBuilder()
 				.setNftID(target)
 				.setAccountID(targetNft.getOwner().toGrpcAccountId())

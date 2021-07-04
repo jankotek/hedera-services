@@ -376,7 +376,13 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 			final var fromThisNftsOwned = (long) tokenRelsLedger.get(fromRel, TOKEN_BALANCE);
 			final var toNftsOwned = (long) accountsLedger.get(to, NUM_NFTS_OWNED);
 			final var toThisNftsOwned = (long) tokenRelsLedger.get(asTokenRel(to, nftType), TOKEN_BALANCE);
-			nftsLedger.set(nftId, OWNER, EntityId.fromGrpcAccountId(to));
+
+			if (isKnownTreasury(to)) {
+				nftsLedger.set(nftId, OWNER, EntityId.MISSING_ENTITY_ID);
+			} else {
+				nftsLedger.set(nftId, OWNER, EntityId.fromGrpcAccountId(to));
+			}
+
 			accountsLedger.set(from, NUM_NFTS_OWNED, fromNftsOwned - 1);
 			accountsLedger.set(to, NUM_NFTS_OWNED, toNftsOwned + 1);
 			tokenRelsLedger.set(fromRel, TOKEN_BALANCE, fromThisNftsOwned - 1);

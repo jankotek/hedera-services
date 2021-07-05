@@ -8,7 +8,6 @@ import com.swirlds.fcmap.VKey;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Objects;
 
 public class ContractUint256 implements SelfSerializable, VKey {
@@ -89,5 +88,9 @@ public class ContractUint256 implements SelfSerializable, VKey {
     @Override
     public String toString() {
         return "ContractUint256{"+ value +'}';
+    }
+
+    public BigInteger getValue() {
+        return value;
     }
 }

@@ -66,6 +66,7 @@ hedera-node/settingsUsed.txt
 hedera-node/data/accountBalances/
 hedera-node/data/apps/
 hedera-node/data/diskFs/
+hedera-node/data/contract-storage
 hedera-node/data/config/*.bin
 hedera-node/data/config/*.properties
 hedera-node/data/lib/

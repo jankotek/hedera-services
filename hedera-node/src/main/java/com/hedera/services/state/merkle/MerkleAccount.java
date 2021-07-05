@@ -50,7 +50,7 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements MerkleI
 
 	static final int RELEASE_090_VERSION = 3;
 	static final int RELEASE_0150_VERSION = 4;
-	static final int MERKLE_VERSION = RELEASE_0150_VERSION;
+	static final int MERKLE_VERSION = RELEASE_090_VERSION;
 
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0x950bcf7255691908L;
 

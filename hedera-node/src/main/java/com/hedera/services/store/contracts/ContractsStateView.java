@@ -21,9 +21,12 @@ package com.hedera.services.store.contracts;/*
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.virtual.ContractHashStore;
+import com.hedera.services.state.merkle.virtual.ContractLeafStore;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.swirlds.fcmap.FCMap;
-import org.apache.commons.lang3.NotImplementedException;
+import com.swirlds.fcmap.VFCMap;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.core.Account;
 import org.hyperledger.besu.ethereum.core.Address;
@@ -67,7 +70,10 @@ public class ContractsStateView implements AccountStateStore {
 		final var accId = parseMerkleAccountId(address);
 		var merkleAccount = accounts.get().get(accId);
 		// TODO:
-		throw new NotImplementedException();
+		final var vfcMap = new VFCMap<>(
+				new ContractLeafStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum())),
+				new ContractHashStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum())));
+		return new AccountStorageMapImpl(vfcMap);
 	}
 
 	@Override

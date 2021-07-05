@@ -87,7 +87,9 @@ import com.hedera.services.fees.calculation.schedule.txns.ScheduleCreateResource
 import com.hedera.services.fees.calculation.schedule.txns.ScheduleDeleteResourceUsage;
 import com.hedera.services.fees.calculation.schedule.txns.ScheduleSignResourceUsage;
 import com.hedera.services.fees.calculation.system.txns.FreezeResourceUsage;
+import com.hedera.services.fees.calculation.token.queries.GetAccountNftInfosResourceUsage;
 import com.hedera.services.fees.calculation.token.queries.GetTokenInfoResourceUsage;
+import com.hedera.services.fees.calculation.token.queries.GetTokenNftInfoResourceUsage;
 import com.hedera.services.fees.calculation.token.txns.TokenAssociateResourceUsage;
 import com.hedera.services.fees.calculation.token.txns.TokenBurnResourceUsage;
 import com.hedera.services.fees.calculation.token.txns.TokenCreateResourceUsage;
@@ -142,6 +144,7 @@ import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.PureTransferSemanticChecks;
 import com.hedera.services.ledger.TransactionalLedger;
 import com.hedera.services.ledger.accounts.BackingAccounts;
+import com.hedera.services.ledger.accounts.BackingNfts;
 import com.hedera.services.ledger.accounts.BackingStore;
 import com.hedera.services.ledger.accounts.BackingTokenRels;
 import com.hedera.services.ledger.accounts.PureBackingAccounts;
@@ -149,6 +152,7 @@ import com.hedera.services.ledger.ids.EntityIdSource;
 import com.hedera.services.ledger.ids.SeqNoEntityIdSource;
 import com.hedera.services.ledger.properties.AccountProperty;
 import com.hedera.services.ledger.properties.ChangeSummaryManager;
+import com.hedera.services.ledger.properties.NftProperty;
 import com.hedera.services.ledger.properties.TokenRelProperty;
 import com.hedera.services.legacy.handler.FreezeHandler;
 import com.hedera.services.legacy.handler.SmartContractRequestHandler;
@@ -183,7 +187,9 @@ import com.hedera.services.queries.meta.GetVersionInfoAnswer;
 import com.hedera.services.queries.meta.MetaAnswers;
 import com.hedera.services.queries.schedule.GetScheduleInfoAnswer;
 import com.hedera.services.queries.schedule.ScheduleAnswers;
+import com.hedera.services.queries.token.GetAccountNftInfosAnswer;
 import com.hedera.services.queries.token.GetTokenInfoAnswer;
+import com.hedera.services.queries.token.GetTokenNftInfoAnswer;
 import com.hedera.services.queries.token.TokenAnswers;
 import com.hedera.services.queries.validation.QueryFeeCheck;
 import com.hedera.services.records.AccountRecordsHistorian;
@@ -226,6 +232,8 @@ import com.hedera.services.state.merkle.MerkleSchedule;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
+import com.hedera.services.state.merkle.MerkleUniqueToken;
+import com.hedera.services.state.merkle.MerkleUniqueTokenId;
 import com.hedera.services.state.migration.StateMigrations;
 import com.hedera.services.state.migration.StdStateMigrations;
 import com.hedera.services.state.submerkle.EntityId;
@@ -243,6 +251,7 @@ import com.hedera.services.stats.ServicesStatsManager;
 import com.hedera.services.stats.SpeedometerFactory;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.TypedTokenStore;
+import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.schedule.HederaScheduleStore;
 import com.hedera.services.store.schedule.ScheduleStore;
 import com.hedera.services.store.tokens.HederaTokenStore;
@@ -254,9 +263,7 @@ import com.hedera.services.throttling.FunctionalityThrottling;
 import com.hedera.services.throttling.HapiThrottling;
 import com.hedera.services.throttling.TransactionThrottling;
 import com.hedera.services.throttling.TxnAwareHandleThrottling;
-import com.hedera.services.txns.span.ExpandHandleSpan;
-import com.hedera.services.txns.span.ExpandHandleSpanMapAccessor;
-import com.hedera.services.txns.span.SpanMapManager;
+import com.hedera.services.txns.customfees.CustomFeeSchedules;
 import com.hedera.services.txns.ProcessLogic;
 import com.hedera.services.txns.SubmissionFlow;
 import com.hedera.services.txns.TransitionLogic;
@@ -289,6 +296,10 @@ import com.hedera.services.txns.schedule.ScheduleCreateTransitionLogic;
 import com.hedera.services.txns.schedule.ScheduleDeleteTransitionLogic;
 import com.hedera.services.txns.schedule.ScheduleExecutor;
 import com.hedera.services.txns.schedule.ScheduleSignTransitionLogic;
+import com.hedera.services.txns.span.ExpandHandleSpan;
+import com.hedera.services.txns.span.ExpandHandleSpanMapAccessor;
+import com.hedera.services.txns.customfees.FcmCustomFeeSchedules;
+import com.hedera.services.txns.span.SpanMapManager;
 import com.hedera.services.txns.submission.BasicSubmissionFlow;
 import com.hedera.services.txns.submission.PlatformSubmissionManager;
 import com.hedera.services.txns.submission.SemanticPrecheck;
@@ -340,6 +351,7 @@ import com.swirlds.common.crypto.DigestType;
 import com.swirlds.common.crypto.Hash;
 import com.swirlds.common.crypto.ImmutableHash;
 import com.swirlds.common.crypto.RunningHash;
+import com.swirlds.fchashmap.FCOneToManyRelation;
 import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
@@ -449,13 +461,14 @@ public class ServicesContext {
 	private HederaFs hfs;
 	private NodeInfo nodeInfo;
 	private StateView currentView;
+	private TokenStore tokenStore;
 	private AnswerFlow answerFlow;
 	private HcsAnswers hcsAnswers;
 	private FileNumbers fileNums;
 	private FileAnswers fileAnswers;
 	private MetaAnswers metaAnswers;
 	private RecordCache recordCache;
-	private TokenStore tokenStore;
+	private BackingNfts backingNfts;
 	private AccountStore accountStore;
 	private TokenAnswers tokenAnswers;
 	private HederaLedger ledger;
@@ -541,6 +554,7 @@ public class ServicesContext {
 	private ServicesStatsManager statsManager;
 	private LedgerAccountsSource accountSource;
 	private TransitionLogicLookup transitionLogic;
+	private FcmCustomFeeSchedules activeCustomFeeSchedules;
 	private PricedUsageCalculator pricedUsageCalculator;
 	private TransactionThrottling txnThrottling;
 	private ConsensusStatusCounts statusCounts;
@@ -570,7 +584,10 @@ public class ServicesContext {
 	private AtomicReference<FCMap<MerkleEntityId, MerkleAccount>> queryableAccounts;
 	private AtomicReference<FCMap<MerkleEntityId, MerkleSchedule>> queryableSchedules;
 	private AtomicReference<FCMap<MerkleBlobMeta, MerkleOptionalBlob>> queryableStorage;
+	private AtomicReference<FCMap<MerkleUniqueTokenId, MerkleUniqueToken>> queryableUniqueTokens;
 	private AtomicReference<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> queryableTokenAssociations;
+	private AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueTokenAssociations;
+	private AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueOwnershipAssociations;
 
 	/* Context-free infrastructure. */
 	private static Pause pause;
@@ -606,6 +623,9 @@ public class ServicesContext {
 		queryableTokens().set(tokens());
 		queryableTokenAssociations().set(tokenAssociations());
 		queryableSchedules().set(schedules());
+		queryableUniqueTokens().set(uniqueTokens());
+		queryableUniqueTokenAssociations().set(uniqueTokenAssociations());
+		queryableUniqueOwnershipAssociations().set(uniqueOwnershipAssociations());
 	}
 
 	public SwirldDualState getDualState() {
@@ -622,6 +642,9 @@ public class ServicesContext {
 		}
 		if (backingAccounts != null) {
 			backingAccounts.rebuildFromSources();
+		}
+		if (backingNfts != null) {
+			backingNfts.rebuildFromSources();
 		}
 	}
 
@@ -730,9 +753,17 @@ public class ServicesContext {
 
 	public ImpliedTransfersMarshal impliedTransfersMarshal() {
 		if (impliedTransfersMarshal == null) {
-			impliedTransfersMarshal = new ImpliedTransfersMarshal(globalDynamicProperties(), transferSemanticChecks());
+			impliedTransfersMarshal = new ImpliedTransfersMarshal(globalDynamicProperties(), transferSemanticChecks(),
+					customFeeSchedules());
 		}
 		return impliedTransfersMarshal;
+	}
+
+	private CustomFeeSchedules customFeeSchedules() {
+		if (activeCustomFeeSchedules == null) {
+			activeCustomFeeSchedules = new FcmCustomFeeSchedules(this::tokens);
+		}
+		return activeCustomFeeSchedules;
 	}
 
 	public AwareNodeDiligenceScreen nodeDiligenceScreen() {
@@ -831,7 +862,10 @@ public class ServicesContext {
 					() -> queryableTopics().get(),
 					() -> queryableAccounts().get(),
 					() -> queryableStorage().get(),
+					() -> queryableUniqueTokens().get(),
 					() -> queryableTokenAssociations().get(),
+					() -> queryableUniqueTokenAssociations().get(),
+					() -> queryableUniqueOwnershipAssociations().get(),
 					this::diskFs,
 					nodeLocalProperties());
 		}
@@ -846,7 +880,10 @@ public class ServicesContext {
 					this::topics,
 					this::accounts,
 					this::storage,
+					this::uniqueTokens,
 					this::tokenAssociations,
+					this::uniqueTokenAssociations,
+					this::uniqueOwnershipAssociations,
 					this::diskFs,
 					nodeLocalProperties());
 		}
@@ -935,9 +972,9 @@ public class ServicesContext {
 	}
 
 	/**
-	 * Returns the singleton {@link TypedTokenStore} used in {@link ServicesState#handleTransaction(long, boolean, Instant,
-	 * Instant, SwirldTransaction, SwirldDualState)} to load, save, and create tokens in the Swirlds application state.
-	 * It decouples the {@code handleTransaction} logic from the details of the Merkle state.
+	 * Returns the singleton {@link TypedTokenStore} used in {@link ServicesState#handleTransaction(long, boolean,
+	 * Instant, Instant, SwirldTransaction, SwirldDualState)} to load, save, and create tokens in the Swirlds
+	 * application state. It decouples the {@code handleTransaction} logic from the details of the Merkle state.
 	 *
 	 * Here "singleton" means that, no matter how many fast-copies are made of the {@link ServicesState}, the mutable
 	 * instance receiving the {@code handleTransaction} call will always use the same {@code typedTokenStore} instance.
@@ -954,18 +991,22 @@ public class ServicesContext {
 					accountStore(),
 					new TransactionRecordService(txnCtx()),
 					this::tokens,
+					this::uniqueTokens,
+					this::uniqueOwnershipAssociations,
+					this::uniqueTokenAssociations,
 					this::tokenAssociations,
-					(BackingTokenRels) backingTokenRels());
+					(BackingTokenRels) backingTokenRels(),
+					backingNfts());
 		}
 		return typedTokenStore;
 	}
 
 	/**
 	 * Returns the singleton {@link AccountStore} used in {@link ServicesState#handleTransaction(long, boolean, Instant,
-	 * Instant, SwirldTransaction, SwirldDualState)} to load, save, and create accounts from the Swirlds application state.
-	 * It decouples the {@code handleTransaction} logic from the details of the Merkle state.
+	 * Instant, SwirldTransaction, SwirldDualState)} to load, save, and create accounts from the Swirlds application
+	 * state. It decouples the {@code handleTransaction} logic from the details of the Merkle state.
 	 *
-	 * @return the singleton AccountStore
+	 * @return the singleton accounts store
 	 */
 	public AccountStore accountStore() {
 		if (accountStore == null) {
@@ -996,7 +1037,9 @@ public class ServicesContext {
 	public TokenAnswers tokenAnswers() {
 		if (tokenAnswers == null) {
 			tokenAnswers = new TokenAnswers(
-					new GetTokenInfoAnswer()
+					new GetTokenInfoAnswer(),
+					new GetTokenNftInfoAnswer(),
+					new GetAccountNftInfosAnswer(validator())
 			);
 		}
 		return tokenAnswers;
@@ -1074,7 +1117,10 @@ public class ServicesContext {
 							/* Token */
 							new GetTokenInfoResourceUsage(),
 							/* Schedule */
-							new GetScheduleInfoResourceUsage(scheduleOpsUsage)
+							new GetScheduleInfoResourceUsage(scheduleOpsUsage),
+							/* NftInfo */
+							new GetTokenNftInfoResourceUsage(),
+							new GetAccountNftInfosResourceUsage()
 					),
 					txnUsageEstimators(
 							cryptoOpsUsage, fileOpsUsage, fileFees, cryptoFees, contractFees, scheduleOpsUsage)
@@ -1402,9 +1448,11 @@ public class ServicesContext {
 				entry(TokenDelete,
 						List.of(new TokenDeleteTransitionLogic(tokenStore(), txnCtx()))),
 				entry(TokenMint,
-						List.of(new TokenMintTransitionLogic(typedTokenStore(), txnCtx()))),
+						List.of(new TokenMintTransitionLogic(validator(), accountStore(), typedTokenStore(),
+								txnCtx()))),
 				entry(TokenBurn,
-						List.of(new TokenBurnTransitionLogic(typedTokenStore(), txnCtx()))),
+						List.of(new TokenBurnTransitionLogic(validator(), accountStore(), typedTokenStore(),
+								txnCtx()))),
 				entry(TokenAccountWipe,
 						List.of(new TokenWipeTransitionLogic(tokenStore(), txnCtx()))),
 				entry(TokenAssociateToAccount,
@@ -1528,8 +1576,21 @@ public class ServicesContext {
 		return globalDynamicProperties;
 	}
 
+	public BackingNfts backingNfts() {
+		if (backingNfts == null) {
+			backingNfts = new BackingNfts(this::uniqueTokens);
+		}
+		return backingNfts;
+	}
+
 	public TokenStore tokenStore() {
 		if (tokenStore == null) {
+			TransactionalLedger<NftId, NftProperty, MerkleUniqueToken> nftsLedger =
+					new TransactionalLedger<>(
+							NftProperty.class,
+							MerkleUniqueToken::new,
+							backingNfts(),
+							new ChangeSummaryManager<>());
 			TransactionalLedger<Pair<AccountID, TokenID>, TokenRelProperty, MerkleTokenRelStatus> tokenRelsLedger =
 					new TransactionalLedger<>(
 							TokenRelProperty.class,
@@ -1542,7 +1603,9 @@ public class ServicesContext {
 					validator(),
 					globalDynamicProperties(),
 					this::tokens,
-					tokenRelsLedger);
+					this::uniqueOwnershipAssociations,
+					tokenRelsLedger,
+					nftsLedger);
 		}
 		return tokenStore;
 	}
@@ -1732,7 +1795,8 @@ public class ServicesContext {
 
 	public SpanMapManager spanMapManager() {
 		if (spanMapManager == null) {
-			spanMapManager = new SpanMapManager(impliedTransfersMarshal(), globalDynamicProperties());
+			spanMapManager = new SpanMapManager(impliedTransfersMarshal(), globalDynamicProperties(),
+					customFeeSchedules());
 		}
 		return spanMapManager;
 	}
@@ -2030,8 +2094,28 @@ public class ServicesContext {
 		if (queryableSchedules == null) {
 			queryableSchedules = new AtomicReference<>(schedules());
 		}
-
 		return queryableSchedules;
+	}
+
+	public AtomicReference<FCMap<MerkleUniqueTokenId, MerkleUniqueToken>> queryableUniqueTokens() {
+		if (queryableUniqueTokens == null) {
+			queryableUniqueTokens = new AtomicReference<>(uniqueTokens());
+		}
+		return queryableUniqueTokens;
+	}
+
+	public AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueTokenAssociations() {
+		if (queryableUniqueTokenAssociations == null) {
+			queryableUniqueTokenAssociations = new AtomicReference<>(uniqueTokenAssociations());
+		}
+		return queryableUniqueTokenAssociations;
+	}
+
+	public AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueOwnershipAssociations() {
+		if (queryableUniqueOwnershipAssociations == null) {
+			queryableUniqueOwnershipAssociations = new AtomicReference<>(uniqueOwnershipAssociations());
+		}
+		return queryableUniqueOwnershipAssociations;
 	}
 
 	public UsagePricesProvider usagePrices() {
@@ -2145,6 +2229,18 @@ public class ServicesContext {
 		return state.tokenAssociations();
 	}
 
+	public FCMap<MerkleUniqueTokenId, MerkleUniqueToken> uniqueTokens() {
+		return state.uniqueTokens();
+	}
+
+	public FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueTokenAssociations() {
+		return state.uniqueTokenAssociations();
+	}
+
+	public FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipAssociations() {
+		return state.uniqueOwnershipAssociations();
+	}
+
 	public FCMap<MerkleEntityId, MerkleSchedule> schedules() {
 		return state.scheduleTxs();
 	}
@@ -2160,7 +2256,8 @@ public class ServicesContext {
 	/**
 	 * return the directory to which record stream files should be write
 	 *
-	 * @param source the node local properties that contain the record logging directory
+	 * @param source
+	 * 		the node local properties that contain the record logging directory
 	 * @return the direct file folder for writing record stream files
 	 */
 	public String getRecordStreamDirectory(NodeLocalProperties source) {
@@ -2210,6 +2307,10 @@ public class ServicesContext {
 
 	void setBackingTokenRels(BackingTokenRels backingTokenRels) {
 		this.backingTokenRels = backingTokenRels;
+	}
+
+	public void setBackingNfts(BackingNfts backingNfts) {
+		this.backingNfts = backingNfts;
 	}
 
 	void setBackingAccounts(BackingAccounts backingAccounts) {

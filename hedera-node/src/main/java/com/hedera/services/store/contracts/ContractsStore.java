@@ -41,10 +41,8 @@ package com.hedera.services.store.contracts;/*
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
-import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
-import com.swirlds.fcmap.VFCMap;
 import javafx.util.Pair;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.tuweni.bytes.Bytes;
@@ -95,9 +93,9 @@ public class ContractsStore implements AccountStateStore {
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
 		var merkleAccount = ledger.get(accId);
-		if (merkleAccount.map() == null) {
-			merkleAccount.setVirtualMap(new VFCMap<ContractUint256, ContractUint256>());
-		}
+//		if (merkleAccount.map() == null) {
+//			merkleAccount.setVirtualMap(new VFCMap<ContractUint256, ContractUint256>());
+//		}
 		// TODO:
 		throw new NotImplementedException();
 //		return merkleAccount.map();

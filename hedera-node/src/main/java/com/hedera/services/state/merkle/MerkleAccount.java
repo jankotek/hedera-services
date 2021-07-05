@@ -23,14 +23,12 @@ package com.hedera.services.state.merkle;
 import com.google.common.base.MoreObjects;
 import com.hedera.services.exceptions.NegativeAccountBalanceException;
 import com.hedera.services.legacy.core.jproto.JKey;
-import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.state.serdes.DomainSerdes;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
 import com.swirlds.common.merkle.MerkleInternal;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.utility.AbstractNaryMerkleInternal;
-import com.swirlds.fcmap.VFCMap;
 import com.swirlds.fcqueue.FCQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -63,9 +61,9 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements MerkleI
 		static final int STATE = 0;
 		static final int RELEASE_090_RECORDS = 1;
 		static final int RELEASE_090_ASSOCIATED_TOKENS = 2;
-		static final int RELEASE_0150_SMART_CONTRACTS = 4;
+//		static final int RELEASE_0150_SMART_CONTRACTS = 4;
 		static final int NUM_090_CHILDREN = 3;
-		static final int NUM_0150_CHILDREN = 4;
+//		static final int NUM_0150_CHILDREN = 4;
 	}
 
 	public MerkleAccount(List<MerkleNode> children, MerkleAccount immutableAccount) {
@@ -74,7 +72,7 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements MerkleI
 	}
 
 	public MerkleAccount(List<MerkleNode> children) {
-		super(ChildIndices.NUM_0150_CHILDREN);
+		super(ChildIndices.NUM_090_CHILDREN);
 		addDeserializedChildren(children, MERKLE_VERSION);
 	}
 
@@ -82,8 +80,7 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements MerkleI
 		addDeserializedChildren(List.of(
 				new MerkleAccountState(),
 				new FCQueue<ExpirableTxnRecord>(),
-				new MerkleAccountTokens(),
-				new VFCMap<ContractUint256, ContractUint256>()), MERKLE_VERSION);
+				new MerkleAccountTokens()), MERKLE_VERSION);
 	}
 
 	/* --- MerkleInternal --- */
@@ -172,13 +169,13 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements MerkleI
 		setChild(ChildIndices.RELEASE_090_ASSOCIATED_TOKENS, tokens);
 	}
 
-	public VFCMap<ContractUint256, ContractUint256> map() {
-		return getChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS);
-	}
-
-	public void setVirtualMap(VFCMap<ContractUint256, ContractUint256> map) {
-		setChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS, map);
-	}
+//	public VFCMap<ContractUint256, ContractUint256> map() {
+//		return getChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS);
+//	}
+//
+//	public void setVirtualMap(VFCMap<ContractUint256, ContractUint256> map) {
+//		setChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS, map);
+//	}
 
 	/* ----  Bean  ---- */
 

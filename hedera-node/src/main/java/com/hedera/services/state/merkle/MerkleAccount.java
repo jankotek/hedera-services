@@ -181,6 +181,11 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements MerkleI
 	}
 
 	/* ----  Bean  ---- */
+
+	public long getNftsOwned() { return state().nftsOwned(); }
+
+	public void setNftsOwned(long nftsOwned) { state().setNftsOwned(nftsOwned); }
+
 	public String getMemo() {
 		return state().memo();
 	}

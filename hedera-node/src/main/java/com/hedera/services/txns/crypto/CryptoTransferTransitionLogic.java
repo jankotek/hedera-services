@@ -24,6 +24,7 @@ import com.hedera.services.context.TransactionContext;
 import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.grpc.marshalling.ImpliedTransfers;
 import com.hedera.services.grpc.marshalling.ImpliedTransfersMarshal;
+import com.hedera.services.grpc.marshalling.ImpliedTransfersMeta;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.PureTransferSemanticChecks;
 import com.hedera.services.txns.TransitionLogic;
@@ -83,11 +84,12 @@ public class CryptoTransferTransitionLogic implements TransitionLogic {
 
 			var outcome = impliedTransfers.getMeta().code();
 			if (outcome == OK) {
-				final var changes = impliedTransfers.getChanges();
+				final var changes = impliedTransfers.getAllBalanceChanges();
 				outcome = ledger.doZeroSum(changes);
 			}
 
 			txnCtx.setStatus((outcome == OK) ? SUCCESS : outcome);
+			txnCtx.setAssessedCustomFees(impliedTransfers.getAssessedCustomFees());
 		} catch (Exception e) {
 			log.warn("Avoidable exception in CryptoTransfer state transition", e);
 			txnCtx.setStatus(FAIL_INVALID);
@@ -98,7 +100,7 @@ public class CryptoTransferTransitionLogic implements TransitionLogic {
 		var impliedTransfers = spanMapAccessor.getImpliedTransfers(accessor);
 		if (impliedTransfers == null) {
 			final var op = accessor.getTxn().getCryptoTransfer();
-			impliedTransfers = impliedTransfersMarshal.unmarshalFromGrpc(op);
+			impliedTransfers = impliedTransfersMarshal.unmarshalFromGrpc(op, accessor.getPayer());
 		}
 		return impliedTransfers;
 	}
@@ -118,11 +120,13 @@ public class CryptoTransferTransitionLogic implements TransitionLogic {
 		} else {
 			/* Accessor is for either (1) a transaction in precheck or (2) a scheduled
 			transaction that reached consensus without a managed expand-handle span. */
+			final var validationProps = new ImpliedTransfersMeta.ValidationProps(
+				dynamicProperties.maxTransferListSize(),
+				dynamicProperties.maxTokenTransferListSize(),
+				dynamicProperties.maxNftTransfersLen());
 			final var op = accessor.getTxn().getCryptoTransfer();
-			final var maxHbarAdjusts = dynamicProperties.maxTransferListSize();
-			final var maxTokenAdjusts = dynamicProperties.maxTokenTransferListSize();
 			return transferSemanticChecks.fullPureValidation(
-					maxHbarAdjusts, maxTokenAdjusts, op.getTransfers(), op.getTokenTransfersList());
+					op.getTransfers(), op.getTokenTransfersList(), validationProps);
 		}
 	}
 }

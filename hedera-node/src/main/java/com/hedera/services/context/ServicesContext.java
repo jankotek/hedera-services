@@ -226,7 +226,6 @@ import com.hedera.services.state.merkle.MerkleSchedule;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
-import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
 import com.hedera.services.state.migration.StateMigrations;
 import com.hedera.services.state.migration.StdStateMigrations;
 import com.hedera.services.state.submerkle.EntityId;
@@ -591,7 +590,6 @@ public class ServicesContext {
 	private AtomicReference<FCMap<MerkleEntityId, MerkleSchedule>> queryableSchedules;
 	private AtomicReference<FCMap<MerkleBlobMeta, MerkleOptionalBlob>> queryableStorage;
 	private AtomicReference<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> queryableTokenAssociations;
-	private VirtualMapDataStore dataStore;
 
 	/* Context-free infrastructure. */
 	private static Pause pause;
@@ -1914,14 +1912,14 @@ public class ServicesContext {
 
 	public ContractsStore contractsStore () {
 		if (contractsStore == null) {
-			contractsStore = new ContractsStore(bytecodeDb(), dataStore(), ledger());
+			contractsStore = new ContractsStore(bytecodeDb(), ledger());
 		}
 		return contractsStore;
 	}
 
 	public ContractsStateView contractsStateView() {
 		if (contractsStateView == null) {
-			contractsStateView = new ContractsStateView(bytecodeDb(), dataStore(), this::accounts);
+			contractsStateView = new ContractsStateView(bytecodeDb(), this::accounts);
 		}
 		return contractsStateView;
 	}
@@ -2211,14 +2209,6 @@ public class ServicesContext {
 
 	public MerkleDiskFs diskFs() {
 		return state.diskFs();
-	}
-
-	public VirtualMapDataStore dataStore() {
-		if (dataStore == null) {
-			this.dataStore = new VirtualMapDataStore(new File("data/diskFs/blobs").toPath(), 32, 32);
-			this.dataStore.open();
-		}
-		return dataStore;
 	}
 
 	public MerkleNetworkContext networkCtx() {

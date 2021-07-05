@@ -387,14 +387,8 @@ public class StateView {
 		final var targetNft = currentNfts.get(targetKey);
 
 		if (targetNft.getOwner().equals(MISSING_ENTITY_ID)) {
-			for (var entityId : uniqueTokenAccountOwnerships.get().getKeySet()) {
-				uniqueTokenAccountOwnerships.get().get(entityId).forEachRemaining(nft -> {
-					if (nft.equals(targetKey)) {
-						targetNft.setOwner(entityId);
-						return;
-					}
-				});
-			}
+			var merkleToken = tokenStore.get(target.getTokenID());
+			targetNft.setOwner(merkleToken.treasury());
 		}
 
 		final var info = TokenNftInfo.newBuilder()

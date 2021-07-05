@@ -23,14 +23,14 @@ package com.hedera.services.state.merkle;
 import com.google.common.base.MoreObjects;
 import com.hedera.services.exceptions.NegativeAccountBalanceException;
 import com.hedera.services.legacy.core.jproto.JKey;
-import com.hedera.services.state.merkle.virtual.VirtualMap;
+import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.state.serdes.DomainSerdes;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExpirableTxnRecord;
-import com.swirlds.common.FCMValue;
 import com.swirlds.common.merkle.MerkleInternal;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.utility.AbstractNaryMerkleInternal;
+import com.swirlds.fcmap.VFCMap;
 import com.swirlds.fcqueue.FCQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,7 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValue, MerkleInternal {
+public class MerkleAccount extends AbstractNaryMerkleInternal implements MerkleInternal {
 	private static final Logger log = LogManager.getLogger(MerkleAccount.class);
 
 	static Runnable stackDump = Thread::dumpStack;
@@ -50,8 +50,6 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 		IMMUTABLE_EMPTY_FCQ.copy();
 	}
 
-	static final int RELEASE_081_VERSION = 1;
-	static final int RELEASE_090_ALPHA_VERSION = 2;
 	static final int RELEASE_090_VERSION = 3;
 	static final int RELEASE_0150_VERSION = 4;
 	static final int MERKLE_VERSION = RELEASE_0150_VERSION;
@@ -63,18 +61,16 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 	/* Order of Merkle node children */
 	static class ChildIndices {
 		static final int STATE = 0;
-		static final int RELEASE_081_PAYER_RECORDS = 2;
-		static final int NUM_081_CHILDREN = 3;
-
-		static final int RELEASE_090_ALPHA_PAYER_RECORDS = 2;
-		static final int RELEASE_090_ALPHA_ASSOCIATED_TOKENS = 3;
-		static final int NUM_090_ALPHA_CHILDREN = 4;
-
 		static final int RELEASE_090_RECORDS = 1;
 		static final int RELEASE_090_ASSOCIATED_TOKENS = 2;
 		static final int RELEASE_0150_SMART_CONTRACTS = 4;
 		static final int NUM_090_CHILDREN = 3;
 		static final int NUM_0150_CHILDREN = 4;
+	}
+
+	public MerkleAccount(List<MerkleNode> children, MerkleAccount immutableAccount) {
+		super(immutableAccount);
+		addDeserializedChildren(children, MERKLE_VERSION);
 	}
 
 	public MerkleAccount(List<MerkleNode> children) {
@@ -83,11 +79,11 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 	}
 
 	public MerkleAccount() {
-		this(List.of(
+		addDeserializedChildren(List.of(
 				new MerkleAccountState(),
 				new FCQueue<ExpirableTxnRecord>(),
 				new MerkleAccountTokens(),
-				new VirtualMap()));
+				new VFCMap<ContractUint256, ContractUint256>()), MERKLE_VERSION);
 	}
 
 	/* --- MerkleInternal --- */
@@ -103,33 +99,7 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 
 	@Override
 	public int getMinimumChildCount(int version) {
-		if (version == RELEASE_081_VERSION) {
-			return ChildIndices.NUM_081_CHILDREN;
-		} else if (version == RELEASE_090_ALPHA_VERSION) {
-			return ChildIndices.NUM_090_ALPHA_CHILDREN;
-		} else if (version == RELEASE_090_VERSION) {
-			return ChildIndices.NUM_090_CHILDREN;
-		} else {
-			return ChildIndices.NUM_0150_CHILDREN;
-		}
-	}
-
-	@Override
-	public void initialize(MerkleInternal previous) {
-		if (getNumberOfChildren() == ChildIndices.NUM_090_ALPHA_CHILDREN) {
-			addDeserializedChildren(List.of(
-					getChild(ChildIndices.STATE),
-					getChild(ChildIndices.RELEASE_090_ALPHA_PAYER_RECORDS),
-					getChild(ChildIndices.RELEASE_090_ALPHA_ASSOCIATED_TOKENS)), MERKLE_VERSION);
-		} else if (!(getChild(ChildIndices.RELEASE_090_ASSOCIATED_TOKENS) instanceof MerkleAccountTokens)) {
-			addDeserializedChildren(List.of(
-					getChild(ChildIndices.STATE),
-					getChild(ChildIndices.RELEASE_081_PAYER_RECORDS),
-					new MerkleAccountTokens(),
-					new VirtualMap()), MERKLE_VERSION);
-		} else {
-			/* Must be a v0.9.0 state. */
-		}
+		return ChildIndices.NUM_090_CHILDREN;
 	}
 
 	/* --- FastCopyable --- */
@@ -149,7 +119,7 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 		return new MerkleAccount(List.of(
 				state().copy(),
 				records().copy(),
-				tokens().copy()));
+				tokens().copy()), this);
 	}
 
 	/* ---- Object ---- */
@@ -202,11 +172,11 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 		setChild(ChildIndices.RELEASE_090_ASSOCIATED_TOKENS, tokens);
 	}
 
-	public VirtualMap map() {
+	public VFCMap<ContractUint256, ContractUint256> map() {
 		return getChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS);
 	}
 
-	public void setVirtualMap(VirtualMap map) {
+	public void setVirtualMap(VFCMap<ContractUint256, ContractUint256> map) {
 		setChild(ChildIndices.RELEASE_0150_SMART_CONTRACTS, map);
 	}
 
@@ -234,6 +204,13 @@ public class MerkleAccount extends AbstractNaryMerkleInternal implements FCMValu
 	public void setBalance(long balance) throws NegativeAccountBalanceException {
 		if (balance < 0) {
 			throw new NegativeAccountBalanceException(String.format("Illegal balance: %d!", balance));
+		}
+		state().setHbarBalance(balance);
+	}
+
+	public void setBalanceUnchecked(long balance) {
+		if (balance < 0) {
+			throw new IllegalArgumentException("Cannot set an ℏ balance to " + balance);
 		}
 		state().setHbarBalance(balance);
 	}

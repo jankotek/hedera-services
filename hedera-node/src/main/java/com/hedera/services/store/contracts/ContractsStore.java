@@ -41,13 +41,12 @@ package com.hedera.services.store.contracts;/*
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
-import com.hedera.services.state.merkle.MerkleAccount;
-import com.hedera.services.state.merkle.virtual.VirtualMap;
-import com.hedera.services.state.merkle.virtual.persistence.mmap.MemMapDataSource;
-import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
+import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.swirlds.fcmap.VFCMap;
 import javafx.util.Pair;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.core.Account;
 import org.hyperledger.besu.ethereum.core.Address;
@@ -59,7 +58,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ContractsStore implements AccountStateStore {
-	private final VirtualMapDataStore dataStore;
 	private final HederaLedger ledger;
 	private final BlobStorageSource blobStorageSource;
 	private Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
@@ -67,10 +65,8 @@ public class ContractsStore implements AccountStateStore {
 	private Map<AccountID, Pair<AccountID, HederaAccountCustomizer>> provisionalAccountCreations = new HashMap<>();
 
 	public ContractsStore(
-			BlobStorageSource blobStorageSource,
-			VirtualMapDataStore dataStore, HederaLedger ledger) {
+			BlobStorageSource blobStorageSource, HederaLedger ledger) {
 		this.ledger = ledger;
-		this.dataStore = dataStore;
 		this.blobStorageSource = blobStorageSource;
 	}
 
@@ -100,9 +96,11 @@ public class ContractsStore implements AccountStateStore {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
 		var merkleAccount = ledger.get(accId);
 		if (merkleAccount.map() == null) {
-			merkleAccount.setVirtualMap(new VirtualMap(new MemMapDataSource(dataStore, new com.hedera.services.state.merkle.virtual.Account(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum()))));
+			merkleAccount.setVirtualMap(new VFCMap<ContractUint256, ContractUint256>());
 		}
-		return merkleAccount.map();
+		// TODO:
+		throw new NotImplementedException();
+//		return merkleAccount.map();
 	}
 
 	@Override

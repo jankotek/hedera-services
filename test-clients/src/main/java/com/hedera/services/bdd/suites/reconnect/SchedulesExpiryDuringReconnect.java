@@ -43,11 +43,14 @@ import static com.hedera.services.bdd.spec.transactions.crypto.HapiCryptoTransfe
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.overriding;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.sleepFor;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withLiveNode;
+import static com.hedera.services.bdd.suites.perf.PerfUtilOps.scheduleOpsEnablement;
+import static com.hedera.services.bdd.suites.reconnect.AutoRenewEntitiesForReconnect.runTransfersBeforeReconnect;
 import static com.hedera.services.bdd.suites.reconnect.ValidateTokensStateAfterReconnect.nonReconnectingNode;
 import static com.hedera.services.bdd.suites.reconnect.ValidateTokensStateAfterReconnect.reconnectingNode;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.IDENTICAL_SCHEDULE_ALREADY_CREATED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SCHEDULE_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
+
 /**
  * A reconnect test in which a few schedule transactions are created while the node 0.0.8 is disconnected from the network.
  * Once the node is reconnected the state of the schedules are verified on reconnected node
@@ -64,6 +67,7 @@ public class SchedulesExpiryDuringReconnect extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(
+				runTransfersBeforeReconnect(),
 				suiteSetup(),
 				expireSchedulesDuringReconnect()
 		);
@@ -79,7 +83,11 @@ public class SchedulesExpiryDuringReconnect extends HapiApiSuite {
 						"txn.start.offset.secs", "-5")
 				)
 				.given(
+						scheduleOpsEnablement(),
 						sleepFor(Duration.ofSeconds(25).toMillis()),
+						fileUpdate(APP_PROPERTIES).payingWith(GENESIS)
+								.overridingProps(Map.of("ledger.schedule.txExpiryTimeSecs", "10")),
+
 						scheduleCreate(soonToBeExpiredSchedule,
 								cryptoTransfer(tinyBarsFromTo(GENESIS, FUNDING, 1))
 										.fee(ONE_HBAR)
@@ -96,7 +104,7 @@ public class SchedulesExpiryDuringReconnect extends HapiApiSuite {
 				)
 				.when(
 						fileUpdate(APP_PROPERTIES).payingWith(GENESIS)
-								.overridingProps(Map.of("ledger.schedule.txExpiryTimeSecs", "1000")),
+								.overridingProps(Map.of("ledger.schedule.txExpiryTimeSecs", "1800")),
 
 						scheduleCreate(longLastingSchedule,
 								cryptoTransfer(tinyBarsFromTo(GENESIS, FUNDING, 2))
@@ -146,7 +154,7 @@ public class SchedulesExpiryDuringReconnect extends HapiApiSuite {
 								.sleepingBetweenRetriesFor(10),
 
 						fileUpdate(APP_PROPERTIES).payingWith(GENESIS)
-								.overridingProps(Map.of("ledger.schedule.txExpiryTimeSecs", "1800")),
+								.overridingProps(Map.of("ledger.schedule.txExpiryTimeSecs", "1000")),
 
 						scheduleCreate(duplicateSchedule,
 								cryptoTransfer(tinyBarsFromTo(GENESIS, FUNDING, 1))

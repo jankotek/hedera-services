@@ -32,13 +32,11 @@ import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Timestamp;
-import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.TransferList;
 import com.swirlds.fcmap.FCMap;
 
 import java.time.Instant;
-import java.util.List;
 
 /**
  * Defines a type able to divine the validity of various options that can appear in HAPI gRPC transactions.
@@ -56,9 +54,10 @@ public interface OptionValidator {
 	boolean isAcceptableTransfersLength(TransferList accountAmounts);
 
 	ResponseCodeEnum memoCheck(String cand);
+	ResponseCodeEnum rawMemoCheck(byte[] cand);
+	ResponseCodeEnum rawMemoCheck(byte[] cand, boolean hasZeroByte);
 	ResponseCodeEnum tokenNameCheck(String name);
 	ResponseCodeEnum tokenSymbolCheck(String symbol);
-	ResponseCodeEnum tokenTransfersLengthCheck(List<TokenTransferList> tokenTransferLists);
 
 	ResponseCodeEnum queryableTopicStatus(TopicID id, FCMap<MerkleEntityId, MerkleTopic> topics);
 

@@ -35,11 +35,11 @@ import com.hedera.services.state.EntityCreator;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleAccountTokens;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
+import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
-import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -58,18 +58,20 @@ import java.util.List;
 import java.util.Map;
 
 import static com.hedera.services.ledger.accounts.BackingTokenRels.asTokenRel;
+import static com.hedera.services.ledger.properties.AccountProperty.AUTO_RENEW_PERIOD;
 import static com.hedera.services.ledger.properties.AccountProperty.BALANCE;
 import static com.hedera.services.ledger.properties.AccountProperty.EXPIRY;
 import static com.hedera.services.ledger.properties.AccountProperty.IS_DELETED;
+import static com.hedera.services.ledger.properties.AccountProperty.IS_RECEIVER_SIG_REQUIRED;
 import static com.hedera.services.ledger.properties.AccountProperty.IS_SMART_CONTRACT;
+import static com.hedera.services.ledger.properties.AccountProperty.PROXY;
 import static com.hedera.services.ledger.properties.AccountProperty.TOKENS;
 import static com.hedera.services.ledger.properties.TokenRelProperty.TOKEN_BALANCE;
-import static com.hedera.services.store.tokens.TokenStore.MISSING_TOKEN;
-import static com.hedera.services.txns.crypto.CryptoTransferTransitionLogic.tryTransfers;
 import static com.hedera.services.txns.validation.TransferListChecks.isNetZeroAdjustment;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_DELETED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ACCOUNT_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSFERS_NOT_ZERO_SUM_FOR_TOKEN;
 
 /**
  * Provides a ledger for Hedera Services crypto and smart contract
@@ -97,11 +99,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSFERS_NOT_
 public class HederaLedger {
 	private static final Logger log = LogManager.getLogger(HederaLedger.class);
 
-	static final TransactionalLedger<
-			Pair<AccountID, TokenID>,
-			TokenRelProperty,
-			MerkleTokenRelStatus> UNUSABLE_TOKEN_RELS_LEDGER = null;
-
 	private static final int MAX_CONCEIVABLE_TOKENS_PER_TXN = 1_000;
 	private static final long[] NO_NEW_BALANCES = new long[0];
 
@@ -127,13 +124,14 @@ public class HederaLedger {
 	private final AccountRecordsHistorian historian;
 	private final TransactionalLedger<AccountID, AccountProperty, MerkleAccount> accountsLedger;
 
+	private TransactionalLedger<
+			Pair<AccountID, TokenID>,
+			TokenRelProperty,
+			MerkleTokenRelStatus> tokenRelsLedger = null;
+
 	int numTouches = 0;
 	final TokenID[] tokensTouched = new TokenID[MAX_CONCEIVABLE_TOKENS_PER_TXN];
 	final Map<TokenID, TransferList.Builder> netTokenTransfers = new HashMap<>();
-	TransactionalLedger<
-			Pair<AccountID, TokenID>,
-			TokenRelProperty,
-			MerkleTokenRelStatus> tokenRelsLedger = UNUSABLE_TOKEN_RELS_LEDGER;
 
 	public HederaLedger(
 			TokenStore tokenStore,
@@ -165,14 +163,14 @@ public class HederaLedger {
 	/* -- TRANSACTIONAL SEMANTICS -- */
 	public void begin() {
 		accountsLedger.begin();
-		if (tokenRelsLedger != UNUSABLE_TOKEN_RELS_LEDGER) {
+		if (tokenRelsLedger != null) {
 			tokenRelsLedger.begin();
 		}
 	}
 
 	public void rollback() {
 		accountsLedger.rollback();
-		if (tokenRelsLedger != UNUSABLE_TOKEN_RELS_LEDGER && tokenRelsLedger.isInTransaction()) {
+		if (tokenRelsLedger != null && tokenRelsLedger.isInTransaction()) {
 			tokenRelsLedger.rollback();
 		}
 		netTransfers.clear();
@@ -181,11 +179,11 @@ public class HederaLedger {
 
 	public void commit() {
 		throwIfPendingStateIsInconsistent();
-		historian.finalizeTransactionRecord();
+		historian.finalizeExpirableTransactionRecord();
 		accountsLedger.commit();
-		historian.saveTransactionRecord();
+		historian.saveExpirableTransactionRecord();
 		historian.noteNewExpirationEvents();
-		if (tokenRelsLedger != UNUSABLE_TOKEN_RELS_LEDGER && tokenRelsLedger.isInTransaction()) {
+		if (tokenRelsLedger != null && tokenRelsLedger.isInTransaction()) {
 			tokenRelsLedger.commit();
 		}
 		netTransfers.clear();
@@ -196,7 +194,7 @@ public class HederaLedger {
 		return pendingNetTransfersInTxn().build();
 	}
 
-	public TransferList.Builder pendingNetTransfersInTxn() {
+	private TransferList.Builder pendingNetTransfersInTxn() {
 		accountsLedger.throwIfNotInTxn();
 		purgeZeroAdjustments(netTransfers);
 		return netTransfers;
@@ -226,7 +224,7 @@ public class HederaLedger {
 		if (accountsLedger.isInTransaction()) {
 			var sb = new StringBuilder("--- ACCOUNTS ---\n")
 					.append(accountsLedger.changeSetSoFar());
-			if (tokenRelsLedger != UNUSABLE_TOKEN_RELS_LEDGER) {
+			if (tokenRelsLedger != null) {
 				sb.append("\n--- TOKEN RELATIONSHIPS ---\n")
 						.append(tokenRelsLedger.changeSetSoFar());
 			}
@@ -248,16 +246,6 @@ public class HederaLedger {
 		updateXfers(id, adjustment, netTransfers);
 	}
 
-	public void doTransfer(AccountID from, AccountID to, long adjustment) {
-		long newFromBalance = computeNewBalance(from, -1 * adjustment);
-		long newToBalance = computeNewBalance(to, adjustment);
-		setBalance(from, newFromBalance);
-		setBalance(to, newToBalance);
-
-		updateXfers(from, -1 * adjustment, netTransfers);
-		updateXfers(to, adjustment, netTransfers);
-	}
-
 	public void doTransfers(TransferList accountAmounts) {
 		throwIfNetAdjustmentIsNonzero(accountAmounts);
 		long[] newBalances = computeNewBalances(accountAmounts);
@@ -268,6 +256,16 @@ public class HederaLedger {
 		for (AccountAmount aa : accountAmounts.getAccountAmountsList()) {
 			updateXfers(aa.getAccountID(), aa.getAmount(), netTransfers);
 		}
+	}
+
+	void doTransfer(AccountID from, AccountID to, long adjustment) {
+		long newFromBalance = computeNewBalance(from, -1 * adjustment);
+		long newToBalance = computeNewBalance(to, adjustment);
+		setBalance(from, newFromBalance);
+		setBalance(to, newToBalance);
+
+		updateXfers(from, -1 * adjustment, netTransfers);
+		updateXfers(to, adjustment, netTransfers);
 	}
 
 	/* --- TOKEN MANIPULATION --- */
@@ -285,12 +283,12 @@ public class HederaLedger {
 	}
 
 	public boolean allTokenBalancesVanish(AccountID aId) {
-		if (tokenRelsLedger == UNUSABLE_TOKEN_RELS_LEDGER) {
+		if (tokenRelsLedger == null) {
 			throw new IllegalStateException("Ledger has no manageable token relationships!");
 		}
 
 		var tokens = (MerkleAccountTokens) accountsLedger.get(aId, TOKENS);
-		for (TokenID tId : tokens.asIds()) {
+		for (TokenID tId : tokens.asTokenIds()) {
 			if (tokenStore.get(tId).isDeleted()) {
 				continue;
 			}
@@ -301,6 +299,10 @@ public class HederaLedger {
 			}
 		}
 		return true;
+	}
+
+	public boolean isKnownTreasury(AccountID aId) {
+		return tokenStore.isKnownTreasury(aId);
 	}
 
 	public ResponseCodeEnum adjustTokenBalance(AccountID aId, TokenID tId, long adjustment) {
@@ -348,45 +350,24 @@ public class HederaLedger {
 		return validity;
 	}
 
-	public ResponseCodeEnum doAtomicTransfers(CryptoTransferTransactionBody txn) {
-		return zeroSumTransfers(txn.getTransfers(), txn.getTokenTransfersList());
-	}
-
-	private ResponseCodeEnum zeroSumTransfers(
-			TransferList hbarTransfers,
-			List<TokenTransferList> allTokenTransfers
-	) {
+	public ResponseCodeEnum doZeroSum(List<BalanceChange> changes) {
 		var validity = OK;
-		for (TokenTransferList tokenTransfers : allTokenTransfers) {
-			var id = tokenStore.resolve(tokenTransfers.getToken());
-			if (id == MISSING_TOKEN) {
-				validity = INVALID_TOKEN_ID;
-			}
-			if (validity == OK) {
-				var adjustments = tokenTransfers.getTransfersList();
-				for (AccountAmount adjustment : adjustments) {
-					validity = adjustTokenBalance(adjustment.getAccountID(), id, adjustment.getAmount());
-					if (validity != OK) {
-						break;
-					}
-				}
+		for (var change : changes) {
+			if (change.isForHbar())	 {
+				validity = plausibilityOf(change);
+			} else {
+				validity = tokenStore.tryTokenChange(change);
 			}
 			if (validity != OK) {
 				break;
 			}
 		}
+
 		if (validity == OK) {
-			validity = checkNetOfTokenTransfers();
-		}
-		if (validity == OK) {
-			if (hbarTransfers.getAccountAmountsCount() > 0) {
-				validity = tryTransfers(this, hbarTransfers);
-			}
-		}
-		if (validity != OK) {
+			adjustHbarUnchecked(changes);
+		} else {
 			dropPendingTokenChanges();
 		}
-
 		return validity;
 	}
 
@@ -460,8 +441,20 @@ public class HederaLedger {
 		return (long) accountsLedger.get(id, EXPIRY);
 	}
 
+	public long autoRenewPeriod(AccountID id) {
+		return (long) accountsLedger.get(id, AUTO_RENEW_PERIOD);
+	}
+
+	public EntityId proxy(AccountID id) {
+		return (EntityId) accountsLedger.get(id, PROXY);
+	}
+
 	public boolean isSmartContract(AccountID id) {
 		return (boolean) accountsLedger.get(id, IS_SMART_CONTRACT);
+	}
+
+	public boolean isReceiverSigRequired(AccountID id) {
+		return (boolean) accountsLedger.get(id, IS_RECEIVER_SIG_REQUIRED);
 	}
 
 	public boolean isDeleted(AccountID id) {
@@ -480,12 +473,32 @@ public class HederaLedger {
 	}
 
 	public MerkleAccount get(AccountID id) {
-		return accountsLedger.get(id);
+		return accountsLedger.getFinalized(id);
 	}
 
 	/* -- HELPERS -- */
 	private boolean isLegalToAdjust(long balance, long adjustment) {
 		return (balance + adjustment >= 0);
+	}
+
+	private ResponseCodeEnum plausibilityOf(BalanceChange change) {
+		final var id = change.accountId();
+		if (!exists(id) || isSmartContract(id)) {
+			return INVALID_ACCOUNT_ID;
+		}
+		if ((boolean) accountsLedger.get(id, IS_DELETED)) {
+			return ACCOUNT_DELETED;
+		}
+		if (isDetached(id)) {
+			return ACCOUNT_EXPIRED_AND_PENDING_REMOVAL;
+		}
+		final var balance = getBalance(id);
+		final var newBalance = balance + change.units();
+		if (newBalance < 0L) {
+			return change.codeForInsufficientBalance();
+		}
+		change.setNewBalance(newBalance);
+		return OK;
 	}
 
 	private long computeNewBalance(AccountID id, long adjustment) {
@@ -564,21 +577,6 @@ public class HederaLedger {
 		return AccountAmount.newBuilder().setAccountID(account).setAmount(amount);
 	}
 
-	private ResponseCodeEnum checkNetOfTokenTransfers() {
-		if (numTouches == 0) {
-			return OK;
-		}
-		for (int i = 0; i < numTouches; i++) {
-			var token = tokensTouched[i];
-			if (i == 0 || !token.equals(tokensTouched[i - 1])) {
-				if (!isNetZeroAdjustment(netTokenTransfers.get(token))) {
-					return TRANSFERS_NOT_ZERO_SUM_FOR_TOKEN;
-				}
-			}
-		}
-		return OK;
-	}
-
 	private void clearNetTokenTransfers() {
 		for (int i = 0; i < numTouches; i++) {
 			netTokenTransfers.get(tokensTouched[i]).clearAccountAmounts();
@@ -600,7 +598,13 @@ public class HederaLedger {
 		} while (lastZeroRemoved != -1);
 	}
 
-	public boolean isKnownTreasury(AccountID aId) {
-		return tokenStore.isKnownTreasury(aId);
+	private void adjustHbarUnchecked(List<BalanceChange> changes) {
+		for (var change : changes) {
+			if (change.isForHbar())	{
+				final var accountId = change.accountId();
+				setBalance(accountId, change.getNewBalance());
+				updateXfers(accountId, change.units(), netTransfers);
+			}
+		}
 	}
 }

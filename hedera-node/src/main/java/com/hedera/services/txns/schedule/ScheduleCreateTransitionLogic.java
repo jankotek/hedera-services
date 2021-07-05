@@ -81,17 +81,13 @@ public class ScheduleCreateTransitionLogic implements TransitionLogic {
 		this.executor = executor;
 	}
 
-	public ScheduleExecutor getExecutor() {
-		return executor;
-	}
-
 	@Override
 	public void doStateTransition() {
 		try {
 			var accessor = txnCtx.accessor();
 			transitionFor(accessor.getTxnBytes(), accessor.getSigMap());
 		} catch (Exception e) {
-			log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxn4Log(), e);
+			log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxnWrapper(), e);
 			abortWith(FAIL_INVALID);
 		}
 	}

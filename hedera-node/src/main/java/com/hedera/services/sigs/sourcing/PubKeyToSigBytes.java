@@ -20,11 +20,6 @@ package com.hedera.services.sigs.sourcing;
  * ‍
  */
 
-import com.hederahashgraph.api.proto.java.SignatureMap;
-import com.hederahashgraph.api.proto.java.Transaction;
-
-import static com.hedera.services.legacy.proto.utils.CommonUtils.extractSignatureMapOrUseDefault;
-
 /**
  * Defines a type that is a source of the cryptographic signatures associated to
  * given public keys. It is useful to define an explicit type for this simple behavior,
@@ -36,11 +31,6 @@ import static com.hedera.services.legacy.proto.utils.CommonUtils.extractSignatur
  * </ol>
  * A {@code PubKeyToSigBytes} implementation lets us obtain the third ingredient
  * given the second.
- *
- * <b>NOTE:</b> This interface also provides static factories to obtain appropriate
- * implementations of its type given a {@link SignatureMap}.
- *
- * @author Michael Tinker
  */
 public interface PubKeyToSigBytes {
 	byte[] EMPTY_SIG = {};
@@ -54,49 +44,4 @@ public interface PubKeyToSigBytes {
 	 * @throws Exception if the desired cryptographic signature is unavailable.
 	 */
 	byte[] sigBytesFor(byte[] pubKey) throws Exception;
-
-	/**
-	 * Create a {@code PubKeyToSigBytes} implementation backed by the given map.
-	 *
-	 * @param sigMap a list of public-key-to-cryptographic-signature map entries.
-	 * @return a source of raw signatures that encapsulates this mapping.
-	 */
-	static PubKeyToSigBytes from(SignatureMap sigMap) {
-		return new SigMapPubKeyToSigBytes(sigMap);
-	}
-
-	/**
-	 * Create a {@code PubKeyToSigBytes} implementation backed by the cryptographic
-	 * signatures associated to the payer of a given gRPC transaction.
-	 *
-	 * @param signedTxn a gRPC transaction.
-	 * @return a source of the raw signatures associated to the payer for the txn.
-	 */
-	static PubKeyToSigBytes forPayer(Transaction signedTxn) {
-		return from(extractSignatureMapOrUseDefault(signedTxn));
-	}
-
-	/**
-	 * Create a {@code PubKeyToSigBytes} implementation backed by the cryptographic
-	 * signatures associated to entities involved in non-payer roles for a given
-	 * gRPC transaction.
-	 *
-	 * @param signedTxn a gRPC transaction.
-	 * @return a source of the raw signatures associated non-payer roles in the txn.
-	 */
-	static PubKeyToSigBytes forOtherParties(Transaction signedTxn) {
-		return forPayer(signedTxn);
-	}
-
-	/**
-	 * Create a {@code PubKeyToSigBytes} implementation backed by the cryptographic
-	 * signatures associated to entities involved in non-payer roles for a given
-	 * gRPC transaction.
-	 *
-	 * @param signedTxn a gRPC transaction.
-	 * @return a source of the raw signatures associated non-payer roles in the txn.
-	 */
-	static PubKeyToSigBytes forAllParties(Transaction signedTxn) {
-		return forPayer(signedTxn);
-	}
 }

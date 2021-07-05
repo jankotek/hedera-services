@@ -26,6 +26,8 @@ import java.util.function.BooleanSupplier;
 import static java.lang.Boolean.parseBoolean;
 
 public class CiConditions {
-	public static BooleanSupplier isInCircleCi = () ->
-			parseBoolean(Optional.ofNullable(System.getenv("IN_CIRCLE_CI")).orElse("false"));
+	private static final boolean CIRCLECI =
+			parseBoolean(Optional.ofNullable(System.getenv("CIRCLECI")).orElse("false"));
+	public static final BooleanSupplier isInCircleCi = () -> CIRCLECI;
+	public static final BooleanSupplier outsideCircleCi = () -> !CIRCLECI;
 }

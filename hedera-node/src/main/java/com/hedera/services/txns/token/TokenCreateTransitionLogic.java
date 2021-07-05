@@ -76,9 +76,14 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 	@Override
 	public void doStateTransition() {
 		try {
-			transitionFor(txnCtx.accessor().getTxn().getTokenCreation());
+			final var op = txnCtx.accessor().getTxn().getTokenCreation();
+			if (op.hasExpiry() && !validator.isValidExpiry(op.getExpiry())) {
+				txnCtx.setStatus(INVALID_EXPIRATION_TIME);
+				return;
+			}
+			transitionFor(op);
 		} catch (Exception e) {
-			log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxn4Log(), e);
+			log.warn("Unhandled error while processing :: {}!", txnCtx.accessor().getSignedTxnWrapper(), e);
 			abortWith(FAIL_INVALID);
 		}
 	}
@@ -176,7 +181,8 @@ public class TokenCreateTransitionLogic implements TransitionLogic {
 				op.hasKycKey(), op.getKycKey(),
 				op.hasWipeKey(), op.getWipeKey(),
 				op.hasSupplyKey(), op.getSupplyKey(),
-				op.hasFreezeKey(), op.getFreezeKey());
+				op.hasFreezeKey(), op.getFreezeKey(),
+				op.hasCustomFeesKey(), op.getCustomFeesKey());
 		if (validity != OK) {
 			return validity;
 		}

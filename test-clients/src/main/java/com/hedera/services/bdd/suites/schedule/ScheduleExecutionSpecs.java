@@ -85,6 +85,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CHUNK_
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MESSAGE_SIZE_TOO_LARGE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.NO_NEW_VALID_SIGNATURES;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SCHEDULE_ALREADY_EXECUTED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SOME_SIGNATURES_WERE_INVALID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_ID_REPEATED_IN_TOKEN_LIST;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
@@ -96,7 +97,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNRESOLVABLE_R
 
 public class ScheduleExecutionSpecs extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(ScheduleExecutionSpecs.class);
-	private static final int SCHEDULE_EXPIRY_TIME_SECS = 10;
 	private static final int TMP_MAX_TRANSFER_LENGTH = 2;
 	private static final int TMP_MAX_TOKEN_TRANSFER_LENGTH = 2;
 
@@ -119,7 +119,6 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return List.of(new HapiApiSpec[] {
-				suiteSetup(),
 				executionWithDefaultPayerWorks(),
 				executionWithCustomPayerWorks(),
 				executionWithDefaultPayerButNoFundsFails(),
@@ -152,13 +151,6 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
 		return defaultHapiSpec("suiteCleanup")
 				.given().when().then(
 						overriding("ledger.schedule.txExpiryTimeSecs", defaultTxExpiry)
-				);
-	}
-
-	private HapiApiSpec suiteSetup() {
-		return defaultHapiSpec("suiteSetup")
-				.given().when().then(
-						overriding("ledger.schedule.txExpiryTimeSecs", "" + SCHEDULE_EXPIRY_TIME_SECS)
 				);
 	}
 
@@ -850,7 +842,14 @@ public class ScheduleExecutionSpecs extends HapiApiSuite {
 				).when(
 						scheduleSign(schedule)
 								.alsoSigningWith(adminKey)
-								.hasKnownStatus(NO_NEW_VALID_SIGNATURES),
+								/* In the rare, but possible, case that the the adminKey and submitKey keys overlap
+								 * in their first byte (and that byte is not shared by the DEFAULT_PAYER),
+								 * we will get SOME_SIGNATURES_WERE_INVALID instead of NO_NEW_VALID_SIGNATURES.
+								 *
+								 * So we need this to stabilize CI. But if just testing locally, you may
+								 * only use .hasKnownStatus(NO_NEW_VALID_SIGNATURES) and it will pass
+								 * >99.99% of the time. */
+								.hasKnownStatusFrom(NO_NEW_VALID_SIGNATURES, SOME_SIGNATURES_WERE_INVALID),
 						updateTopic(mutableTopic).submitKey("somebody"),
 						scheduleSign(schedule)
 				).then(

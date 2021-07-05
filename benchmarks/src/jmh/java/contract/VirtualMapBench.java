@@ -1,39 +1,15 @@
 package contract;
 
-import com.hedera.services.state.merkle.virtual.Account;
-import com.hedera.services.state.merkle.virtual.VirtualKey;
-import com.hedera.services.state.merkle.virtual.VirtualMap;
-import com.hedera.services.state.merkle.virtual.VirtualValue;
-import com.hedera.services.state.merkle.virtual.persistence.VirtualDataSource;
-import com.hedera.services.state.merkle.virtual.persistence.VirtualRecord;
-import com.hedera.services.state.merkle.virtual.persistence.mmap.MemMapDataSource;
-import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
-import com.swirlds.common.crypto.Hash;
-import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.infra.Blackhole;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
-import static com.hedera.services.state.merkle.virtual.VirtualTreePath.INVALID_PATH;
 
 /**
  * Microbenchmark tests for the VirtualMap. These benchmarks are just of the tree itself,
@@ -44,22 +20,28 @@ import static com.hedera.services.state.merkle.virtual.VirtualTreePath.INVALID_P
 @State(Scope.Thread)
 @Warmup(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 30, timeUnit = TimeUnit.SECONDS)
-@Fork(3)
+@Fork(1)
 //@Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
 //@Measurement(iterations = 1, time = 15, timeUnit = TimeUnit.SECONDS)
 //@Fork(1)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 public class VirtualMapBench {
-    private InMemoryDataSource ds = new InMemoryDataSource();
+  /*  private InMemoryDataSource ds = new InMemoryDataSource();
     private MemMapDataSource ds2;
     private VirtualMapDataStore store;
     private Random rand = new Random();
     private VirtualMap inMemoryMap;
+    private ExecutorService executorService;
 
     @Setup
     public void prepare() throws Exception {
-        System.out.println("PREPARING");
+        executorService = Executors.newSingleThreadExecutor((r) -> {
+            Thread th = new Thread(r);
+            th.setDaemon(true);
+            return th;
+        });
+
         final var storeDir = new File("./store").toPath();
         if (Files.exists(storeDir)) {
             try {
@@ -80,15 +62,14 @@ public class VirtualMapBench {
 
         // Populate the data source with one million items.
         inMemoryMap = new VirtualMap(ds);
-        VirtualMap map2 = new VirtualMap(ds2);
+//        VirtualMap map2 = new VirtualMap(ds2);
         for (int i=0; i<1_000_000; i++) {
             final var key = asKey(i);
             final var value = asValue(i);
             inMemoryMap.putValue(key, value);
-            map2.putValue(key, value);
+//            map2.putValue(key, value);
         }
-        inMemoryMap.commit();
-        map2.commit();
+//        map2.commit();
     }
 
     @TearDown
@@ -127,25 +108,190 @@ public class VirtualMapBench {
 //
 //    }
 
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_5() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<5; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_10() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<10; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_15() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<15; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_20() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<20; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_25() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<25; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
     @Benchmark
-    public void update_100PerVirtualMap() {
-        inMemoryMap = inMemoryMap.copy();
-        for (int j=0; j<25; j++) {
+    public void update_LimitedPerVirtualMap_25k() throws ExecutionException, InterruptedException {
+        final var old = inMemoryMap;
+        inMemoryMap = old.copy();
+        final var future = executorService.submit(old::release);
+        for (int j=0; j<25_000; j++) {
             final var i = rand.nextInt(1_000_000);
             inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
         }
-        inMemoryMap.commit();
+
+        // Block until the release has completed.
+        future.get();
     }
 
-    @Benchmark
-    public void update_100PerVirtualMap_Files() {
-        final var map = new VirtualMap(ds2);
-        for (int j=0; j<25; j++) {
-            final var i = rand.nextInt(1_000_000);
-            map.putValue(asKey(i), asValue(i + 1_000_000));
-        }
-        map.commit();
-    }
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_5_NoHashing() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<5; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_10_NoHashing() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<10; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_15_NoHashing() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<15; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_20_NoHashing() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<20; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_25_NoHashing() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<25; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+
+
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_25_1000K_Elements() {
+//        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<25; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            inMemoryMap.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        inMemoryMap.commit();
+//    }
+
+//    @Benchmark
+//    public void read_LimitedPerVirtualMap_5(Blackhole blackhole) {
+////        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<5; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            blackhole.consume(inMemoryMap.getValue(asKey(i)));
+//        }
+////        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void read_LimitedPerVirtualMap_10(Blackhole blackhole) {
+////        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<10; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            blackhole.consume(inMemoryMap.getValue(asKey(i)));
+//        }
+////        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void read_LimitedPerVirtualMap_15(Blackhole blackhole) {
+////        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<15; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            blackhole.consume(inMemoryMap.getValue(asKey(i)));
+//        }
+////        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void read_LimitedPerVirtualMap_20(Blackhole blackhole) {
+////        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<20; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            blackhole.consume(inMemoryMap.getValue(asKey(i)));
+//        }
+////        inMemoryMap.commit();
+//    }
+//
+//    @Benchmark
+//    public void read_LimitedPerVirtualMap_25(Blackhole blackhole) {
+////        inMemoryMap = inMemoryMap.copy();
+//        for (int j=0; j<25; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            blackhole.consume(inMemoryMap.getValue(asKey(i)));
+//        }
+////        inMemoryMap.commit();
+//    }
+
+//    @Benchmark
+//    public void update_LimitedPerVirtualMap_Files() {
+//        final var map = new VirtualMap(ds2);
+//        for (int j=0; j<25; j++) {
+//            final var i = rand.nextInt(1_000_000);
+//            map.putValue(asKey(i), asValue(i + 1_000_000));
+//        }
+//        map.commit();
+//    }
 
     private VirtualKey asKey(int index) {
         return new VirtualKey(Arrays.copyOf(("key" + index).getBytes(), 32));
@@ -156,15 +302,15 @@ public class VirtualMapBench {
     }
 
     private static final class InMemoryDataSource implements VirtualDataSource {
-        private Map<VirtualKey, VirtualRecord> leaves = new HashMap<>();
-        private Map<Long, VirtualRecord> leavesByPath = new HashMap<>();
-        private Map<Long, byte[]> parents = new HashMap<>();
+        private Map<VirtualKey, VirtualRecord> leaves = new ConcurrentHashMap<>();
+        private Map<Long, VirtualRecord> leavesByPath = new ConcurrentHashMap<>();
+        private Map<Long, Hash> parents = new ConcurrentHashMap<>();
         private long firstLeafPath = INVALID_PATH;
         private long lastLeafPath = INVALID_PATH;
         private boolean closed = false;
 
         @Override
-        public byte[] loadParentHash(long parentPath) {
+        public Hash loadParentHash(long parentPath) {
             return parents.get(parentPath);
         }
 
@@ -185,7 +331,7 @@ public class VirtualMapBench {
         }
 
         @Override
-        public void saveParent(long parentPath, byte[] hash) {
+        public void saveParent(long parentPath, Hash hash) {
             parents.put(parentPath, hash);
         }
 
@@ -233,5 +379,5 @@ public class VirtualMapBench {
             }
             closed = true;
         }
-    }
+    }*/
 }

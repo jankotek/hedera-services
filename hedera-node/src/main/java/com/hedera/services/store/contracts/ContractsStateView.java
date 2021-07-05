@@ -21,11 +21,9 @@ package com.hedera.services.store.contracts;/*
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
-import com.hedera.services.state.merkle.virtual.VirtualMap;
-import com.hedera.services.state.merkle.virtual.persistence.mmap.MemMapDataSource;
-import com.hedera.services.state.merkle.virtual.persistence.mmap.VirtualMapDataStore;
 import com.hedera.services.utils.EntityIdUtils;
 import com.swirlds.fcmap.FCMap;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.ethereum.core.Account;
 import org.hyperledger.besu.ethereum.core.Address;
@@ -38,15 +36,12 @@ import java.util.function.Supplier;
 
 public class ContractsStateView implements AccountStateStore {
 
-	private final VirtualMapDataStore dataStore;
 	private final BlobStorageSource blobStorageSource;
 	private final Supplier<FCMap<MerkleEntityId, MerkleAccount>> accounts;
 
 	public ContractsStateView(
 			BlobStorageSource blobStorageSource,
-			VirtualMapDataStore dataStore,
 			Supplier<FCMap<MerkleEntityId, MerkleAccount>> accounts) {
-		this.dataStore = dataStore;
 		this.blobStorageSource = blobStorageSource;
 		this.accounts = accounts;
 	}
@@ -71,16 +66,8 @@ public class ContractsStateView implements AccountStateStore {
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accId = parseMerkleAccountId(address);
 		var merkleAccount = accounts.get().get(accId);
-		if (merkleAccount.map() == null) {
-			return new VirtualMap(
-					new MemMapDataSource(
-							dataStore,
-							new com.hedera.services.state.merkle.virtual.Account(accId.getShard(), accId.getRealm(), accId.getNum()
-							)
-					)
-			);
-		}
-		return merkleAccount.map();
+		// TODO:
+		throw new NotImplementedException();
 	}
 
 	@Override

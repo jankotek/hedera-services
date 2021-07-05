@@ -45,6 +45,7 @@ import com.swirlds.fcmap.FCMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import proto.CustomFeesOuterClass;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,13 +77,16 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_FROZEN
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_IS_TREASURY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.ACCOUNT_KYC_NOT_GRANTED_FOR_TOKEN;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CANNOT_WIPE_TOKEN_TREASURY_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CUSTOM_FEES_LIST_TOO_LONG;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CUSTOM_FEE_NOT_FULLY_SPECIFIED;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.FRACTION_DIVIDES_BY_ZERO;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INSUFFICIENT_TOKEN_BALANCE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_AUTORENEW_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CUSTOM_FEE_COLLECTOR;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_RENEWAL_PERIOD;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_BURN_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_MINT_AMOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID_IN_CUSTOM_FEES;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TREASURY_ACCOUNT_FOR_TOKEN;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_WIPING_AMOUNT;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.OK;
@@ -94,14 +98,13 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_S
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_HAS_NO_WIPE_KEY;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_IS_IMMUTABLE;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_FEE_COLLECTOR;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TOKEN_WAS_DELETED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 import static java.util.stream.Collectors.toList;
 
 /**
  * Provides a managing store for arbitrary tokens.
- *
- * @author Michael Tinker
  */
 public class HederaTokenStore extends HederaStore implements TokenStore {
 	private static final Logger log = LogManager.getLogger(HederaTokenStore.class);
@@ -274,8 +277,6 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 			change.accept(token);
 		} catch (Exception internal) {
 			throw new IllegalArgumentException("Token change failed unexpectedly!", internal);
-		} finally {
-			tokens.get().replace(key, token);
 		}
 	}
 
@@ -356,48 +357,6 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 	}
 
 	@Override
-	public ResponseCodeEnum burn(TokenID tId, long amount) {
-		return changeSupply(tId, amount, -1, INVALID_TOKEN_BURN_AMOUNT);
-	}
-
-	@Override
-	public ResponseCodeEnum mint(TokenID tId, long amount) {
-		return changeSupply(tId, amount, +1, INVALID_TOKEN_MINT_AMOUNT);
-	}
-
-	private ResponseCodeEnum changeSupply(
-			TokenID tId,
-			long amount,
-			long sign,
-			ResponseCodeEnum failure
-	) {
-		return tokenSanityCheck(tId, token -> {
-			if (!token.hasSupplyKey()) {
-				return TOKEN_HAS_NO_SUPPLY_KEY;
-			}
-
-			var change = sign * amount;
-			var toBeUpdatedTotalSupply = token.totalSupply() + change;
-			if (toBeUpdatedTotalSupply < 0) {
-				return failure;
-			}
-
-			var aId = token.treasury().toGrpcAccountId();
-			var validity = checkAccountUsability(aId);
-			if (validity == OK) {
-				validity = tryAdjustment(aId, tId, change);
-			}
-			if (validity != OK) {
-				return validity;
-			}
-
-			apply(tId, t -> t.adjustTotalSupplyBy(change));
-
-			return OK;
-		});
-	}
-
-	@Override
 	public CreationResult<TokenID> createProvisionally(
 			TokenCreateTransactionBody request,
 			AccountID sponsor,
@@ -419,6 +378,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		var kycKey = asUsableFcKey(request.getKycKey());
 		var wipeKey = asUsableFcKey(request.getWipeKey());
 		var supplyKey = asUsableFcKey(request.getSupplyKey());
+		var customFeesKey = asUsableFcKey(request.getCustomFeesKey());
 
 		var expiry = expiryOf(request, now);
 		pendingId = ids.newTokenId(sponsor);
@@ -437,14 +397,66 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		wipeKey.ifPresent(pendingCreation::setWipeKey);
 		freezeKey.ifPresent(pendingCreation::setFreezeKey);
 		supplyKey.ifPresent(pendingCreation::setSupplyKey);
+		customFeesKey.ifPresent(pendingCreation::setCustomFeeKey);
 		if (request.hasAutoRenewAccount()) {
 			pendingCreation.setAutoRenewAccount(fromGrpcAccountId(request.getAutoRenewAccount()));
 			pendingCreation.setAutoRenewPeriod(request.getAutoRenewPeriod().getSeconds());
 		}
 
+		if (request.hasCustomFees()) {
+			validity = validateFeeSchedule(request.getCustomFees().getCustomFeesList());
+			if (validity != OK) {
+				return failure(validity);
+			}
+			pendingCreation.setFeeScheduleFrom(request.getCustomFees());
+		}
+
 		return success(pendingId);
 	}
 
+	private ResponseCodeEnum validateFeeSchedule(List<CustomFeesOuterClass.CustomFee> feeSchedule) {
+		if (feeSchedule.size() > properties.maxCustomFeesAllowed()) {
+			return CUSTOM_FEES_LIST_TOO_LONG;
+		}
+
+		for (var customFee : feeSchedule) {
+			final var feeCollector = customFee.getFeeCollector();
+			/* Validate if the feeCollector is a valid account ID */
+			final var feeCollectorValidity = usableOrElse(feeCollector, INVALID_CUSTOM_FEE_COLLECTOR);
+
+			if (feeCollectorValidity != OK) {
+				return INVALID_CUSTOM_FEE_COLLECTOR;
+			}
+
+			/* Validate if the token id given in the fixed fee is a valid token ID and is associated with the
+			feeCollector */
+			if (customFee.hasFixedFee()) {
+				final var fixedFee = customFee.getFixedFee();
+				if (fixedFee.hasTokenId()) {
+					final var denom = fixedFee.getTokenId();
+					if (resolve(denom) == MISSING_TOKEN) {
+						return INVALID_TOKEN_ID_IN_CUSTOM_FEES;
+					}
+					if (!associationExists(feeCollector, denom)) {
+						return TOKEN_NOT_ASSOCIATED_TO_FEE_COLLECTOR;
+					}
+				}
+			} else if (customFee.hasFractionalFee()) {
+
+				/* TODO: Should fee collectors for fractional fees automatically be associated to the newly
+				    created token?  (This will require their keys to sign the TokenCreate transaction.) */
+				final var fractionalSpec = customFee.getFractionalFee();
+				final var fraction = fractionalSpec.getFractionOfUnitsToCollect();
+				if (fraction.getDenominator() == 0) {
+					return FRACTION_DIVIDES_BY_ZERO;
+				}
+			} else {
+				return CUSTOM_FEE_NOT_FULLY_SPECIFIED;
+			}
+		}
+
+		return OK;
+	}
 
 	public void addKnownTreasury(AccountID aId, TokenID tId) {
 		knownTreasuries.computeIfAbsent(aId, ignore -> new HashSet<>()).add(tId);
@@ -741,23 +753,6 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 		var key = asTokenRel(aId, tId);
 		if (!tokenRelsLedger.exists(key)) {
 			return TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
-		}
-
-		return action.apply(token);
-	}
-
-	private ResponseCodeEnum tokenSanityCheck(
-			TokenID tId,
-			Function<MerkleToken, ResponseCodeEnum> action
-	) {
-		var validity = exists(tId) ? OK : INVALID_TOKEN_ID;
-		if (validity != OK) {
-			return validity;
-		}
-
-		var token = get(tId);
-		if (token.isDeleted()) {
-			return TOKEN_WAS_DELETED;
 		}
 
 		return action.apply(token);

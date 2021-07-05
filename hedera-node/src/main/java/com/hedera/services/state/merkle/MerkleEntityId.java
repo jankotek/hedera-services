@@ -26,16 +26,13 @@ import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ScheduleID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
-import com.swirlds.common.FCMKey;
 import com.swirlds.common.io.SerializableDataInputStream;
 import com.swirlds.common.io.SerializableDataOutputStream;
 import com.swirlds.common.merkle.utility.AbstractMerkleLeaf;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 
-public class MerkleEntityId extends AbstractMerkleLeaf implements FCMKey {
+public class MerkleEntityId extends AbstractMerkleLeaf {
 	static final int MERKLE_VERSION = 1;
 	static final long RUNTIME_CONSTRUCTABLE_ID = 0xd5dd2ebaa0bde03L;
 
@@ -107,20 +104,14 @@ public class MerkleEntityId extends AbstractMerkleLeaf implements FCMKey {
 		}
 
 		var that = (MerkleEntityId)o;
-		return new EqualsBuilder()
-				.append(shard, that.shard)
-				.append(realm, that.realm)
-				.append(num, that.num)
-				.isEquals();
+		return this.shard == that.shard && this.realm == that.realm && this.num == that.num;
 	}
 
 	@Override
 	public int hashCode() {
-		return new HashCodeBuilder(17, 37)
-				.append(shard)
-				.append(realm)
-				.append(num)
-				.toHashCode();
+		int result = Long.hashCode(shard);
+		result = 31 * result + Long.hashCode(realm);
+		return 31 * result + Long.hashCode(num);
 	}
 
 	/* --- FastCopyable --- */

@@ -21,6 +21,7 @@ package com.hedera.services.context.primitives;
  */
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UInt64Value;
 import com.hedera.services.context.properties.NodeLocalProperties;
 import com.hedera.services.files.HFileMeta;
 import com.hedera.services.legacy.core.jproto.JKey;
@@ -44,6 +45,7 @@ import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Duration;
 import com.hederahashgraph.api.proto.java.FileGetInfoResponse;
 import com.hederahashgraph.api.proto.java.FileID;
+import com.hederahashgraph.api.proto.java.Fraction;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.ScheduleID;
@@ -59,9 +61,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import proto.CustomFeesOuterClass;
 
 import javax.inject.Inject;
 import java.time.Instant;
@@ -88,12 +88,12 @@ import static com.hedera.test.utils.IdUtils.asContract;
 import static com.hedera.test.utils.IdUtils.asFile;
 import static com.hedera.test.utils.IdUtils.asSchedule;
 import static com.hedera.test.utils.IdUtils.asToken;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.BDDMockito.any;
 import static org.mockito.BDDMockito.argThat;
 import static org.mockito.BDDMockito.given;
@@ -202,6 +202,7 @@ class StateViewTest {
 				new EntityId(1, 2, 3));
 		token.setMemo(tokenMemo);
 		token.setAdminKey(TxnHandlingScenario.TOKEN_ADMIN_KT.asJKey());
+		token.setCustomFeeKey(MISC_ACCOUNT_KT.asJKey());
 		token.setFreezeKey(TxnHandlingScenario.TOKEN_FREEZE_KT.asJKey());
 		token.setKycKey(TxnHandlingScenario.TOKEN_KYC_KT.asJKey());
 		token.setSupplyKey(COMPLEX_KEY_ACCOUNT_KT.asJKey());
@@ -210,6 +211,7 @@ class StateViewTest {
 		token.setExpiry(expiry);
 		token.setAutoRenewPeriod(autoRenewPeriod);
 		token.setDeleted(true);
+		token.setFeeScheduleFrom(grpcCustomFees);
 		given(tokenStore.resolve(tokenId)).willReturn(tokenId);
 		given(tokenStore.resolve(missingTokenId)).willReturn(TokenStore.MISSING_TOKEN);
 		given(tokenStore.get(tokenId)).willReturn(token);
@@ -395,6 +397,8 @@ class StateViewTest {
 
 	@Test
 	void getsTokenInfo() {
+		// setup:
+		final var miscKey = MISC_ACCOUNT_KT.asKey();
 		// when:
 		var info = subject.infoForToken(tokenId).get();
 
@@ -407,10 +411,12 @@ class StateViewTest {
 		assertEquals(token.treasury().toGrpcAccountId(), info.getTreasury());
 		assertEquals(token.totalSupply(), info.getTotalSupply());
 		assertEquals(token.decimals(), info.getDecimals());
+		assertEquals(token.customFeeSchedule(), MerkleToken.customFeesFromGrpc(info.getCustomFees()));
+		assertEquals(miscKey, info.getCustomFeesKey());
 		assertEquals(TOKEN_ADMIN_KT.asKey(), info.getAdminKey());
 		assertEquals(TOKEN_FREEZE_KT.asKey(), info.getFreezeKey());
 		assertEquals(TOKEN_KYC_KT.asKey(), info.getKycKey());
-		assertEquals(MISC_ACCOUNT_KT.asKey(), info.getWipeKey());
+		assertEquals(miscKey, info.getWipeKey());
 		assertEquals(autoRenew, info.getAutoRenewAccount());
 		assertEquals(Duration.newBuilder().setSeconds(autoRenewPeriod).build(), info.getAutoRenewPeriod());
 		assertEquals(Timestamp.newBuilder().setSeconds(expiry).build(), info.getExpiry());
@@ -522,6 +528,25 @@ class StateViewTest {
 	}
 
 	@Test
+	void returnFileInfoForBinaryObjectNotFoundExceptionAfterRetries() {
+		// setup:
+		given(attrs.get(target))
+				.willThrow(new com.swirlds.blob.BinaryObjectNotFoundException())
+				.willThrow(new com.swirlds.blob.BinaryObjectNotFoundException())
+				.willReturn(metadata);
+		given(nodeProps.queryBlobLookupRetries()).willReturn(2);
+		given(contents.get(target)).willReturn(data);
+
+		// when:
+		var info = subject.infoForFile(target);
+
+		// then:
+		assertTrue(info.isPresent());
+		assertEquals(expected, info.get());
+	}
+
+
+	@Test
 	void assemblesFileInfoForImmutable() {
 		given(attrs.get(target)).willReturn(immutableMetadata);
 		given(contents.get(target)).willReturn(data);
@@ -565,6 +590,63 @@ class StateViewTest {
 		// then:
 		assertTrue(info.isEmpty());
 	}
+
+	@Test
+	void returnEmptyFileInfoForBinaryObjectDeletedExceptionAfterRetries() {
+		// setup:
+		given(attrs.get(target))
+				.willThrow(new com.swirlds.blob.BinaryObjectDeletedException())
+				.willThrow(new com.swirlds.blob.BinaryObjectDeletedException())
+				.willThrow(new com.swirlds.blob.BinaryObjectDeletedException())
+				.willReturn(metadata);
+		given(nodeProps.queryBlobLookupRetries()).willReturn(2);
+
+		// when:
+		var info = subject.infoForFile(target);
+
+		// then:
+		assertTrue(info.isEmpty());
+	}
+
+	@Test
+	void returnFileInfoForBinaryObjectDeletedExceptionAfterRetries() {
+		// setup:
+		expected = expected.toBuilder()
+				.setDeleted(true)
+				.setSize(0)
+				.build();
+		metadata.setDeleted(true);
+
+		given(attrs.get(target))
+				.willThrow(new com.swirlds.blob.BinaryObjectDeletedException())
+				.willThrow(new com.swirlds.blob.BinaryObjectDeletedException())
+				.willReturn(metadata);
+		given(nodeProps.queryBlobLookupRetries()).willReturn(2);
+
+		// when:
+		var info = subject.infoForFile(target);
+
+		// then:
+		assertTrue(info.isPresent());
+		assertEquals(expected, info.get());
+	}
+
+
+	@Test
+	void returnEmptyFileForOtherBinaryObjectException() {
+		// setup:
+		given(attrs.get(target)).willThrow(new com.swirlds.blob.BinaryObjectException());
+
+		// when:
+		var info = subject.infoForFile(target);
+
+		// then:
+		assertTrue(info.isEmpty());
+		final var warnLogs = logCaptor.warnLogs();
+		assertEquals(1, warnLogs.size());
+		assertThat(warnLogs.get(0), Matchers.startsWith("Unexpected error occurred when getting info for file"));
+	}
+
 
 	@Test
 	void logsAtDebugWhenInterrupted() throws InterruptedException {
@@ -632,4 +714,35 @@ class StateViewTest {
 		// then:
 		assertTrue(Arrays.equals(data, stuff.get()));
 	}
+
+	private CustomFeesOuterClass.FixedFee fixedFeeInTokenUnits = CustomFeesOuterClass.FixedFee.newBuilder()
+			.setTokenId(tokenId)
+			.setUnitsToCollect(100)
+			.build();
+	private CustomFeesOuterClass.FixedFee fixedFeeInHbar = CustomFeesOuterClass.FixedFee.newBuilder()
+			.setUnitsToCollect(100)
+			.build();
+	private Fraction fraction = Fraction.newBuilder().setNumerator(15).setDenominator(100).build();
+	private CustomFeesOuterClass.FractionalFee fractionalFee = CustomFeesOuterClass.FractionalFee.newBuilder()
+			.setFractionOfUnitsToCollect(fraction)
+			.setMaximumUnitsToCollect(UInt64Value.of(50))
+			.setMinimumUnitsToCollect(10)
+			.build();
+	private CustomFeesOuterClass.CustomFee customFixedFeeInHbar = CustomFeesOuterClass.CustomFee.newBuilder()
+			.setFeeCollector(payerAccountId)
+			.setFixedFee(fixedFeeInHbar)
+			.build();
+	private CustomFeesOuterClass.CustomFee customFixedFeeInHts = CustomFeesOuterClass.CustomFee.newBuilder()
+			.setFeeCollector(payerAccountId)
+			.setFixedFee(fixedFeeInTokenUnits)
+			.build();
+	private CustomFeesOuterClass.CustomFee customFractionalFee = CustomFeesOuterClass.CustomFee.newBuilder()
+			.setFeeCollector(payerAccountId)
+			.setFractionalFee(fractionalFee)
+			.build();
+	private CustomFeesOuterClass.CustomFees grpcCustomFees = CustomFeesOuterClass.CustomFees.newBuilder()
+			.addCustomFees(customFixedFeeInHbar)
+			.addCustomFees(customFixedFeeInHts)
+			.addCustomFees(customFractionalFee)
+			.build();
 }

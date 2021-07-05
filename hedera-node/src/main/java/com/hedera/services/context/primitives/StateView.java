@@ -38,6 +38,7 @@ import com.hedera.services.state.merkle.MerkleOptionalBlob;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
+import com.hedera.services.state.submerkle.CustomFee;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.RawTokenRelationship;
 import com.hedera.services.store.schedule.ScheduleStore;
@@ -185,7 +186,7 @@ public class StateView {
 	public static List<TokenRelationship> tokenRels(StateView view, AccountID id) {
 		var account = view.accounts().get(fromAccountId(id));
 		List<TokenRelationship> relationships = new ArrayList<>();
-		var tokenIds = account.tokens().asIds();
+		var tokenIds = account.tokens().asTokenIds();
 		for (TokenID tId : tokenIds) {
 			var optionalToken = view.tokenWith(tId);
 			var effectiveToken = optionalToken.orElse(GONE_TOKEN);
@@ -272,6 +273,19 @@ public class StateView {
 				info.setAutoRenewPeriod(Duration.newBuilder().setSeconds(token.autoRenewPeriod()));
 			}
 
+			final var feeSchedule = token.customFeeSchedule();
+			if (!feeSchedule.isEmpty()) {
+				final var customFeesBuilder = info.getCustomFeesBuilder();
+				feeSchedule.stream()
+						.map(CustomFee::asGrpc)
+						.forEach(customFeesBuilder::addCustomFees);
+				info.setCustomFees(customFeesBuilder);
+			}
+
+			if (token.hasCustomFeeKey()) {
+				info.setCustomFeesKey(asKeyUnchecked(token.getCustomFeeKey()));
+			}
+
 			return Optional.of(info.build());
 		} catch (Exception unexpected) {
 			log.warn(
@@ -342,7 +356,7 @@ public class StateView {
 		while (attemptsLeft-- > 0) {
 			try {
 				return getFileInfo(id);
-			} catch (com.swirlds.blob.BinaryObjectNotFoundException e) {
+			} catch (com.swirlds.blob.BinaryObjectNotFoundException | com.swirlds.blob.BinaryObjectDeletedException e) {
 				if (attemptsLeft > 0) {
 					log.debug("Retrying fetch of {} file meta {} more times", readableId(id), attemptsLeft);
 					try {
@@ -355,6 +369,9 @@ public class StateView {
 						Thread.currentThread().interrupt();
 					}
 				}
+			} catch (com.swirlds.blob.BinaryObjectException e) {
+				log.warn("Unexpected error occurred when getting info for file {}", readableId(id), e);
+				break;
 			}
 		}
 		return Optional.empty();

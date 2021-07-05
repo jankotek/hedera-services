@@ -21,6 +21,7 @@ package com.hedera.services.bdd.suites.consensus;
  */
 
 import com.hedera.services.bdd.spec.HapiApiSpec;
+import com.hedera.services.bdd.spec.HapiSpecSetup;
 import com.hedera.services.bdd.spec.transactions.consensus.HapiTopicUpdate;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import org.apache.logging.log4j.LogManager;
@@ -45,6 +46,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.BAD_ENCODING;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.EXPIRATION_REDUCTION_NOT_ALLOWED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_EXPIRATION_TIME;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SIGNATURE;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOPIC_ID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_ZERO_BYTE_IN_STRING;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.MEMO_TOO_LONG;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
@@ -52,6 +54,9 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.UNAUTHORIZED;
 
 public class TopicUpdateSuite extends HapiApiSuite {
 	private static final Logger log = LogManager.getLogger(TopicUpdateSuite.class);
+
+	private static final long defaultMaxLifetime =
+			Long.parseLong(HapiSpecSetup.getDefaultNodeProps().get("entities.maxLifetime"));
 
 	public static void main(String... args) {
 		new TopicUpdateSuite().runSuiteSync();
@@ -68,12 +73,20 @@ public class TopicUpdateSuite extends HapiApiSuite {
 						updateAdminKeyToEmpty(),
 						updateMultipleFields(),
 						expirationTimestampIsValidated(),
-						updateExpiryOnTopicWithNoAdminKey(),
 						updateSubmitKeyOnTopicWithNoAdminKeyFails(),
 						clearingAdminKeyWhenAutoRenewAccountPresent(),
 						feeAsExpected(),
+						updateExpiryOnTopicWithNoAdminKey(),
+						updateToMissingTopicFails()
 				}
 		);
+	}
+
+	private HapiApiSpec updateToMissingTopicFails() {
+		return defaultHapiSpec("UpdateTopicHandlesMissingTopicGracefully")
+				.given( ).when( ).then(
+						updateTopic("1.2.3").hasKnownStatus(INVALID_TOPIC_ID)
+				);
 	}
 
 	private HapiApiSpec validateMultipleFields() {
@@ -267,20 +280,22 @@ public class TopicUpdateSuite extends HapiApiSuite {
 
 	/* If admin key is not set, only expiration timestamp updates are allowed */
 	private HapiApiSpec updateExpiryOnTopicWithNoAdminKey() {
-		// some time in future, otherwise update operation will fail
-		long expirationTimestamp = Instant.now().getEpochSecond() + 10000000; // more than default.autorenew
-		// .secs=7000000
+		long overlyDistantNewExpiry = Instant.now().getEpochSecond() + defaultMaxLifetime + 12_345L;
+		long reasonableNewExpiry = Instant.now().getEpochSecond() + defaultMaxLifetime - 12_345L;
 		return defaultHapiSpec("updateExpiryOnTopicWithNoAdminKey")
 				.given(
 						createTopic("testTopic")
 				)
 				.when(
 						updateTopic("testTopic")
-								.expiry(expirationTimestamp)
+								.expiry(overlyDistantNewExpiry)
+								.hasKnownStatus(INVALID_EXPIRATION_TIME),
+						updateTopic("testTopic")
+								.expiry(reasonableNewExpiry)
 				)
 				.then(
 						getTopicInfo("testTopic")
-								.hasExpiry(expirationTimestamp)
+								.hasExpiry(reasonableNewExpiry)
 				);
 	}
 

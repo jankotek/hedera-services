@@ -623,6 +623,9 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 								.hasTokenBalance("primary", 0),
 						getAccountBalance("newTokenTreasury")
 								.hasTokenBalance("primary", 500),
+						getTokenInfo("primary")
+								.hasTreasury("newTokenTreasury")
+								.hasTotalSupply(500),
 						getTxnRecord("tokenUpdateTxn").logged()
 				);
 	}
@@ -652,7 +655,11 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 								.hasTokenBalance("primary", 0),
 						getAccountBalance("newTokenTreasury")
 								.hasTokenBalance("primary", 1),
+						getTokenInfo("primary")
+								.hasTreasury("newTokenTreasury")
+								.logged(),
 						getTokenNftInfo("primary", 1)
+								.hasAccountID(TOKEN_TREASURY)
 								.logged(),
 						getTxnRecord("tokenUpdateTxn").logged()
 				);

@@ -161,7 +161,7 @@ public class TokenUpdateTransitionLogic implements TransitionLogic {
 							op.getTreasury(),
 							replacedTreasuryBalance);
 				} else {
-					store.changeOwner(
+					outcome = store.changeOwner(
 							new NftId(id.getShardNum(), id.getRealmNum(), id.getTokenNum(), -1), oldTreasury, op.getTreasury());
 				}
 			}

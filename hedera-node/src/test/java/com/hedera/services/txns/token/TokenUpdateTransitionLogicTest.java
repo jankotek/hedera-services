@@ -25,6 +25,7 @@ import com.hedera.services.context.TransactionContext;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.legacy.core.jproto.JEd25519Key;
 import com.hedera.services.legacy.core.jproto.JKey;
+import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.store.tokens.TokenStore;
@@ -108,6 +109,7 @@ class TokenUpdateTransitionLogicTest {
 		given(token.treasury()).willReturn(EntityId.fromGrpcAccountId(oldTreasury));
 		given(token.autoRenewAccount()).willReturn(EntityId.fromGrpcAccountId(oldAutoRenew));
 		given(token.hasAutoRenewAccount()).willReturn(true);
+		given(token.tokenType()).willReturn(TokenType.FUNGIBLE_COMMON);
 		given(store.resolve(target)).willReturn(target);
 		given(store.get(target)).willReturn(token);
 		given(store.associationExists(newTreasury, target)).willReturn(true);
@@ -410,6 +412,29 @@ class TokenUpdateTransitionLogicTest {
 		verify(ledger, never()).doTokenTransfer(target, oldTreasury, newTreasury, oldTreasuryBalance);
 		// and:
 		verify(txnCtx).setStatus(SUCCESS);
+	}
+
+	@Test
+	void followsHappyPathNftWithNewTreasury() {
+		// setup:
+		long oldTreasuryBalance = 1;
+		givenValidTxnCtx(true);
+		givenToken(true, true);
+		given(token.tokenType()).willReturn(TokenType.NON_FUNGIBLE_UNIQUE);
+		// and:
+		given(ledger.unfreeze(newTreasury, target)).willReturn(OK);
+		given(ledger.grantKyc(newTreasury, target)).willReturn(OK);
+		given(store.update(any(), anyLong())).willReturn(OK);
+		given(ledger.getTokenBalance(oldTreasury, target)).willReturn(oldTreasuryBalance);
+		given(store.changeOwner(null, oldTreasury, newTreasury)).willReturn(OK);
+
+		// when:
+		subject.doStateTransition();
+
+		// then:
+		verify(ledger).unfreeze(newTreasury, target);
+		verify(ledger).grantKyc(newTreasury, target);
+		verify(ledger).getTokenBalance(oldTreasury, target);
 	}
 
 	@Test

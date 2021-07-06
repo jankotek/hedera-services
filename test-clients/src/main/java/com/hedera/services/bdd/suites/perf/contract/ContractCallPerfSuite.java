@@ -71,7 +71,7 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec contractCallPerf() {
-		final int NUM_CALLS = 600;
+		final int NUM_CALLS = 6000;
 
 		return defaultHapiSpec("ContractCallPerf")
 				.given(

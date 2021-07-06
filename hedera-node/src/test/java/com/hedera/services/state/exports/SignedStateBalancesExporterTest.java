@@ -96,6 +96,7 @@ class SignedStateBalancesExporterTest {
 	private FCMap<MerkleEntityAssociation, MerkleTokenRelStatus> tokenRels = new FCMap<>();
 
 	private MerkleToken token;
+	private MerkleToken uniqueToken;
 	private MerkleToken deletedToken;
 
 	private long ledgerFloat = 1_000;
@@ -112,6 +113,8 @@ class SignedStateBalancesExporterTest {
 
 	private TokenID theToken = asToken("0.0.1004");
 	private long secondNonNodeTokenBalance = 100;
+	private TokenID theUniqueToken = asToken("0.0.1011");
+	private long secondNonNodeUniqueTokenBalance = 2;
 	private TokenID theDeletedToken = asToken("0.0.1005");
 	private long secondNonNodeDeletedTokenBalance = 100;
 
@@ -164,10 +167,13 @@ class SignedStateBalancesExporterTest {
 
 		token = mock(MerkleToken.class);
 		given(token.isDeleted()).willReturn(false);
+		uniqueToken = mock(MerkleToken.class);
+		given(uniqueToken.isDeleted()).willReturn(false);
 		deletedToken = mock(MerkleToken.class);
 		given(deletedToken.isDeleted()).willReturn(true);
 		tokens.put(fromTokenId(theToken), token);
 		tokens.put(fromTokenId(theDeletedToken), deletedToken);
+		tokens.put(fromTokenId(theUniqueToken), uniqueToken);
 
 		tokenRels.put(
 				fromAccountTokenRel(secondNonNode, theToken),
@@ -175,6 +181,9 @@ class SignedStateBalancesExporterTest {
 		tokenRels.put(
 				fromAccountTokenRel(secondNonNode, theDeletedToken),
 				new MerkleTokenRelStatus(secondNonNodeDeletedTokenBalance, false, true));
+		tokenRels.put(
+				fromAccountTokenRel(secondNonNode, theUniqueToken),
+				new MerkleTokenRelStatus(secondNonNodeUniqueTokenBalance, false, true));
 
 		assurance = mock(DirectoryAssurance.class);
 

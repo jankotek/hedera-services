@@ -96,4 +96,12 @@ class NftIdTest {
 
 		assertNotEquals(null, subject);
 	}
+
+	@Test
+	void booleanWorks() {
+		// given:
+		final var subject = new NftId(shard, realm, num, -1);
+
+		assertTrue(subject.isInternal());
+	}
 }

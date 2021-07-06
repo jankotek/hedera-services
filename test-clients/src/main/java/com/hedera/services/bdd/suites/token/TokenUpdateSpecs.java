@@ -635,14 +635,21 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 				.given(
 						cryptoCreate(TOKEN_TREASURY),
 						cryptoCreate("newTokenTreasury"),
-						newKeyNamed("adminKey"),
-						newKeyNamed("supplyKey"),
+						newKeyNamed("adminKeyA"),
+						newKeyNamed("adminKeyB"),
+						newKeyNamed("supplyKeyA"),
+						newKeyNamed("supplyKeyB"),
 						tokenCreate("primary")
 								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
 								.treasury(TOKEN_TREASURY)
 								.initialSupply(0)
-								.adminKey("adminKey")
-								.supplyKey("supplyKey"),
+								.adminKey("adminKeyA")
+								.supplyKey("supplyKeyA"),
+						tokenCreate("secondary")
+								.treasury("newTokenTreasury")
+								.initialSupply(0)
+								.adminKey("adminKeyB")
+								.supplyKey("supplyKeyB"),
 						mintToken("primary", List.of(ByteString.copyFromUtf8("memo1")))
 				)
 				.when(
@@ -659,7 +666,7 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 								.hasTreasury("newTokenTreasury")
 								.logged(),
 						getTokenNftInfo("primary", 1)
-								.hasAccountID(TOKEN_TREASURY)
+								.hasAccountID(TOKEN_TREASURY) // still the same since no token transfer is initiated
 								.logged(),
 						getTxnRecord("tokenUpdateTxn").logged()
 				);

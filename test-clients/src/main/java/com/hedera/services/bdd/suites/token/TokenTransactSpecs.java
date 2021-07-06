@@ -35,6 +35,7 @@ import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.assertions.AccountInfoAsserts.changeFromSnapshot;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountNftInfos;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
@@ -92,6 +93,7 @@ public class TokenTransactSpecs extends HapiApiSuite {
 						missingEntitiesRejected(),
 						allRequiredSigsAreChecked(),
 						uniqueTokenTxnAccountBalance(),
+						uniqueTokenTxnAccountBalanceBetweenTreasury(),
 						uniqueTokenTxnWithNoAssociation(),
 						uniqueTokenTxnWithFrozenAccount(),
 						uniqueTokenTxnWithSenderNotSigned(),
@@ -479,6 +481,8 @@ public class TokenTransactSpecs extends HapiApiSuite {
 								.hasTokenBalance(A_TOKEN, 0),
 						getAccountBalance(FIRST_USER)
 								.hasTokenBalance(A_TOKEN, 1),
+						getTokenInfo(A_TOKEN)
+								.hasTreasury(TOKEN_TREASURY),
 						getTokenNftInfo(A_TOKEN, 1)
 								.hasSerialNum(1)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
@@ -487,6 +491,49 @@ public class TokenTransactSpecs extends HapiApiSuite {
 						getAccountNftInfos(FIRST_USER, 0, 1)
 								.hasNfts(
 										HapiTokenNftInfo.newTokenNftInfo(A_TOKEN, 1, FIRST_USER, ByteString.copyFromUtf8("memo"))
+								),
+						getTxnRecord("cryptoTransferTxn").logged()
+				);
+	}
+
+	public HapiApiSpec uniqueTokenTxnAccountBalanceBetweenTreasury() {
+		return defaultHapiSpec("UniqueTokenTxnAccountBalanceBetweenTreasury")
+				.given(
+						newKeyNamed("supplyKeyA"),
+						newKeyNamed("supplyKeyB"),
+						newKeyNamed("signingKeyTreasury"),
+						newKeyNamed("signingKeyNewTreasury"),
+						cryptoCreate(TOKEN_TREASURY).key("signingKeyTreasury"),
+						cryptoCreate("newTreasury").key("signingKeyNewTreasury"),
+						tokenCreate(A_TOKEN)
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.initialSupply(0)
+								.supplyKey("supplyKeyA")
+								.treasury(TOKEN_TREASURY),
+						tokenCreate(B_TOKEN)
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.initialSupply(0)
+								.supplyKey("supplyKeyB")
+								.treasury("newTreasury"),
+						mintToken(A_TOKEN, List.of(ByteString.copyFromUtf8("memo"))),
+						tokenAssociate("newTreasury", A_TOKEN)
+				).when(
+						cryptoTransfer(
+								movingUnique(1, A_TOKEN).between(TOKEN_TREASURY, "newTreasury")
+						).signedBy("signingKeyTreasury", "signingKeyNewTreasury", DEFAULT_PAYER).via("cryptoTransferTxn")
+				).then(
+						getAccountBalance(TOKEN_TREASURY)
+								.hasTokenBalance(A_TOKEN, 0),
+						getAccountBalance("newTreasury")
+								.hasTokenBalance(A_TOKEN, 1),
+						getTokenNftInfo(A_TOKEN, 1)
+								.hasSerialNum(1)
+								.hasMetadata(ByteString.copyFromUtf8("memo"))
+								.hasTokenID(A_TOKEN)
+								.hasAccountID("newTreasury"),
+						getAccountNftInfos("newTreasury", 0, 1)
+								.hasNfts(
+										HapiTokenNftInfo.newTokenNftInfo(A_TOKEN, 1, "newTreasury", ByteString.copyFromUtf8("memo"))
 								),
 						getTxnRecord("cryptoTransferTxn").logged()
 				);

@@ -381,7 +381,13 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 
 			if (!nftId.isInternal()) {
 				if (isKnownTreasury(to)) {
+					// sets Nft owner to 0.0.0
 					nftsLedger.set(nftId, OWNER, EntityId.MISSING_ENTITY_ID);
+					// updates token treasury
+					var merkleToken = tokens.get().getForModify(fromTokenId(nftType));
+					merkleToken.setTreasury(fromGrpcAccountId(to));
+					removeKnownTreasuryForToken(from, tId);
+					addKnownTreasury(to, tId);
 				} else {
 					nftsLedger.set(nftId, OWNER, EntityId.fromGrpcAccountId(to));
 				}

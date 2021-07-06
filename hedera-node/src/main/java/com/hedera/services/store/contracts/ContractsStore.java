@@ -41,11 +41,11 @@ package com.hedera.services.store.contracts;/*
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
-import com.hedera.services.state.merkle.virtual.ContractHashStore;
-import com.hedera.services.state.merkle.virtual.ContractLeafStore;
-import com.hedera.services.store.models.Id;
+import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
+import com.swirlds.fcmap.FCMap;
 import com.swirlds.fcmap.VFCMap;
 import javafx.util.Pair;
 import org.apache.tuweni.bytes.Bytes;
@@ -57,8 +57,12 @@ import org.hyperledger.besu.ethereum.worldstate.AccountStorageMap;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
+
+import static com.hedera.services.state.merkle.MerkleEntityId.fromAccountId;
 
 public class ContractsStore implements AccountStateStore {
+	private final Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage;
 	private final HederaLedger ledger;
 	private final BlobStorageSource blobStorageSource;
 	private Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
@@ -66,7 +70,9 @@ public class ContractsStore implements AccountStateStore {
 	private Map<AccountID, Pair<AccountID, HederaAccountCustomizer>> provisionalAccountCreations = new HashMap<>();
 
 	public ContractsStore(
+			Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage,
 			BlobStorageSource blobStorageSource, HederaLedger ledger) {
+		this.contractStorage = contractStorage;
 		this.ledger = ledger;
 		this.blobStorageSource = blobStorageSource;
 	}
@@ -94,19 +100,13 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
-		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
-		var merkleAccount = ledger.get(accId);
-//		if (merkleAccount.map() == null) {
-//			merkleAccount.setVirtualMap(new VFCMap<ContractUint256, ContractUint256>());
-//		}
-		// TODO:
-//		throw new NotImplementedException();
-		final var vfcMap = new VFCMap<>(
-				new ContractLeafStore(new Id(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum())),
-				new ContractHashStore(new Id(accId.getShardNum(), accId.getRealmNum(), accId.getAccountNum())));
-		return new AccountStorageMapImpl(vfcMap);
+		final var accId = fromAccountId(EntityIdUtils.accountParsedFromSolidityAddress(address.toArray()));
+		if (!contractStorage.get().containsKey(accId)) {
+			contractStorage.get().put(accId, new VFCMap<>());
+		}
 
-//		return merkleAccount.map();
+		final var vfcMap = contractStorage.get().get(accId);
+		return new AccountStorageMapImpl(vfcMap);
 	}
 
 	@Override

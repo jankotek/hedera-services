@@ -38,6 +38,7 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.merkle.MerkleUniqueTokenId;
+import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.state.submerkle.EntityId;
 import com.hedera.services.state.submerkle.ExchangeRates;
 import com.hedera.services.state.submerkle.SequenceNumber;
@@ -57,6 +58,7 @@ import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.utility.AbstractNaryMerkleInternal;
 import com.swirlds.fchashmap.FCOneToManyRelation;
 import com.swirlds.fcmap.FCMap;
+import com.swirlds.fcmap.VFCMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -121,7 +123,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		static final int NUM_0140_CHILDREN = 10;
 		static final int NUM_0150_CHILDREN = 10;
 		static final int UNIQUE_TOKENS = 10;
-		static final int NUM_0160_CHILDREN = 11;
+		static final int CONTRACT_STORAGE = 11;
+		static final int NUM_0160_CHILDREN = 12;
 	}
 
 	ServicesContext ctx;
@@ -198,6 +201,9 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		if (uniqueTokens() == null) {
 			setChild(ChildIndices.UNIQUE_TOKENS, new FCMap<>());
 		}
+		if (contractStorage() == null) {
+			setChild(ChildIndices.CONTRACT_STORAGE, new FCMap<>());
+		}
 	}
 
 	/* --- SwirldState --- */
@@ -232,6 +238,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			setChild(ChildIndices.DISK_FS, new MerkleDiskFs());
 			setChild(ChildIndices.SCHEDULE_TXS, new FCMap<>());
 			setChild(ChildIndices.UNIQUE_TOKENS, new FCMap<MerkleUniqueTokenId, MerkleUniqueToken>());
+			setChild(ChildIndices.CONTRACT_STORAGE, new FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>());
 
 			/* Initialize the running hash leaf at genesis to an empty hash. */
 			final var firstRunningHash = new RunningHash();
@@ -352,7 +359,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				diskFs().copy(),
 				scheduleTxs().copy(),
 				runningHashLeaf().copy(),
-				uniqueTokens().copy()
+				uniqueTokens().copy(),
+				contractStorage().copy()
 		), mutableUniqTokenAssocsIfInit, mutableOwnerAssocsIfInit, this);
 	}
 
@@ -383,6 +391,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 						"  RecordsRunningHashLeaf :: %s\n" +
 						"    ↪ Running hash       :: %s\n" +
 						"  UniqueTokens           :: %s\n",
+						"  ContractStorage        :: %s\n",
 				getHash(),
 				accounts().getHash(),
 				storage().getHash(),
@@ -395,7 +404,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				addressBook().getHash(),
 				runningHashLeaf().getHash(),
 				runningHashLeaf().getRunningHash().getHash(),
-				uniqueTokens().getHash()));
+				uniqueTokens().getHash(),
+				contractStorage().getHash()));
 	}
 
 	public FCMap<MerkleEntityId, MerkleAccount> accounts() {
@@ -456,5 +466,9 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 
 	void setUniqueOwnershipAssociations(FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipAssociations) {
 		this.uniqueOwnershipAssociations = uniqueOwnershipAssociations;
+	}
+
+	public FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>> contractStorage() {
+		return getChild(ChildIndices.CONTRACT_STORAGE);
 	}
 }

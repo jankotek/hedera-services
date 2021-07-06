@@ -21,9 +21,7 @@ package com.hedera.services.store.contracts;/*
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
-import com.hedera.services.state.merkle.virtual.ContractHashStore;
-import com.hedera.services.state.merkle.virtual.ContractLeafStore;
-import com.hedera.services.store.models.Id;
+import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.utils.EntityIdUtils;
 import com.swirlds.fcmap.FCMap;
 import com.swirlds.fcmap.VFCMap;
@@ -37,16 +35,22 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
 
+import static com.hedera.services.state.merkle.MerkleEntityId.fromAccountId;
+
 public class ContractsStateView implements AccountStateStore {
 
 	private final BlobStorageSource blobStorageSource;
 	private final Supplier<FCMap<MerkleEntityId, MerkleAccount>> accounts;
+	private final Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage;
 
 	public ContractsStateView(
 			BlobStorageSource blobStorageSource,
-			Supplier<FCMap<MerkleEntityId, MerkleAccount>> accounts) {
+			Supplier<FCMap<MerkleEntityId, MerkleAccount>> accounts,
+			Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage
+	) {
 		this.blobStorageSource = blobStorageSource;
 		this.accounts = accounts;
+		this.contractStorage = contractStorage;
 	}
 
 	@Override
@@ -68,11 +72,10 @@ public class ContractsStateView implements AccountStateStore {
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accId = parseMerkleAccountId(address);
-		var merkleAccount = accounts.get().get(accId);
-		// TODO:
-		final var vfcMap = new VFCMap<>(
-				new ContractLeafStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum())),
-				new ContractHashStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum())));
+		if (!contractStorage.get().containsKey(accId)) {
+			contractStorage.get().put(accId, new VFCMap<>());
+		}
+		final var vfcMap = contractStorage.get().get(accId);
 		return new AccountStorageMapImpl(vfcMap);
 	}
 
@@ -108,6 +111,6 @@ public class ContractsStateView implements AccountStateStore {
 
 	@NotNull
 	private MerkleEntityId parseMerkleAccountId(Address address) {
-		return MerkleEntityId.fromAccountId(EntityIdUtils.accountParsedFromSolidityAddress(address.toArray()));
+		return fromAccountId(EntityIdUtils.accountParsedFromSolidityAddress(address.toArray()));
 	}
 }

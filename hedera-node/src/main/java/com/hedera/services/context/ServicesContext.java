@@ -234,6 +234,7 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.merkle.MerkleUniqueTokenId;
+import com.hedera.services.state.merkle.virtual.ContractUint256;
 import com.hedera.services.state.migration.StateMigrations;
 import com.hedera.services.state.migration.StdStateMigrations;
 import com.hedera.services.state.submerkle.EntityId;
@@ -249,10 +250,10 @@ import com.hedera.services.stats.MiscSpeedometers;
 import com.hedera.services.stats.RunningAvgFactory;
 import com.hedera.services.stats.ServicesStatsManager;
 import com.hedera.services.stats.SpeedometerFactory;
-import com.hedera.services.store.contracts.ContractsStateView;
-import com.hedera.services.store.contracts.ContractsStore;
 import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.TypedTokenStore;
+import com.hedera.services.store.contracts.ContractsStateView;
+import com.hedera.services.store.contracts.ContractsStore;
 import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.schedule.HederaScheduleStore;
 import com.hedera.services.store.schedule.ScheduleStore;
@@ -265,7 +266,6 @@ import com.hedera.services.throttling.FunctionalityThrottling;
 import com.hedera.services.throttling.HapiThrottling;
 import com.hedera.services.throttling.TransactionThrottling;
 import com.hedera.services.throttling.TxnAwareHandleThrottling;
-import com.hedera.services.txns.customfees.CustomFeeSchedules;
 import com.hedera.services.txns.ProcessLogic;
 import com.hedera.services.txns.SubmissionFlow;
 import com.hedera.services.txns.TransitionLogic;
@@ -286,6 +286,8 @@ import com.hedera.services.txns.crypto.CryptoCreateTransitionLogic;
 import com.hedera.services.txns.crypto.CryptoDeleteTransitionLogic;
 import com.hedera.services.txns.crypto.CryptoTransferTransitionLogic;
 import com.hedera.services.txns.crypto.CryptoUpdateTransitionLogic;
+import com.hedera.services.txns.customfees.CustomFeeSchedules;
+import com.hedera.services.txns.customfees.FcmCustomFeeSchedules;
 import com.hedera.services.txns.file.FileAppendTransitionLogic;
 import com.hedera.services.txns.file.FileCreateTransitionLogic;
 import com.hedera.services.txns.file.FileDeleteTransitionLogic;
@@ -300,7 +302,6 @@ import com.hedera.services.txns.schedule.ScheduleExecutor;
 import com.hedera.services.txns.schedule.ScheduleSignTransitionLogic;
 import com.hedera.services.txns.span.ExpandHandleSpan;
 import com.hedera.services.txns.span.ExpandHandleSpanMapAccessor;
-import com.hedera.services.txns.customfees.FcmCustomFeeSchedules;
 import com.hedera.services.txns.span.SpanMapManager;
 import com.hedera.services.txns.submission.BasicSubmissionFlow;
 import com.hedera.services.txns.submission.PlatformSubmissionManager;
@@ -355,6 +356,7 @@ import com.swirlds.common.crypto.ImmutableHash;
 import com.swirlds.common.crypto.RunningHash;
 import com.swirlds.fchashmap.FCOneToManyRelation;
 import com.swirlds.fcmap.FCMap;
+import com.swirlds.fcmap.VFCMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -607,6 +609,7 @@ public class ServicesContext {
 	private AtomicReference<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> queryableTokenAssociations;
 	private AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueTokenAssociations;
 	private AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueOwnershipAssociations;
+	private AtomicReference<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> queryableContractStorage;
 
 	/* Context-free infrastructure. */
 	private static Pause pause;
@@ -645,6 +648,7 @@ public class ServicesContext {
 		queryableUniqueTokens().set(uniqueTokens());
 		queryableUniqueTokenAssociations().set(uniqueTokenAssociations());
 		queryableUniqueOwnershipAssociations().set(uniqueOwnershipAssociations());
+		queryableContractStorage().set(contractStorage());
 	}
 
 	public SwirldDualState getDualState() {
@@ -1976,14 +1980,14 @@ public class ServicesContext {
 
 	public ContractsStore contractsStore () {
 		if (contractsStore == null) {
-			contractsStore = new ContractsStore(bytecodeDb(), ledger());
+			contractsStore = new ContractsStore(this::contractStorage, bytecodeDb(), ledger());
 		}
 		return contractsStore;
 	}
 
 	public ContractsStateView contractsStateView() {
 		if (contractsStateView == null) {
-			contractsStateView = new ContractsStateView(bytecodeDb(), this::accounts);
+			contractsStateView = new ContractsStateView(bytecodeDb(), this::accounts, this::contractStorage);
 		}
 		return contractsStateView;
 	}
@@ -2176,6 +2180,13 @@ public class ServicesContext {
 		return queryableUniqueOwnershipAssociations;
 	}
 
+	public AtomicReference<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> queryableContractStorage() {
+		if (queryableContractStorage == null) {
+			queryableContractStorage = new AtomicReference<>(contractStorage());
+		}
+		return queryableContractStorage;
+	}
+
 	public UsagePricesProvider usagePrices() {
 		if (usagePrices == null) {
 			usagePrices = new AwareFcfsUsagePrices(hfs(), fileNums(), txnCtx());
@@ -2269,6 +2280,10 @@ public class ServicesContext {
 
 	public FCMap<MerkleEntityId, MerkleAccount> accounts() {
 		return state.accounts();
+	}
+
+	public FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>> contractStorage() {
+		return state.contractStorage();
 	}
 
 	public FCMap<MerkleEntityId, MerkleTopic> topics() {

@@ -84,8 +84,8 @@ public class ContractCallSuite extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return allOf(List.of(
-//				benchmarkSingleSetter()
-				benchmarkLoadTx()
+				benchmarkSingleSetter()
+//				benchmarkLoadTx()
 //				SSTORE()
 //				benchmarkNCreations(),
 //				benchmarkNCreationsWithUpdates(),

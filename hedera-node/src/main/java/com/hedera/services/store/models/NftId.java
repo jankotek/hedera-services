@@ -52,6 +52,10 @@ public class NftId {
 		return serialNo;
 	}
 
+	public boolean isInternal() {
+		return serialNo == -1;
+	}
+
 	public TokenID tokenId() {
 		return TokenID.newBuilder()
 				.setShardNum(shard)

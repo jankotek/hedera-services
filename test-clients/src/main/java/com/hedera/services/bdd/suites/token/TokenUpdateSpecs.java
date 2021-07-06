@@ -20,6 +20,7 @@ package com.hedera.services.bdd.suites.token;
  * ‍
  */
 
+import com.google.protobuf.ByteString;
 import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.HapiSpecSetup;
 import com.hedera.services.bdd.spec.queries.crypto.ExpectedTokenRel;
@@ -27,6 +28,7 @@ import com.hedera.services.bdd.spec.transactions.TxnUtils;
 import com.hedera.services.bdd.suites.HapiApiSuite;
 import com.hederahashgraph.api.proto.java.TokenFreezeStatus;
 import com.hederahashgraph.api.proto.java.TokenKycStatus;
+import com.hederahashgraph.api.proto.java.TokenType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -39,6 +41,7 @@ import static com.hedera.services.bdd.spec.HapiApiSpec.defaultHapiSpec;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenInfo;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.burnToken;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
@@ -118,6 +121,8 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 						newTreasuryMustBeAssociated(),
 						tokensCanBeMadeImmutableWithEmptyKeyList(),
 						updateHappyPath(),
+						updateNftTreasuryHappyPath(),
+						updateTokenTreasuryHappyPath(),
 						validatesMissingAdminKey(),
 						validatesMissingRef(),
 						validatesNewExpiry(),
@@ -592,6 +597,64 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 								.hasTotalSupply(500)
 								.hasAutoRenewAccount("newAutoRenewAccount")
 								.hasAutoRenewPeriod(101L)
+				);
+	}
+
+	public HapiApiSpec updateTokenTreasuryHappyPath() {
+		return defaultHapiSpec("UpdateTokenTreasuryHappyPath")
+				.given(
+						cryptoCreate(TOKEN_TREASURY),
+						cryptoCreate("newTokenTreasury"),
+						newKeyNamed("adminKey"),
+						newKeyNamed("supplyKey"),
+						tokenCreate("primary")
+								.treasury(TOKEN_TREASURY)
+								.initialSupply(500)
+								.adminKey("adminKey")
+								.supplyKey("supplyKey")
+				)
+				.when(
+						tokenAssociate("newTokenTreasury", "primary"),
+						tokenUpdate("primary")
+								.treasury("newTokenTreasury").via("tokenUpdateTxn")
+				)
+				.then(
+						getAccountBalance(TOKEN_TREASURY)
+								.hasTokenBalance("primary", 0),
+						getAccountBalance("newTokenTreasury")
+								.hasTokenBalance("primary", 500),
+						getTxnRecord("tokenUpdateTxn").logged()
+				);
+	}
+
+	public HapiApiSpec updateNftTreasuryHappyPath() {
+		return defaultHapiSpec("UpdateNftTreasuryHappyPath")
+				.given(
+						cryptoCreate(TOKEN_TREASURY),
+						cryptoCreate("newTokenTreasury"),
+						newKeyNamed("adminKey"),
+						newKeyNamed("supplyKey"),
+						tokenCreate("primary")
+								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
+								.treasury(TOKEN_TREASURY)
+								.initialSupply(0)
+								.adminKey("adminKey")
+								.supplyKey("supplyKey"),
+						mintToken("primary", List.of(ByteString.copyFromUtf8("memo1")))
+				)
+				.when(
+						tokenAssociate("newTokenTreasury", "primary"),
+						tokenUpdate("primary")
+								.treasury("newTokenTreasury").via("tokenUpdateTxn")
+				)
+				.then(
+						getAccountBalance(TOKEN_TREASURY)
+								.hasTokenBalance("primary", 0),
+						getAccountBalance("newTokenTreasury")
+								.hasTokenBalance("primary", 1),
+						getTokenNftInfo("primary", 1)
+								.logged(),
+						getTxnRecord("tokenUpdateTxn").logged()
 				);
 	}
 

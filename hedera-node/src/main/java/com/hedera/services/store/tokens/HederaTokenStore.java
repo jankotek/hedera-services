@@ -351,7 +351,7 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 	public ResponseCodeEnum changeOwner(NftId nftId, AccountID from, AccountID to) {
 		final var tId = nftId.tokenId();
 		return sanityChecked(from, to, tId, token -> {
-			if (!nftsLedger.exists(nftId)) {
+			if (!nftId.isInternal() && !nftsLedger.exists(nftId)) {
 				return INVALID_NFT_ID;
 			}
 
@@ -364,9 +364,11 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 				return toFreezeAndKycValidity;
 			}
 
-			final var owner = (EntityId) nftsLedger.get(nftId, OWNER);
-			if (!owner.matches(from)) {
-				return SENDER_DOES_NOT_OWN_NFT_SERIAL_NO;
+			if (!nftId.isInternal()) {
+				final var owner = (EntityId) nftsLedger.get(nftId, OWNER);
+				if (!owner.matches(from)) {
+					return SENDER_DOES_NOT_OWN_NFT_SERIAL_NO;
+				}
 			}
 
 			final var nftType = nftId.tokenId();
@@ -377,10 +379,12 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 			final var toNftsOwned = (long) accountsLedger.get(to, NUM_NFTS_OWNED);
 			final var toThisNftsOwned = (long) tokenRelsLedger.get(asTokenRel(to, nftType), TOKEN_BALANCE);
 
-			if (isKnownTreasury(to)) {
-				nftsLedger.set(nftId, OWNER, EntityId.MISSING_ENTITY_ID);
-			} else {
-				nftsLedger.set(nftId, OWNER, EntityId.fromGrpcAccountId(to));
+			if (!nftId.isInternal()) {
+				if (isKnownTreasury(to)) {
+					nftsLedger.set(nftId, OWNER, EntityId.MISSING_ENTITY_ID);
+				} else {
+					nftsLedger.set(nftId, OWNER, EntityId.fromGrpcAccountId(to));
+				}
 			}
 
 			accountsLedger.set(from, NUM_NFTS_OWNED, fromNftsOwned - 1);
@@ -388,14 +392,16 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 			tokenRelsLedger.set(fromRel, TOKEN_BALANCE, fromThisNftsOwned - 1);
 			tokenRelsLedger.set(toRel, TOKEN_BALANCE, toThisNftsOwned + 1);
 
-			var merkleUniqueTokenId = new MerkleUniqueTokenId(fromGrpcTokenId(nftId.tokenId()), nftId.serialNo());
-			this.uniqueOwnershipAssociations.get().disassociate(
-					fromGrpcAccountId(from),
-					merkleUniqueTokenId);
+			if (!nftId.isInternal()) {
+				var merkleUniqueTokenId = new MerkleUniqueTokenId(fromGrpcTokenId(nftId.tokenId()), nftId.serialNo());
+				this.uniqueOwnershipAssociations.get().disassociate(
+						fromGrpcAccountId(from),
+						merkleUniqueTokenId);
 
-			this.uniqueOwnershipAssociations.get().associate(
-					fromGrpcAccountId(to),
-					merkleUniqueTokenId);
+				this.uniqueOwnershipAssociations.get().associate(
+						fromGrpcAccountId(to),
+						merkleUniqueTokenId);
+			}
 
 			hederaLedger.updateOwnershipChanges(nftId, from, to);
 

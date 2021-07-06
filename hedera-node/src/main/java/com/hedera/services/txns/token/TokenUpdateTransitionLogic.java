@@ -22,7 +22,9 @@ package com.hedera.services.txns.token;
 
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.ledger.HederaLedger;
+import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleToken;
+import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.txns.TransitionLogic;
 import com.hedera.services.txns.validation.OptionValidator;
@@ -152,11 +154,16 @@ public class TokenUpdateTransitionLogic implements TransitionLogic {
 			final var oldTreasury = replacedTreasury.get();
 			long replacedTreasuryBalance = ledger.getTokenBalance(oldTreasury, id);
 			if (replacedTreasuryBalance > 0) {
-				outcome = ledger.doTokenTransfer(
-						id,
-						oldTreasury,
-						op.getTreasury(),
-						replacedTreasuryBalance);
+				if (token.tokenType().equals(TokenType.FUNGIBLE_COMMON)) {
+					outcome = ledger.doTokenTransfer(
+							id,
+							oldTreasury,
+							op.getTreasury(),
+							replacedTreasuryBalance);
+				} else {
+					store.changeOwner(
+							new NftId(id.getShardNum(), id.getRealmNum(), id.getTokenNum(), -1), oldTreasury, op.getTreasury());
+				}
 			}
 		}
 		if (outcome != OK) {

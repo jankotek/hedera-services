@@ -21,7 +21,14 @@ package com.hedera.services.store.contracts;/*
 import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.virtual.ContractHashStore;
+import com.hedera.services.state.merkle.virtual.ContractKey;
+import com.hedera.services.state.merkle.virtual.ContractLeafStore;
+import com.hedera.services.state.merkle.virtual.ContractPath;
 import com.hedera.services.state.merkle.virtual.ContractUint256;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapHashStore;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapLeafStore;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.swirlds.fcmap.FCMap;
 import com.swirlds.fcmap.VFCMap;
@@ -43,14 +50,22 @@ public class ContractsStateView implements AccountStateStore {
 	private final Supplier<FCMap<MerkleEntityId, MerkleAccount>> accounts;
 	private final Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage;
 
+	private FCVirtualMapHashStore<ContractPath> hashStore;
+	private FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
+
 	public ContractsStateView(
 			BlobStorageSource blobStorageSource,
 			Supplier<FCMap<MerkleEntityId, MerkleAccount>> accounts,
-			Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage
+			Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage,
+			FCVirtualMapHashStore<ContractPath> hashStore,
+			FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore
 	) {
 		this.blobStorageSource = blobStorageSource;
 		this.accounts = accounts;
 		this.contractStorage = contractStorage;
+
+		this.hashStore = hashStore;
+		this.leafStore = leafStore;
 	}
 
 	@Override
@@ -72,10 +87,14 @@ public class ContractsStateView implements AccountStateStore {
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accId = parseMerkleAccountId(address);
-		if (!contractStorage.get().containsKey(accId)) {
-			contractStorage.get().put(accId, new VFCMap<>());
-		}
-		final var vfcMap = contractStorage.get().get(accId);
+//		if (!contractStorage.get().containsKey(accId)) {
+//			contractStorage.get().put(accId, new VFCMap<>());
+//		}
+//		final var vfcMap = contractStorage.get().get(accId);
+		final var vfcMap = new VFCMap<>(
+				new ContractLeafStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum()), this.leafStore),
+				new ContractHashStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum()), this.hashStore)
+		);
 		return new AccountStorageMapImpl(vfcMap);
 	}
 

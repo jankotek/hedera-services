@@ -42,7 +42,14 @@ import com.hedera.services.contracts.sources.BlobStorageSource;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.ledger.accounts.HederaAccountCustomizer;
 import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.virtual.ContractHashStore;
+import com.hedera.services.state.merkle.virtual.ContractKey;
+import com.hedera.services.state.merkle.virtual.ContractLeafStore;
+import com.hedera.services.state.merkle.virtual.ContractPath;
 import com.hedera.services.state.merkle.virtual.ContractUint256;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapHashStore;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapLeafStore;
+import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.swirlds.fcmap.FCMap;
@@ -59,8 +66,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static com.hedera.services.state.merkle.MerkleEntityId.fromAccountId;
-
 public class ContractsStore implements AccountStateStore {
 	private final Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage;
 	private final HederaLedger ledger;
@@ -68,13 +73,19 @@ public class ContractsStore implements AccountStateStore {
 	private Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
 	private Map<Address, EvmAccountImpl> provisionalAccountUpdates = new HashMap<>();
 	private Map<AccountID, Pair<AccountID, HederaAccountCustomizer>> provisionalAccountCreations = new HashMap<>();
+	private FCVirtualMapHashStore<ContractPath> hashStore;
+	private FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
 
 	public ContractsStore(
 			Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage,
-			BlobStorageSource blobStorageSource, HederaLedger ledger) {
+			BlobStorageSource blobStorageSource, HederaLedger ledger,
+			FCVirtualMapHashStore<ContractPath> hashStore,
+			FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore) {
 		this.contractStorage = contractStorage;
 		this.ledger = ledger;
 		this.blobStorageSource = blobStorageSource;
+		this.hashStore = hashStore;
+		this.leafStore = leafStore;
 	}
 
 	public void prepareAccountCreation(AccountID sponsor, AccountID target, HederaAccountCustomizer customizer) {
@@ -100,12 +111,18 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
-		final var accId = fromAccountId(EntityIdUtils.accountParsedFromSolidityAddress(address.toArray()));
-		if (!contractStorage.get().containsKey(accId)) {
-			contractStorage.get().put(accId, new VFCMap<>());
-		}
+		final var accountId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
+//		final var merkleEntityId = fromAccountId(accountId);
 
-		final var vfcMap = contractStorage.get().get(accId);
+//		if (!contractStorage.get().containsKey(merkleEntityId)) {
+//			contractStorage.get().put(merkleEntityId, new VFCMap<>());
+//		}
+//		final var vfcMap = contractStorage.get().get(merkleEntityId);
+
+		final var vfcMap = new VFCMap<>(
+				new ContractLeafStore(new Id(accountId.getShardNum(), accountId.getRealmNum(), accountId.getAccountNum()), this.leafStore),
+				new ContractHashStore(new Id(accountId.getShardNum(), accountId.getRealmNum(), accountId.getAccountNum()), this.hashStore)
+		);
 		return new AccountStorageMapImpl(vfcMap);
 	}
 

@@ -24,6 +24,11 @@ import com.google.protobuf.ByteString;
 import com.hedera.services.context.TransactionContext;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
+import com.hedera.services.state.merkle.virtual.ContractKey;
+import com.hedera.services.state.merkle.virtual.ContractPath;
+import com.hedera.services.state.merkle.virtual.ContractUint256;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapHashStore;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapLeafStore;
 import com.hedera.services.state.submerkle.SequenceNumber;
 import com.hedera.services.store.contracts.stubs.StubbedBlockchain;
 import com.hedera.services.txns.TransitionLogic;
@@ -78,6 +83,9 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 	private final AccountStateStore store;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
+
+	private FCVirtualMapHashStore<ContractPath> hashStore;
+	private FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
 
 	public ContractCallTransitionLogic(
 			LegacyCaller delegate,

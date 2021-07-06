@@ -15,6 +15,11 @@ public class ContractHashStore implements FCHashStore {
     private final Id contractId;
     private final FCVirtualMapHashStore<ContractPath> dataStore;
 
+    public ContractHashStore(Id contractId, FCVirtualMapHashStore<ContractPath> dataStore) {
+        this.contractId = contractId;
+        this.dataStore = dataStore;
+    }
+
     public ContractHashStore(Id contractId) {
         this.contractId = contractId;
 

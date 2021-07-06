@@ -234,7 +234,15 @@ import com.hedera.services.state.merkle.MerkleTokenRelStatus;
 import com.hedera.services.state.merkle.MerkleTopic;
 import com.hedera.services.state.merkle.MerkleUniqueToken;
 import com.hedera.services.state.merkle.MerkleUniqueTokenId;
+import com.hedera.services.state.merkle.virtual.ContractKey;
+import com.hedera.services.state.merkle.virtual.ContractPath;
 import com.hedera.services.state.merkle.virtual.ContractUint256;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapHashStore;
+import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapLeafStore;
+import com.hedera.services.state.merkle.virtual.persistence.fcmmap.FCSlotIndexUsingMemMapFile;
+import com.hedera.services.state.merkle.virtual.persistence.fcmmap.FCVirtualMapHashStoreImpl;
+import com.hedera.services.state.merkle.virtual.persistence.fcmmap.FCVirtualMapLeafStoreImpl;
+import com.hedera.services.state.merkle.virtual.persistence.fcmmap.MemMapSlotStore;
 import com.hedera.services.state.migration.StateMigrations;
 import com.hedera.services.state.migration.StdStateMigrations;
 import com.hedera.services.state.submerkle.EntityId;
@@ -382,6 +390,7 @@ import org.hyperledger.besu.ethereum.mainnet.contractvalidation.MaxCodeSizeRule;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Collections;
@@ -470,9 +479,13 @@ public class ServicesContext {
 	private final PropertySources propertySources;
 
 	/* Context-sensitive singletons. */
-	/** the directory to which we writes .rcd and .rcd_sig files */
+	/**
+	 * the directory to which we writes .rcd and .rcd_sig files
+	 */
 	private String recordStreamDir;
-	/** the initialHash of RecordStreamManager */
+	/**
+	 * the initialHash of RecordStreamManager
+	 */
 	private Hash recordsInitialHash = new ImmutableHash(new byte[DigestType.SHA_384.digestLength()]);
 	private Address address;
 	private Console console;
@@ -610,6 +623,9 @@ public class ServicesContext {
 	private AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueTokenAssociations;
 	private AtomicReference<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> queryableUniqueOwnershipAssociations;
 	private AtomicReference<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> queryableContractStorage;
+
+	private FCVirtualMapHashStore<ContractPath> hashStore;
+	private FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
 
 	/* Context-free infrastructure. */
 	private static Pause pause;
@@ -998,10 +1014,10 @@ public class ServicesContext {
 	 * Returns the singleton {@link TypedTokenStore} used in {@link ServicesState#handleTransaction(long, boolean,
 	 * Instant, Instant, SwirldTransaction, SwirldDualState)} to load, save, and create tokens in the Swirlds
 	 * application state. It decouples the {@code handleTransaction} logic from the details of the Merkle state.
-	 *
+	 * <p>
 	 * Here "singleton" means that, no matter how many fast-copies are made of the {@link ServicesState}, the mutable
 	 * instance receiving the {@code handleTransaction} call will always use the same {@code typedTokenStore} instance.
-	 *
+	 * <p>
 	 * Hence we inject the {@code typedTokenStore} with method references to {@link ServicesContext#tokens()} and
 	 * {@link ServicesContext#tokenAssociations()} so it can always access the children of the mutable
 	 * {@link ServicesState}.
@@ -1958,7 +1974,7 @@ public class ServicesContext {
 			var gasCalculator = new ConstantinopleGasCalculator();
 			var transactionValidator = new MainnetTransactionValidator(gasCalculator, false, Optional.empty(), false);
 			var evm = MainnetEvmRegistries.constantinople(gasCalculator);
-			var contractCreateProcessor = new MainnetContractCreationProcessor(gasCalculator, evm,false,Collections.singletonList(MaxCodeSizeRule.of(24576)),0);
+			var contractCreateProcessor = new MainnetContractCreationProcessor(gasCalculator, evm, false, Collections.singletonList(MaxCodeSizeRule.of(24576)), 0);
 			var privacyParameters = new PrivacyParameters.Builder().setEnabled(false).build();
 			var precompiledContractConfiguration = new PrecompiledContractConfiguration(gasCalculator, privacyParameters);
 			PrecompileContractRegistry precompileContractRegistry = MainnetPrecompiledContractRegistries.byzantium(precompiledContractConfiguration);
@@ -1973,21 +1989,93 @@ public class ServicesContext {
 					Account.DEFAULT_VERSION,
 					TransactionPriceCalculator.frontier(),
 					CoinbaseFeePriceCalculator.frontier()
-					);
+			);
 		}
 		return besuContracts;
 	}
 
-	public ContractsStore contractsStore () {
+	public ContractsStore contractsStore() {
 		if (contractsStore == null) {
-			contractsStore = new ContractsStore(this::contractStorage, bytecodeDb(), ledger());
+			contractsStore = new ContractsStore(this::contractStorage, bytecodeDb(), ledger(), hashStore(), leafStore());
 		}
 		return contractsStore;
 	}
 
+	public FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore() {
+		if (leafStore == null) {
+			try {
+				final var leafPathIndex = new FCSlotIndexUsingMemMapFile<ContractPath>(
+						Path.of("data/contract-storage/leaf-path-index"),
+						"leaf-path-index",
+						1024 * 1024,
+						32,
+						ContractPath.SERIALIZED_SIZE,
+						16,
+						20,
+						8);
+
+				final var leafKeyIndex = new FCSlotIndexUsingMemMapFile<ContractKey>(
+						Path.of("data/contract-storage/leaf-key-index"),
+						"leaf-key-index",
+						1024 * 1024,
+						32,
+						ContractKey.SERIALIZED_SIZE,
+						16,
+						20,
+						8);
+
+				this.leafStore = new FCVirtualMapLeafStoreImpl<>(
+						Path.of("data/contract-storage"),
+						8,
+						ContractKey.SERIALIZED_SIZE,
+						ContractPath.SERIALIZED_SIZE,
+						ContractUint256.SERIALIZED_SIZE,
+						leafPathIndex,
+						leafKeyIndex,
+						ContractKey::new,
+						ContractPath::new,
+						ContractUint256::new,
+						MemMapSlotStore::new);
+			} catch (IOException error) {
+				System.out.println(error.getMessage());
+			}
+		}
+
+		return leafStore;
+	}
+
+	public FCVirtualMapHashStore<ContractPath> hashStore() {
+		if (hashStore == null) {
+			try {
+				final var index = new FCSlotIndexUsingMemMapFile<ContractPath>(
+						Path.of("data/contract-storage/hash-index"),
+						"hash-index",
+						1024 * 1024,
+						32,
+						ContractPath.SERIALIZED_SIZE,
+						16,
+						20,
+						8);
+
+				final var dataStore = new FCVirtualMapHashStoreImpl<>(
+						Path.of("data/contract-storage"),
+						8,
+						ContractPath.SERIALIZED_SIZE,
+						index,
+						MemMapSlotStore::new);
+
+				hashStore = dataStore;
+			} catch (IOException error) {
+				System.out.println(error.getMessage());
+			}
+		}
+
+		return hashStore;
+	}
+
 	public ContractsStateView contractsStateView() {
 		if (contractsStateView == null) {
-			contractsStateView = new ContractsStateView(bytecodeDb(), this::accounts, this::contractStorage);
+			contractsStateView = new ContractsStateView(bytecodeDb(), this::accounts, this::contractStorage, hashStore(), leafStore());
 		}
 		return contractsStateView;
 	}
@@ -2329,8 +2417,7 @@ public class ServicesContext {
 	/**
 	 * return the directory to which record stream files should be write
 	 *
-	 * @param source
-	 * 		the node local properties that contain the record logging directory
+	 * @param source the node local properties that contain the record logging directory
 	 * @return the direct file folder for writing record stream files
 	 */
 	public String getRecordStreamDirectory(NodeLocalProperties source) {
@@ -2348,8 +2435,7 @@ public class ServicesContext {
 	/**
 	 * update the runningHash instance saved in runningHashLeaf
 	 *
-	 * @param runningHash
-	 * 		new runningHash instance
+	 * @param runningHash new runningHash instance
 	 */
 	public void updateRecordRunningHash(final RunningHash runningHash) {
 		state.runningHashLeaf().setRunningHash(runningHash);
@@ -2364,8 +2450,7 @@ public class ServicesContext {
 	 * setting is read.
 	 * Thus we save the initialHash in the context, and use it when initializing RecordStreamManager
 	 *
-	 * @param recordsInitialHash
-	 * 		initial running Hash of records
+	 * @param recordsInitialHash initial running Hash of records
 	 */
 	public void setRecordsInitialHash(final Hash recordsInitialHash) {
 		this.recordsInitialHash = recordsInitialHash;

@@ -54,8 +54,8 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	@Override
 	protected List<HapiApiSpec> getSpecsInSuite() {
 		return Arrays.asList(
-				contractCallManyLoads()
-//				contractCallPerf()
+//				contractCallManyLoads()
+				contractCallPerf()
 //				manySStores()
 		);
 	}
@@ -71,7 +71,7 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec contractCallPerf() {
-		final int NUM_CALLS = 6000;
+		final int NUM_CALLS = 600;
 
 		return defaultHapiSpec("ContractCallPerf")
 				.given(

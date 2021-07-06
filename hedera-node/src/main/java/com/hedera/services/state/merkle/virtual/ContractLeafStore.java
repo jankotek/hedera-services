@@ -1,7 +1,6 @@
 package com.hedera.services.state.merkle.virtual;
 
 import com.hedera.services.state.merkle.virtual.persistence.FCVirtualMapLeafStore;
-import com.hedera.services.state.merkle.virtual.persistence.fcmmap.FCSlotIndexUsingFCHashMap;
 import com.hedera.services.state.merkle.virtual.persistence.fcmmap.FCSlotIndexUsingMemMapFile;
 import com.hedera.services.state.merkle.virtual.persistence.fcmmap.FCVirtualMapLeafStoreImpl;
 import com.hedera.services.state.merkle.virtual.persistence.fcmmap.MemMapSlotStore;
@@ -15,6 +14,11 @@ import java.nio.file.Path;
 public class ContractLeafStore implements FCLeafStore<ContractUint256, ContractUint256> {
     private final Id contractId;
     private final FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> dataStore;
+
+    public ContractLeafStore(Id contractId, FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> dataStore) {
+        this.contractId = contractId;
+        this.dataStore = dataStore;
+    }
 
     public ContractLeafStore(Id contractId) {
         this.contractId = contractId;

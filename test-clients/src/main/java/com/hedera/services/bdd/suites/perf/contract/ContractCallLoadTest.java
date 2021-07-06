@@ -41,6 +41,7 @@ import static com.hedera.services.bdd.spec.transactions.TxnVerbs.fileCreate;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.inParallel;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.logIt;
 import static com.hedera.services.bdd.spec.utilops.UtilVerbs.withOpContext;
+import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.*;
 
 public class ContractCallLoadTest extends LoadTest {
 	private static final Logger log = LogManager.getLogger(ContractCallLoadTest.class);
@@ -49,7 +50,7 @@ public class ContractCallLoadTest extends LoadTest {
 		parseArgs(args);
 
 		/* Has a static initializer whose behavior seems influenced by initialization of ForkJoinPool#commonPool. */
-		new org.ethereum.crypto.HashUtil();
+//		new org.ethereum.crypto.HashUtil();
 
 		ContractCallLoadTest suite = new ContractCallLoadTest();
 		suite.setReportStats(true);
@@ -78,6 +79,9 @@ public class ContractCallLoadTest extends LoadTest {
 										.sending(i + 1)
 										.noLogging()
 										.suppressStats(true)
+//										.hasAnyPrecheck()
+										.hasKnownStatusFrom(SUCCESS, OK)
+										.hasRetryPrecheckFrom(PLATFORM_TRANSACTION_NOT_CREATED)
 										.deferStatusResolution())
 						.toArray(n -> new HapiSpecOperation[n])),
 				logIt(ignore ->
@@ -94,9 +98,7 @@ public class ContractCallLoadTest extends LoadTest {
 						fileCreate("contractBytecode").path(ContractResources.VERBOSE_DEPOSIT_BYTECODE_PATH),
 						contractCreate("perf").bytecode("contractBytecode"),
 						fileCreate("lookupBytecode").path(ContractResources.BALANCE_LOOKUP_BYTECODE_PATH),
-						contractCreate("balanceLookup").bytecode("lookupBytecode").balance(1L),
-						getContractInfo("perf").hasExpectedInfo().logged()
-
+						contractCreate("balanceLookup").bytecode("lookupBytecode").balance(1L)
 				).then(
 						defaultLoadTest(callBurst, settings)
 				);

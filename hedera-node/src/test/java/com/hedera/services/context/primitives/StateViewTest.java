@@ -87,6 +87,7 @@ import java.util.function.BiFunction;
 
 import static com.hedera.services.state.merkle.MerkleEntityAssociation.fromAccountTokenRel;
 import static com.hedera.services.state.merkle.MerkleScheduleTest.scheduleCreateTxnWith;
+import static com.hedera.services.state.submerkle.EntityId.MISSING_ENTITY_ID;
 import static com.hedera.services.state.submerkle.RichInstant.fromJava;
 import static com.hedera.services.store.tokens.TokenStore.MISSING_TOKEN;
 import static com.hedera.services.utils.EntityIdUtils.asAccount;
@@ -256,6 +257,7 @@ class StateViewTest {
 		given(tokenStore.resolve(tokenId)).willReturn(tokenId);
 		given(tokenStore.resolve(missingTokenId)).willReturn(TokenStore.MISSING_TOKEN);
 		given(tokenStore.get(tokenId)).willReturn(token);
+		given(tokenStore.get(IdUtils.asToken("1.2.3"))).willReturn(token);
 
 		scheduleStore = mock(ScheduleStore.class);
 		parentScheduleCreate =
@@ -935,6 +937,26 @@ class StateViewTest {
 
 	@Test
 	void getNftsAsExpected() {
+		// when:
+		final var optionalNftInfo = subject.infoForNft(targetNftId);
+
+		// then:
+		assertTrue(optionalNftInfo.isPresent());
+		// and:
+		final var info = optionalNftInfo.get();
+		assertEquals(targetNftId, info.getNftID());
+		assertEquals(nftOwnerId, info.getAccountID());
+		assertEquals(fromJava(nftCreation).toGrpc(), info.getCreationTime());
+		assertArrayEquals(nftMeta, info.getMetadata().toByteArray());
+	}
+
+	@Test
+	void getNftsWithInternalOwnerAsExpected() {
+		// given:
+		targetNft.setOwner(MISSING_ENTITY_ID);
+		token.setTokenType(TokenType.NON_FUNGIBLE_UNIQUE);
+		token.setTreasury(new EntityId(4, 4, 44));
+
 		// when:
 		final var optionalNftInfo = subject.infoForNft(targetNftId);
 

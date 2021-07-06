@@ -28,6 +28,7 @@ import com.hedera.services.legacy.core.jproto.JKey;
 import com.hedera.services.state.enums.TokenType;
 import com.hedera.services.state.merkle.MerkleToken;
 import com.hedera.services.state.submerkle.EntityId;
+import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.tokens.TokenStore;
 import com.hedera.services.txns.validation.OptionValidator;
 import com.hedera.services.utils.PlatformTxnAccessor;
@@ -78,6 +79,7 @@ class TokenUpdateTransitionLogicTest {
 	long thisSecond = 1_234_567L;
 	private Instant now = Instant.ofEpochSecond(thisSecond);
 	private TokenID target = IdUtils.asToken("1.2.666");
+	private NftId nftId = new NftId(target.getShardNum(), target.getRealmNum(), target.getTokenNum(), -1);
 	private AccountID oldTreasury = IdUtils.asAccount("1.2.4");
 	private AccountID newTreasury = IdUtils.asAccount("1.2.5");
 	private AccountID newAutoRenew = IdUtils.asAccount("5.2.1");
@@ -426,7 +428,7 @@ class TokenUpdateTransitionLogicTest {
 		given(ledger.grantKyc(newTreasury, target)).willReturn(OK);
 		given(store.update(any(), anyLong())).willReturn(OK);
 		given(ledger.getTokenBalance(oldTreasury, target)).willReturn(oldTreasuryBalance);
-		given(store.changeOwner(null, oldTreasury, newTreasury)).willReturn(OK);
+		given(store.changeOwner(nftId, oldTreasury, newTreasury)).willReturn(OK);
 
 		// when:
 		subject.doStateTransition();
@@ -435,6 +437,9 @@ class TokenUpdateTransitionLogicTest {
 		verify(ledger).unfreeze(newTreasury, target);
 		verify(ledger).grantKyc(newTreasury, target);
 		verify(ledger).getTokenBalance(oldTreasury, target);
+		verify(store).changeOwner(nftId, oldTreasury, newTreasury);
+		// and:
+		verify(txnCtx).setStatus(SUCCESS);
 	}
 
 	@Test

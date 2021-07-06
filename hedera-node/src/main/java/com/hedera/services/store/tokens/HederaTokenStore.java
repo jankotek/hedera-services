@@ -386,7 +386,9 @@ public class HederaTokenStore extends HederaStore implements TokenStore {
 					// updates token treasury
 					var merkleToken = tokens.get().getForModify(fromTokenId(nftType));
 					merkleToken.setTreasury(fromGrpcAccountId(to));
-					removeKnownTreasuryForToken(from, tId);
+					if (isKnownTreasury(from)) {
+						removeKnownTreasuryForToken(from, tId);
+					}
 					addKnownTreasury(to, tId);
 				} else {
 					nftsLedger.set(nftId, OWNER, EntityId.fromGrpcAccountId(to));

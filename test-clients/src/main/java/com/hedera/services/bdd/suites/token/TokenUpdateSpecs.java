@@ -42,7 +42,9 @@ import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfo;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfos;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
+import static com.hedera.services.bdd.spec.queries.token.HapiTokenNftInfo.newTokenNftInfo;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.burnToken;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoDelete;
@@ -666,7 +668,12 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 								.hasTreasury("newTokenTreasury")
 								.logged(),
 						getTokenNftInfo("primary", 1)
-								.hasAccountID(TOKEN_TREASURY) // still the same since no token transfer is initiated
+								.hasAccountID(TOKEN_TREASURY) // still the same treasury since no token transfer is initiated
+								.logged(),
+						getTokenNftInfos("primary", 0, 1)
+								.hasNfts(
+										newTokenNftInfo("primary", 1, TOKEN_TREASURY, ByteString.copyFromUtf8("memo1"))
+								) // still the same treasury since no token transfer is initiated
 								.logged(),
 						getTxnRecord("tokenUpdateTxn").logged()
 				);

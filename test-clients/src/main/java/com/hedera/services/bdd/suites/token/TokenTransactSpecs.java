@@ -37,7 +37,9 @@ import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountBalance;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getAccountNftInfos;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenInfo;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfo;
+import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTokenNftInfos;
 import static com.hedera.services.bdd.spec.queries.QueryVerbs.getTxnRecord;
+import static com.hedera.services.bdd.spec.queries.token.HapiTokenNftInfo.newTokenNftInfo;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoCreate;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoDelete;
 import static com.hedera.services.bdd.spec.transactions.TxnVerbs.cryptoTransfer;
@@ -95,7 +97,7 @@ public class TokenTransactSpecs extends HapiApiSuite {
 						missingEntitiesRejected(),
 						allRequiredSigsAreChecked(),
 						uniqueTokenTxnAccountBalance(),
-						uniqueTokenTxnAccountBalanceBetweenTreasury(),
+						uniqueTokenTxnAccountBalanceBetweenTreasuries(),
 						uniqueTokenTxnWithNoAssociation(),
 						uniqueTokenTxnWithFrozenAccount(),
 						uniqueTokenTxnWithSenderNotSigned(),
@@ -499,8 +501,8 @@ public class TokenTransactSpecs extends HapiApiSuite {
 				);
 	}
 
-	public HapiApiSpec uniqueTokenTxnAccountBalanceBetweenTreasury() {
-		return defaultHapiSpec("UniqueTokenTxnAccountBalanceBetweenTreasury")
+	public HapiApiSpec uniqueTokenTxnAccountBalanceBetweenTreasuries() {
+		return defaultHapiSpec("UniqueTokenTxnAccountBalanceBetweenTreasuries")
 				.given(
 						newKeyNamed("supplyKeyA"),
 						newKeyNamed("supplyKeyB"),
@@ -538,6 +540,11 @@ public class TokenTransactSpecs extends HapiApiSuite {
 								.hasNfts(
 										HapiTokenNftInfo.newTokenNftInfo(A_TOKEN, 1, "newTreasury", ByteString.copyFromUtf8("memo"))
 								),
+						getTokenNftInfos(A_TOKEN, 0, 1)
+								.hasNfts(
+										newTokenNftInfo(A_TOKEN, 1, "newTreasury", ByteString.copyFromUtf8("memo"))
+								)
+								.logged(),
 						getTxnRecord("cryptoTransferTxn").logged()
 				);
 	}

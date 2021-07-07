@@ -387,15 +387,16 @@ public class StateView {
 			return Optional.empty();
 		}
 		final var targetNft = currentNfts.get(targetKey);
+		var accountId = targetNft.getOwner().toGrpcAccountId();
 
 		if (targetNft.getOwner().equals(MISSING_ENTITY_ID)) {
 			var merkleToken = tokenStore.get(target.getTokenID());
-			targetNft.setOwner(merkleToken.treasury());
+			accountId = merkleToken.treasury().toGrpcAccountId();
 		}
 
 		final var info = TokenNftInfo.newBuilder()
 				.setNftID(target)
-				.setAccountID(targetNft.getOwner().toGrpcAccountId())
+				.setAccountID(accountId)
 				.setCreationTime(targetNft.getCreationTime().toGrpc())
 				.setMetadata(ByteString.copyFrom(targetNft.getMetadata()))
 				.build();
@@ -408,11 +409,18 @@ public class StateView {
 		}
 
 		List<TokenNftInfo> nftInfos = new ArrayList<>();
+		var merkleToken = tokenStore.get(tid);
+
 		uniqueTokenAssociations.get().get(fromGrpcTokenId(tid), (int) start, (int) end).forEachRemaining(nftId -> {
 			final var nft = uniqueTokens.get().get(nftId);
 
+			var accountId = nft.getOwner().toGrpcAccountId();
+			if (nft.getOwner().equals(MISSING_ENTITY_ID)) {
+				accountId = merkleToken.treasury().toGrpcAccountId();
+			}
+
 			nftInfos.add(TokenNftInfo.newBuilder()
-					.setAccountID(nft.getOwner().toGrpcAccountId())
+					.setAccountID(accountId)
 					.setCreationTime(nft.getCreationTime().toGrpc())
 					.setNftID(NftID.newBuilder()
 							.setTokenID(nftId.tokenId().toGrpcTokenId())

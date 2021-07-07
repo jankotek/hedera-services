@@ -97,7 +97,7 @@ public class TokenTransactSpecs extends HapiApiSuite {
 						missingEntitiesRejected(),
 						allRequiredSigsAreChecked(),
 						uniqueTokenTxnAccountBalance(),
-						uniqueTokenTxnAccountBalanceBetweenTreasuries(),
+						uniqueTokenTxnAccountBalancesForTreasury(),
 						uniqueTokenTxnWithNoAssociation(),
 						uniqueTokenTxnWithFrozenAccount(),
 						uniqueTokenTxnWithSenderNotSigned(),
@@ -501,11 +501,10 @@ public class TokenTransactSpecs extends HapiApiSuite {
 				);
 	}
 
-	public HapiApiSpec uniqueTokenTxnAccountBalanceBetweenTreasuries() {
-		return defaultHapiSpec("UniqueTokenTxnAccountBalanceBetweenTreasuries")
+	public HapiApiSpec uniqueTokenTxnAccountBalancesForTreasury() {
+		return defaultHapiSpec("UniqueTokenTxnAccountBalancesForTreasury")
 				.given(
 						newKeyNamed("supplyKeyA"),
-						newKeyNamed("supplyKeyB"),
 						newKeyNamed("signingKeyTreasury"),
 						newKeyNamed("signingKeyNewTreasury"),
 						cryptoCreate(TOKEN_TREASURY).key("signingKeyTreasury"),
@@ -515,34 +514,32 @@ public class TokenTransactSpecs extends HapiApiSuite {
 								.initialSupply(0)
 								.supplyKey("supplyKeyA")
 								.treasury(TOKEN_TREASURY),
-						tokenCreate(B_TOKEN)
-								.tokenType(TokenType.NON_FUNGIBLE_UNIQUE)
-								.initialSupply(0)
-								.supplyKey("supplyKeyB")
-								.treasury("newTreasury"),
 						mintToken(A_TOKEN, List.of(ByteString.copyFromUtf8("memo"))),
 						tokenAssociate("newTreasury", A_TOKEN)
 				).when(
 						cryptoTransfer(
 								movingUnique(1, A_TOKEN).between(TOKEN_TREASURY, "newTreasury")
+						).signedBy("signingKeyTreasury", "signingKeyNewTreasury", DEFAULT_PAYER).via("cryptoTransferTxn"),
+						cryptoTransfer(
+								movingUnique(1, A_TOKEN).between("newTreasury", TOKEN_TREASURY)
 						).signedBy("signingKeyTreasury", "signingKeyNewTreasury", DEFAULT_PAYER).via("cryptoTransferTxn")
 				).then(
 						getAccountBalance(TOKEN_TREASURY)
-								.hasTokenBalance(A_TOKEN, 0),
-						getAccountBalance("newTreasury")
 								.hasTokenBalance(A_TOKEN, 1),
+						getAccountBalance("newTreasury")
+								.hasTokenBalance(A_TOKEN, 0),
 						getTokenNftInfo(A_TOKEN, 1)
 								.hasSerialNum(1)
 								.hasMetadata(ByteString.copyFromUtf8("memo"))
 								.hasTokenID(A_TOKEN)
-								.hasAccountID("newTreasury"),
-						getAccountNftInfos("newTreasury", 0, 1)
+								.hasAccountID(TOKEN_TREASURY),
+						getAccountNftInfos(TOKEN_TREASURY, 0, 1)
 								.hasNfts(
-										HapiTokenNftInfo.newTokenNftInfo(A_TOKEN, 1, "newTreasury", ByteString.copyFromUtf8("memo"))
+										HapiTokenNftInfo.newTokenNftInfo(A_TOKEN, 1, TOKEN_TREASURY, ByteString.copyFromUtf8("memo"))
 								),
 						getTokenNftInfos(A_TOKEN, 0, 1)
 								.hasNfts(
-										newTokenNftInfo(A_TOKEN, 1, "newTreasury", ByteString.copyFromUtf8("memo"))
+										newTokenNftInfo(A_TOKEN, 1, TOKEN_TREASURY, ByteString.copyFromUtf8("memo"))
 								)
 								.logged(),
 						getTxnRecord("cryptoTransferTxn").logged()

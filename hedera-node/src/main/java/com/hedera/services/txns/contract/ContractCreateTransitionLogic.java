@@ -51,7 +51,6 @@ import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.Wei;
 import org.hyperledger.besu.ethereum.mainnet.MainnetTransactionProcessor;
 import org.hyperledger.besu.ethereum.vm.OperationTracer;
-import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
 import org.hyperledger.besu.ethereum.worldstate.DefaultMutableWorldState;
 
 import java.time.Instant;
@@ -139,7 +138,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			Address contractAddress = Address.fromHexString(asSolidityAddressHex(contractID));
 			this.store.prepareAccountCreation(senderAccount, contractID, customizer);
 
-			// TODO max gas check?
+			// TODO max gas check from Dynamic Properties
 
 			var inputs = prepBytecode(op);
 			if (inputs.getValue() != OK) {
@@ -147,7 +146,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				return;
 			}
 			String contractByteCodeString = new String(inputs.getKey());
-			if (op.getConstructorParameters() != null && !op.getConstructorParameters().isEmpty()) {
+			if (!op.getConstructorParameters().isEmpty()) {
 				final var constructorParamsHexString = CommonUtils.hex(
 						op.getConstructorParameters().toByteArray());
 				contractByteCodeString += constructorParamsHexString;
@@ -191,7 +190,6 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				txnCtx.setStatus(FAIL_INVALID);
 			}
 		} catch (Exception e) {
-			System.out.println(e);
 			txnCtx.setStatus(FAIL_INVALID);
 		}
 	}
@@ -203,10 +201,10 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	private ProcessableBlockHeader stubbedBlockHeader(long timestamp) {
 		return new ProcessableBlockHeader(
 				Hash.EMPTY,
-				Address.ZERO, //Coinbase might be the 0.98 address?
+				Address.ZERO, // TODO Coinbase might be the 0.98 address
 				Difficulty.ONE,
 				0,
-				12_500_000L,
+				12_500_000L, // TODO GlobalDynamic property maxGas
 				timestamp,
 				1L);
 	}
@@ -248,11 +246,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 		if (op.getInitialBalance() < 0) {
 			return CONTRACT_NEGATIVE_VALUE;
 		}
-		var memoValidity = validator.memoCheck(op.getMemo());
-		if (memoValidity != OK) {
-			return memoValidity;
-		}
-
-		return OK;
+		
+		return validator.memoCheck(op.getMemo());
 	}
 }

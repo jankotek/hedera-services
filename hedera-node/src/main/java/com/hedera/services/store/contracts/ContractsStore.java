@@ -67,14 +67,17 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 public class ContractsStore implements AccountStateStore {
-	private final Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage;
+
 	private final HederaLedger ledger;
 	private final BlobStorageSource blobStorageSource;
-	private Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
-	private Map<Address, EvmAccountImpl> provisionalAccountUpdates = new HashMap<>();
-	private Map<AccountID, Pair<AccountID, HederaAccountCustomizer>> provisionalAccountCreations = new HashMap<>();
-	private FCVirtualMapHashStore<ContractPath> hashStore;
-	private FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
+	private final Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage;
+
+	private final Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
+	private final Map<Address, EvmAccountImpl> provisionalAccountUpdates = new HashMap<>();
+	private final Map<AccountID, Pair<AccountID, HederaAccountCustomizer>> provisionalAccountCreations = new HashMap<>();
+
+	private final FCVirtualMapHashStore<ContractPath> hashStore;
+	private final FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
 
 	public ContractsStore(
 			Supplier<FCMap<MerkleEntityId, VFCMap<ContractUint256, ContractUint256>>> contractStorage,
@@ -88,11 +91,16 @@ public class ContractsStore implements AccountStateStore {
 		this.leafStore = leafStore;
 	}
 
+	/**
+	 * Temporary workaround
+	 * @param sponsor
+	 * @param target
+	 * @param customizer
+	 */
 	public void prepareAccountCreation(AccountID sponsor, AccountID target, HederaAccountCustomizer customizer) {
 		provisionalAccountCreations.put(target, new Pair<>(sponsor, customizer));
 	}
 
-	// The EVM is executing this call everytime it needs to access a contract/address. F.e getting recipient address multiple times during 1 contract executions
 	@Override
 	public Account get(Address address) {
 		final var accId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
@@ -102,7 +110,7 @@ public class ContractsStore implements AccountStateStore {
 				var code = provisionalCodeUpdates.containsKey(address) ? provisionalCodeUpdates.get(address) : Bytes.of(blobStorageSource.get(address.toArray()));
 				return new EvmAccountImpl(address, Wei.of(balance), code);
 			}
-			// TODO what we do with nonces?
+			// TODO we must address nonces and mitigate all EVM related operations since Hedera does not have the concept of nonces
 			return new EvmAccountImpl(address, Wei.of(balance));
 		}
 
@@ -112,13 +120,6 @@ public class ContractsStore implements AccountStateStore {
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accountId = EntityIdUtils.accountParsedFromSolidityAddress(address.toArray());
-//		final var merkleEntityId = fromAccountId(accountId);
-
-//		if (!contractStorage.get().containsKey(merkleEntityId)) {
-//			contractStorage.get().put(merkleEntityId, new VFCMap<>());
-//		}
-//		final var vfcMap = contractStorage.get().get(merkleEntityId);
-
 		final var vfcMap = new VFCMap<>(
 				new ContractLeafStore(new Id(accountId.getShardNum(), accountId.getRealmNum(), accountId.getAccountNum()), this.leafStore),
 				new ContractHashStore(new Id(accountId.getShardNum(), accountId.getRealmNum(), accountId.getAccountNum()), this.hashStore)
@@ -141,7 +142,8 @@ public class ContractsStore implements AccountStateStore {
 		if (provisionalCodeUpdates.containsKey(address)) {
 			return provisionalCodeUpdates.get(address);
 		} else {
-			return Bytes.of(blobStorageSource.get(address.toArray()));
+			var codeBytes = blobStorageSource.get(address.toArray());
+			return codeBytes == null ? Bytes.EMPTY : Bytes.of(codeBytes);
 		}
 	}
 

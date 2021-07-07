@@ -72,7 +72,6 @@ public class ContractsStateView implements AccountStateStore {
 	public Account get(Address address) {
 		final var accId = parseMerkleAccountId(address);
 		if (accounts.get().containsKey(accId)) {
-			// Use accounts() directly
 			var merkleAccount = accounts.get().get(accId);
 			if (merkleAccount.isSmartContract()) {
 				var code = Bytes.of(blobStorageSource.get(address.toArray()));
@@ -87,10 +86,6 @@ public class ContractsStateView implements AccountStateStore {
 	@Override
 	public AccountStorageMap newStorageMap(Address address) {
 		final var accId = parseMerkleAccountId(address);
-//		if (!contractStorage.get().containsKey(accId)) {
-//			contractStorage.get().put(accId, new VFCMap<>());
-//		}
-//		final var vfcMap = contractStorage.get().get(accId);
 		final var vfcMap = new VFCMap<>(
 				new ContractLeafStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum()), this.leafStore),
 				new ContractHashStore(new Id(accId.getShard(), accId.getRealm(), accId.getNum()), this.hashStore)

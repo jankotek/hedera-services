@@ -155,7 +155,7 @@ class SignedStateBalancesExporterTest {
 		firstNonNodeAccount = MerkleAccountFactory.newAccount().balance(firstNonNodeAccountBalance).get();
 		secondNonNodeAccount = MerkleAccountFactory.newAccount()
 				.balance(secondNonNodeAccountBalance)
-				.tokens(theToken, theDeletedToken)
+				.tokens(theToken, theDeletedToken, theUniqueToken)
 				.get();
 		deletedAccount = MerkleAccountFactory.newAccount().deleted(true).get();
 
@@ -171,6 +171,11 @@ class SignedStateBalancesExporterTest {
 		given(uniqueToken.isDeleted()).willReturn(false);
 		deletedToken = mock(MerkleToken.class);
 		given(deletedToken.isDeleted()).willReturn(true);
+
+		given(token.copy()).willReturn(token);
+		given(deletedToken.copy()).willReturn(deletedToken);
+		given(uniqueToken.copy()).willReturn(uniqueToken);
+
 		tokens.put(fromTokenId(theToken), token);
 		tokens.put(fromTokenId(theDeletedToken), deletedToken);
 		tokens.put(fromTokenId(theUniqueToken), uniqueToken);
@@ -273,7 +278,7 @@ class SignedStateBalancesExporterTest {
 				new MerkleEntityId(0, 0, 2),
 				MerkleAccountFactory.newAccount()
 						.balance(4999999999999999920L)
-						.tokens(asToken("0.0.1001"), asToken("0.0.1002"))
+						.tokens(asToken("0.0.1001"), asToken("0.0.1002"), asToken("0.0.1111"))
 						.get());
 		accounts.put(
 				new MerkleEntityId(0, 0, 3),
@@ -286,6 +291,9 @@ class SignedStateBalancesExporterTest {
 		tokenRels.put(
 				new MerkleEntityAssociation(0, 0, 2, 0, 0, 1001),
 				new MerkleTokenRelStatus(666L, false, false));
+		tokenRels.put(
+				new MerkleEntityAssociation(0, 0, 2, 0, 0, 1002),
+				new MerkleTokenRelStatus(444L, false, false));
 		tokenRels.put(
 				new MerkleEntityAssociation(0, 0, 2, 0, 0, 1002),
 				new MerkleTokenRelStatus(444L, false, false));
@@ -367,7 +375,7 @@ class SignedStateBalancesExporterTest {
 		assertThat(logCaptor.debugLogs(), contains(desiredDebugMsg));
 
 		// cleanup:
-		new File(loc).delete();
+//		new File(loc).delete();
 	}
 
 	@Test
@@ -590,14 +598,18 @@ class SignedStateBalancesExporterTest {
 				.setAccountID(asAccount("0.0.1001"))
 				.setHbarBalance(firstNonNodeAccountBalance).build();
 
-		TokenUnitBalance tokenBalances = TokenUnitBalance.newBuilder()
+		TokenUnitBalance tokenBalance = TokenUnitBalance.newBuilder()
 				.setTokenId(theToken)
 				.setBalance(secondNonNodeTokenBalance).build();
+
+		TokenUnitBalance uniqueTokenBalance = TokenUnitBalance.newBuilder()
+				.setTokenId(theUniqueToken)
+				.setBalance(secondNonNodeUniqueTokenBalance).build();
 
 		var secondNon = singleAcctBuilder
 				.setAccountID(asAccount("0.0.1002"))
 				.setHbarBalance(secondNonNodeAccountBalance)
-				.addTokenUnitBalances(tokenBalances).build();
+				.addAllTokenUnitBalances(List.of(tokenBalance, uniqueTokenBalance)).build();
 
 		return List.of(thisNode, anotherNode, firstNon, secondNon);
 	}

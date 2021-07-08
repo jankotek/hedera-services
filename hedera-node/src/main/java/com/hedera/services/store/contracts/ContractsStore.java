@@ -61,8 +61,11 @@ import org.hyperledger.besu.ethereum.core.Address;
 import org.hyperledger.besu.ethereum.core.Wei;
 import org.hyperledger.besu.ethereum.worldstate.AccountStateStore;
 import org.hyperledger.besu.ethereum.worldstate.AccountStorageMap;
+import org.hyperledger.besu.ethereum.worldstate.DefaultMutableWorldState;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -75,6 +78,8 @@ public class ContractsStore implements AccountStateStore {
 	private final Map<Address, Bytes> provisionalCodeUpdates = new HashMap<>();
 	private final Map<Address, EvmAccountImpl> provisionalAccountUpdates = new HashMap<>();
 	private final Map<AccountID, Pair<AccountID, HederaAccountCustomizer>> provisionalAccountCreations = new HashMap<>();
+	private final List<Address> provisionalAccountDeletes = new ArrayList<>();
+	private final List<Address> provisionalAccountStorageClearings = new ArrayList<>();
 
 	private final FCVirtualMapHashStore<ContractPath> hashStore;
 	private final FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
@@ -149,12 +154,12 @@ public class ContractsStore implements AccountStateStore {
 
 	@Override
 	public void remove(Address address) {
-		// TODO: set somewhere provisionally
+		provisionalAccountDeletes.add(address);
 	}
 
 	@Override
 	public void clearStorage(Address address) {
-		// TODO: set somewhere provisionally
+		provisionalAccountStorageClearings.add(address);
 	}
 
 	@Override
@@ -176,9 +181,21 @@ public class ContractsStore implements AccountStateStore {
 			blobStorageSource.put(address.toArray(), code.toArray());
 		});
 
+		provisionalAccountDeletes.forEach(address -> ledger.destroy(EntityIdUtils.accountParsedFromSolidityAddress(address.toArray())));
+
+		provisionalAccountStorageClearings.forEach(address -> {
+			//todo somehow obtain the AccountStorageMap for that Address
+			//todo for each entry (is it always 1?) in the map see how to clear ContractLeafStore and ContractHashStore -> release()?
+			//todo is that enough?
+
+			
+		});
+
 		/* Clear any provisional changes */
 		provisionalCodeUpdates.clear();
 		provisionalAccountUpdates.clear();
 		provisionalAccountCreations.clear();
+		provisionalAccountDeletes.clear();
+		provisionalAccountStorageClearings.clear();
 	}
 }

@@ -667,14 +667,6 @@ public class TokenUpdateSpecs extends HapiApiSuite {
 				);
 	}
 
-	private HapiApiSpec onlyValidCustomFeeScheduleCanBeUpdated() {
-		final var hbarAmount = 1_234L;
-		final var htsAmount = 2_345L;
-		final var numerator = 1;
-		final var denominator = 10;
-		final var minimumToCollect = 5;
-		final var maximumToCollect = 50;
-
 	private HapiApiSpec canUpdateFeeScheduleKeyWithAdmin() {
 		final var origHbarFee = 1_234L;
 		final var newHbarFee = 4_321L;

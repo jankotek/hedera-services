@@ -139,6 +139,11 @@ public class StateView {
 	public static final Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> EMPTY_UNIQUE_TOKEN_ACCOUNT_OWNERSHIPS_SUPPLIER =
 			() -> EMPTY_UNIQUE_TOKEN_ACCOUNT_OWNERSHIPS;
 
+	public static final FCOneToManyRelation<EntityId, MerkleUniqueTokenId> EMPTY_UNIQUE_TOKEN_TREASURY_OWNERSHIPS =
+			new FCOneToManyRelation<>();
+	public static final Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> EMPTY_UNIQUE_TOKEN_TREASURY_OWNERSHIP_SUPPLIER =
+			() -> EMPTY_UNIQUE_TOKEN_TREASURY_OWNERSHIPS;
+
 	public static final StateView EMPTY_VIEW = new StateView(
 			EMPTY_TOPICS_SUPPLIER,
 			EMPTY_ACCOUNTS_SUPPLIER,
@@ -159,6 +164,7 @@ public class StateView {
 	private Supplier<FCMap<MerkleUniqueTokenId, MerkleUniqueToken>> uniqueTokens;
 	private final Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> uniqueTokenAssociations;
 	private final Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> uniqueTokenAccountOwnerships;
+	private final Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> uniqueTokenTreasuryOwnerships;
 
 	private final NodeLocalProperties properties;
 
@@ -178,6 +184,7 @@ public class StateView {
 				EMPTY_TOKEN_ASSOCS_SUPPLIER,
 				EMPTY_UNIQUE_TOKEN_ASSOCS_SUPPLIER,
 				EMPTY_UNIQUE_TOKEN_ACCOUNT_OWNERSHIPS_SUPPLIER,
+				EMPTY_UNIQUE_TOKEN_TREASURY_OWNERSHIP_SUPPLIER,
 				diskFs,
 				properties);
 	}
@@ -200,6 +207,7 @@ public class StateView {
 				EMPTY_TOKEN_ASSOCS_SUPPLIER,
 				EMPTY_UNIQUE_TOKEN_ASSOCS_SUPPLIER,
 				EMPTY_UNIQUE_TOKEN_ACCOUNT_OWNERSHIPS_SUPPLIER,
+				EMPTY_UNIQUE_TOKEN_TREASURY_OWNERSHIP_SUPPLIER,
 				diskFs,
 				properties);
 	}
@@ -214,6 +222,7 @@ public class StateView {
 			Supplier<FCMap<MerkleEntityAssociation, MerkleTokenRelStatus>> tokenAssociations,
 			Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> uniqueTokenAssociations,
 			Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> uniqueTokenAccountOwnerships,
+			Supplier<FCOneToManyRelation<EntityId, MerkleUniqueTokenId>> uniqueTokenTreasuryOwnerships,
 			Supplier<MerkleDiskFs> diskFs,
 			NodeLocalProperties properties
 	) {
@@ -225,6 +234,7 @@ public class StateView {
 		this.tokenAssociations = tokenAssociations;
 		this.uniqueTokenAssociations = uniqueTokenAssociations;
 		this.uniqueTokenAccountOwnerships = uniqueTokenAccountOwnerships;
+		this.uniqueTokenTreasuryOwnerships = uniqueTokenTreasuryOwnerships;
 
 		Map<String, byte[]> blobStore = unmodifiableMap(new FcBlobsBytesStore(MerkleOptionalBlob::new, storage));
 
@@ -550,22 +560,60 @@ public class StateView {
 
 		List<TokenNftInfo> nftInfos = new ArrayList<>();
 		var uniqueTokensMap = uniqueTokens.get();
-		uniqueTokenAccountOwnerships.get()
-				.get(fromGrpcAccountId(aid), (int) start, (int) end).forEachRemaining(nftId -> {
-			var nft = uniqueTokensMap.get(nftId);
-			nftInfos.add(
-					TokenNftInfo.newBuilder()
-							.setAccountID(aid)
-							.setCreationTime(nft.getCreationTime().toGrpc())
-							.setNftID(NftID.newBuilder()
-									.setTokenID(nftId.tokenId().toGrpcTokenId())
-									.setSerialNumber(nftId.serialNumber())
-									.build())
-							.setMetadata(ByteString.copyFrom(nft.getMetadata()))
-							.build()
-			);
-		});
+		var uniqueTokenAccountCount = uniqueTokenAccountOwnerships.get().getCount(fromGrpcAccountId(aid));
+
+		if (uniqueTokenAccountCount <= end) {
+			uniqueTokenAccountOwnerships.get()
+					.get(fromGrpcAccountId(aid), (int) start, (int) end).forEachRemaining(nftId -> {
+				var nft = uniqueTokensMap.get(nftId);
+				nftInfos.add(
+						buildTokenNft(aid, nft, nftId)
+				);
+			});
+		} else if (uniqueTokenAccountCount <= start) {
+			var tokens = tokenStore.listOfTokensServed(aid);
+			for (var tid : tokens) {
+				uniqueTokenTreasuryOwnerships.get()
+						.get(fromGrpcTokenId(tid), (int) start, (int) end).forEachRemaining(nftId -> {
+					var nft = uniqueTokensMap.get(nftId);
+					nftInfos.add(
+							buildTokenNft(aid, nft, nftId)
+					);
+				});
+			}
+		} else {
+			uniqueTokenAccountOwnerships.get()
+					.get(fromGrpcAccountId(aid), (int) start, (int) uniqueTokenAccountCount).forEachRemaining(nftId -> {
+				var nft = uniqueTokensMap.get(nftId);
+				nftInfos.add(
+						buildTokenNft(aid, nft, nftId)
+				);
+			});
+			var tokens = tokenStore.listOfTokensServed(aid);
+			for (var tid : tokens) {
+				uniqueTokenTreasuryOwnerships.get()
+						.get(fromGrpcTokenId(tid), (int) start, (int) end).forEachRemaining(nftId -> {
+					var nft = uniqueTokensMap.get(nftId);
+					nftInfos.add(
+							buildTokenNft(aid, nft, nftId)
+					);
+				});
+			}
+		}
+
 		return Optional.of(nftInfos);
+	}
+
+	private TokenNftInfo buildTokenNft(AccountID aid, MerkleUniqueToken nft, MerkleUniqueTokenId nftId) {
+		return TokenNftInfo.newBuilder()
+				.setAccountID(aid)
+				.setCreationTime(nft.getCreationTime().toGrpc())
+				.setNftID(NftID.newBuilder()
+						.setTokenID(nftId.tokenId().toGrpcTokenId())
+						.setSerialNumber(nftId.serialNumber())
+						.build())
+				.setMetadata(ByteString.copyFrom(nft.getMetadata()))
+				.build();
 	}
 
 	public Optional<ContractGetInfoResponse.ContractInfo> infoForContract(ContractID id) {
@@ -620,6 +668,12 @@ public class StateView {
 	}
 
 	public long accountNftsCount(AccountID accountID) {
-		return uniqueTokenAccountOwnerships.get().getCount(fromGrpcAccountId(accountID));
+		long accountNftsCount = 0;
+		var tokens = tokenStore.listOfTokensServed(accountID);
+		for (var tokenId : tokens) {
+			accountNftsCount += uniqueTokenTreasuryOwnerships.get().getCount(fromGrpcTokenId(tokenId));
+		}
+
+		return accountNftsCount;
 	}
 }

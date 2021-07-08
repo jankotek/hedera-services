@@ -259,6 +259,7 @@ class StateViewTest {
 
 		given(tokenStore.resolve(tokenId)).willReturn(tokenId);
 		given(tokenStore.resolve(missingTokenId)).willReturn(TokenStore.MISSING_TOKEN);
+		given(tokenStore.listOfTokensServed(nftOwnerId)).willReturn(Collections.singletonList(targetNftKey.tokenId().toGrpcTokenId()));
 		given(tokenStore.get(tokenId)).willReturn(token);
 		given(tokenStore.get(IdUtils.asToken("1.2.3"))).willReturn(token);
 
@@ -306,7 +307,7 @@ class StateViewTest {
 				new MerkleUniqueTokenId(targetNftKey.tokenId(), 4));
 
 		final var uniqueTokenTreasuryOwnerships = new FCOneToManyRelation<EntityId, MerkleUniqueTokenId>();
-		uniqueTokenAccountOwnerships.associate(EntityId.fromGrpcAccountId(nftOwnerId),
+		uniqueTokenTreasuryOwnerships.associate(targetNftKey.tokenId(),
 				new MerkleUniqueTokenId(targetNftKey.tokenId(), 4));
 
 		subject = new StateView(

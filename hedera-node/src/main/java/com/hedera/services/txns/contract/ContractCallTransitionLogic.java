@@ -147,7 +147,6 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 					evmTx,
 					Address.fromHexString(asSolidityAddressHex(txnCtx.submittingNodeAccount())),
 					OperationTracer.NO_TRACING,
-					null,
 					false);
 			updater.commit();
 			var contractFunctionResult = ContractFunctionResult.newBuilder()

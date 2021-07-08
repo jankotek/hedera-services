@@ -173,7 +173,6 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 					evmTx,
 					Address.fromHexString(asSolidityAddressHex(txnCtx.submittingNodeAccount())),
 					OperationTracer.NO_TRACING,
-					null,
 					false);
 			updater.commit();
 			if (result.isSuccessful()) {

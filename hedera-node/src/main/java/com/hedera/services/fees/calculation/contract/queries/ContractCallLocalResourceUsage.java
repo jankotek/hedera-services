@@ -170,7 +170,6 @@ public class ContractCallLocalResourceUsage implements QueryResourceUsageEstimat
 							evmTx,
 							Address.fromHexString(asSolidityAddressHex(body.getNodeAccountID())),
 							OperationTracer.NO_TRACING,
-							null,
 							false);
 					var contractFunctionResult = ContractFunctionResult.newBuilder()
 							.setGasUsed(result.getEstimateGasUsedByTransaction())

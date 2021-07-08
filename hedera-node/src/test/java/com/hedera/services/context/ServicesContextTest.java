@@ -214,6 +214,7 @@ class ServicesContextTest {
 	private FCMap<MerkleEntityAssociation, MerkleTokenRelStatus> tokenAssociations;
 	private FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueTokenAssociations;
 	private FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipAssociations;
+	private FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipTreasuryAssociations;
 	private AddressBook addresses;
 	private MerkleDiskFs diskFs;
 
@@ -222,6 +223,7 @@ class ServicesContextTest {
 		uniqueTokens = mock(FCMap.class);
 		uniqueTokenAssociations = mock(FCOneToManyRelation.class);
 		uniqueOwnershipAssociations = mock(FCOneToManyRelation.class);
+		uniqueOwnershipTreasuryAssociations = mock(FCOneToManyRelation.class);
 		topics = mock(FCMap.class);
 		tokens = mock(FCMap.class);
 		tokenAssociations = mock(FCMap.class);
@@ -257,6 +259,7 @@ class ServicesContextTest {
 		given(state.uniqueTokens()).willReturn(uniqueTokens);
 		given(state.uniqueTokenAssociations()).willReturn(uniqueTokenAssociations);
 		given(state.uniqueOwnershipAssociations()).willReturn(uniqueOwnershipAssociations);
+		given(state.uniqueOwnershipTreasuryAssociations()).willReturn(uniqueOwnershipTreasuryAssociations);
 
 		crypto = mock(Cryptography.class);
 		platform = mock(Platform.class);
@@ -280,6 +283,7 @@ class ServicesContextTest {
 		var newUniqueTokens = mock(FCMap.class);
 		var newUniqueTokenAssociations = mock(FCOneToManyRelation.class);
 		var newUniqueOwnershipAssociations = mock(FCOneToManyRelation.class);
+		var newUniqueOwnershipTreasuryAssociations = mock(FCOneToManyRelation.class);
 
 		given(newState.accounts()).willReturn(newAccounts);
 		given(newState.topics()).willReturn(newTopics);
@@ -290,6 +294,7 @@ class ServicesContextTest {
 		given(newState.uniqueTokens()).willReturn(newUniqueTokens);
 		given(newState.uniqueTokenAssociations()).willReturn(newUniqueTokenAssociations);
 		given(newState.uniqueOwnershipAssociations()).willReturn(newUniqueOwnershipAssociations);
+		given(newState.uniqueOwnershipTreasuryAssociations()).willReturn(newUniqueOwnershipTreasuryAssociations);
 		// given:
 		var subject = new ServicesContext(nodeId, platform, state, propertySources);
 
@@ -306,6 +311,7 @@ class ServicesContextTest {
 		assertSame(state.uniqueTokens(), queryableState.get().getUniqueTokens());
 		assertSame(state.uniqueTokenAssociations(), queryableState.get().getUniqueTokenAssociations());
 		assertSame(state.uniqueOwnershipAssociations(), queryableState.get().getUniqueOwnershipAssociations());
+		assertSame(state.uniqueOwnershipTreasuryAssociations(), queryableState.get().getUniqueOwnershipTreasuryAssociations());
 
 		// when:
 		subject.update(newState);
@@ -321,6 +327,7 @@ class ServicesContextTest {
 		assertSame(newState.uniqueTokens(), queryableState.get().getUniqueTokens());
 		assertSame(newState.uniqueTokenAssociations(), queryableState.get().getUniqueTokenAssociations());
 		assertSame(newState.uniqueOwnershipAssociations(), queryableState.get().getUniqueOwnershipAssociations());
+		assertSame(newState.uniqueOwnershipTreasuryAssociations(), queryableState.get().getUniqueOwnershipTreasuryAssociations());
 	}
 
 	@Test

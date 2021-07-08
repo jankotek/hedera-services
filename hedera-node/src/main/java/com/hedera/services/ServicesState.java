@@ -98,6 +98,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 	boolean skipDiskFsHashCheck = false;
 	private FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueTokenAssociations;
 	private FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipAssociations;
+	private FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnedTreasuryAssociations;
 
 	/* Order of Merkle node children */
 	static class ChildIndices {
@@ -136,6 +137,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 			List<MerkleNode> children,
 			FCOneToManyRelation<EntityId, MerkleUniqueTokenId> mutableUniqueTokenAssociations,
 			FCOneToManyRelation<EntityId, MerkleUniqueTokenId> mutableUniqueOwnershipAssociations,
+			FCOneToManyRelation<EntityId, MerkleUniqueTokenId> mutableUniqueOwnershipTreasuryAssociations,
 			ServicesState immutableState
 	) {
 		super(immutableState);
@@ -144,6 +146,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		this.nodeId = nodeId;
 		this.uniqueTokenAssociations = mutableUniqueTokenAssociations;
 		this.uniqueOwnershipAssociations = mutableUniqueOwnershipAssociations;
+		this.uniqueOwnedTreasuryAssociations = mutableUniqueOwnershipTreasuryAssociations;
 		if (ctx != null) {
 			ctx.update(this);
 		}
@@ -277,7 +280,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		ctx.rebuildStoreViewsIfPresent();
 		uniqueTokenAssociations = new FCOneToManyRelation<>();
 		uniqueOwnershipAssociations = new FCOneToManyRelation<>();
-		rebuildUniqueTokenViews(uniqueTokens(), uniqueTokenAssociations, uniqueOwnershipAssociations);
+		uniqueOwnedTreasuryAssociations = new FCOneToManyRelation<>();
+		rebuildUniqueTokenViews(ctx.tokenStore(), uniqueTokens(), uniqueTokenAssociations, uniqueOwnershipAssociations, uniqueOwnedTreasuryAssociations);
 
 		/* Use any payer records stored in state to rebuild the recent transaction
 		 * history. This history has two main uses: Purging expired records, and
@@ -341,6 +345,8 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				(uniqueTokenAssociations == null) ? null : uniqueTokenAssociations.copy();
 		final var mutableOwnerAssocsIfInit =
 				(uniqueOwnershipAssociations == null) ? null : uniqueOwnershipAssociations.copy();
+		final var mutableOwnerTreasuryAssocsIfInit =
+				(uniqueOwnedTreasuryAssociations == null) ? null : uniqueOwnedTreasuryAssociations.copy();
 		return new ServicesState(ctx, nodeId, List.of(
 				addressBook().copy(),
 				networkCtx().copy(),
@@ -353,7 +359,7 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 				scheduleTxs().copy(),
 				runningHashLeaf().copy(),
 				uniqueTokens().copy()
-		), mutableUniqTokenAssocsIfInit, mutableOwnerAssocsIfInit, this);
+		), mutableUniqTokenAssocsIfInit, mutableOwnerAssocsIfInit, mutableOwnerTreasuryAssocsIfInit, this);
 	}
 
 	/* --------------- */
@@ -450,11 +456,19 @@ public class ServicesState extends AbstractNaryMerkleInternal implements SwirldS
 		return uniqueOwnershipAssociations;
 	}
 
+	public FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipTreasuryAssociations() {
+		return uniqueOwnedTreasuryAssociations;
+	}
+
 	void setUniqueTokenAssociations(FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueTokenAssociations) {
 		this.uniqueTokenAssociations = uniqueTokenAssociations;
 	}
 
 	void setUniqueOwnershipAssociations(FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipAssociations) {
 		this.uniqueOwnershipAssociations = uniqueOwnershipAssociations;
+	}
+
+	void setUniqueOwnershipTreasuryAssociations(FCOneToManyRelation<EntityId, MerkleUniqueTokenId> uniqueOwnershipTreasuryAssociations) {
+		this.uniqueOwnedTreasuryAssociations = uniqueOwnershipTreasuryAssociations;
 	}
 }

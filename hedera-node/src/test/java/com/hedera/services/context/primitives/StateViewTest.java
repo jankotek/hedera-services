@@ -297,12 +297,16 @@ class StateViewTest {
 		var uniqueTokens = new FCMap<MerkleUniqueTokenId, MerkleUniqueToken>();
 		uniqueTokens.put(targetNftKey, targetNft);
 
+		final var uniqueTokenAssociations = new FCOneToManyRelation<EntityId, MerkleUniqueTokenId>();
+		uniqueTokenAssociations.associate(EntityId.fromGrpcTokenId(tokenId),
+				new MerkleUniqueTokenId(targetNftKey.tokenId(), 4));
+
 		final var uniqueTokenAccountOwnerships = new FCOneToManyRelation<EntityId, MerkleUniqueTokenId>();
 		uniqueTokenAccountOwnerships.associate(EntityId.fromGrpcAccountId(nftOwnerId),
 				new MerkleUniqueTokenId(targetNftKey.tokenId(), 4));
 
-		final var uniqueTokenAssociations = new FCOneToManyRelation<EntityId, MerkleUniqueTokenId>();
-		uniqueTokenAssociations.associate(EntityId.fromGrpcTokenId(tokenId),
+		final var uniqueTokenTreasuryOwnerships = new FCOneToManyRelation<EntityId, MerkleUniqueTokenId>();
+		uniqueTokenAccountOwnerships.associate(EntityId.fromGrpcAccountId(nftOwnerId),
 				new MerkleUniqueTokenId(targetNftKey.tokenId(), 4));
 
 		subject = new StateView(
@@ -315,6 +319,7 @@ class StateViewTest {
 				() -> tokenRels,
 				() -> uniqueTokenAssociations,
 				() -> uniqueTokenAccountOwnerships,
+				() -> uniqueTokenTreasuryOwnerships,
 				() -> diskFs,
 				nodeProps);
 		subject.fileAttrs = attrs;

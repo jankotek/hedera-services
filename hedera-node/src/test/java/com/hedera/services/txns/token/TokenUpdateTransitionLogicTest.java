@@ -428,7 +428,7 @@ class TokenUpdateTransitionLogicTest {
 		given(ledger.grantKyc(newTreasury, target)).willReturn(OK);
 		given(store.update(any(), anyLong())).willReturn(OK);
 		given(ledger.getTokenBalance(oldTreasury, target)).willReturn(oldTreasuryBalance);
-		given(store.changeOwner(nftId, oldTreasury, newTreasury)).willReturn(OK);
+		given(store.changeOwnerWildCard(nftId, oldTreasury, newTreasury)).willReturn(OK);
 
 		// when:
 		subject.doStateTransition();
@@ -437,7 +437,7 @@ class TokenUpdateTransitionLogicTest {
 		verify(ledger).unfreeze(newTreasury, target);
 		verify(ledger).grantKyc(newTreasury, target);
 		verify(ledger).getTokenBalance(oldTreasury, target);
-		verify(store).changeOwner(nftId, oldTreasury, newTreasury);
+		verify(store).changeOwnerWildCard(nftId, oldTreasury, newTreasury);
 		// and:
 		verify(txnCtx).setStatus(SUCCESS);
 	}

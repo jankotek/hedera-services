@@ -82,7 +82,7 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 	}
 
 	private HapiApiSpec htsTransferPerf() {
-		final int NUM_CALLS = 4000;
+		final int NUM_CALLS = 6000;
 		AtomicReference<TokenID> tokenId = new AtomicReference<>();
 		AtomicReference<AccountID> recipient = new AtomicReference<>();
 
@@ -96,7 +96,7 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 				.given(
 						/* crypto create */
 						cryptoCreate(SENDER)
-								.balance(10 * ONE_MILLION_HBARS),
+								.balance(ONE_BILLION_HBARS),
 						cryptoCreate(RECIPIENT)
 								.balance(10 * ONE_HUNDRED_HBARS),
 						/* contract creation */

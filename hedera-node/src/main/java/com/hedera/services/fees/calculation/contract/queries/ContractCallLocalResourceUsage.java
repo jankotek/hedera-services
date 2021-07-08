@@ -221,7 +221,7 @@ public class ContractCallLocalResourceUsage implements QueryResourceUsageEstimat
 				Address.ZERO, //Coinbase might be the 0.98 address?
 				Difficulty.ONE,
 				0,
-				12_500_000L,
+				properties.maxGas(),
 				timestamp,
 				1L);
 	}

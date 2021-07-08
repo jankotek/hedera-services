@@ -20,7 +20,10 @@ package com.hedera.services.txns.contract;
  * ‍
  */
 
+import com.hedera.services.config.HederaNumbers;
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.context.properties.BootstrapProperties;
+import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.contracts.execution.DomainUtils;
 import com.hedera.services.files.HederaFs;
 import com.hedera.services.ledger.HederaLedger;
@@ -96,6 +99,9 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
+	private final BootstrapProperties bootstrapProperties;
+	private final GlobalDynamicProperties properties;
+
 	public ContractCreateTransitionLogic(
 			HederaLedger ledger,
 			HederaFs hfs,
@@ -114,6 +120,9 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 		this.txProcessor = txProcessor;
 		this.store = store;
 		this.seqNo = seqNo;
+
+		this.bootstrapProperties = new BootstrapProperties();
+		this.properties = new GlobalDynamicProperties(new HederaNumbers(bootstrapProperties), bootstrapProperties);
 	}
 
 	@Override
@@ -203,7 +212,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 				Address.ZERO, // TODO Coinbase might be the 0.98 address
 				Difficulty.ONE,
 				0,
-				12_500_000L, // TODO GlobalDynamic property maxGas
+				properties.maxGas(),
 				timestamp,
 				1L);
 	}

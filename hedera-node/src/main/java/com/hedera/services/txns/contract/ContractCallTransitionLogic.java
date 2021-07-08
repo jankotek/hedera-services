@@ -21,7 +21,10 @@ package com.hedera.services.txns.contract;
  */
 
 import com.google.protobuf.ByteString;
+import com.hedera.services.config.HederaNumbers;
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.context.properties.BootstrapProperties;
+import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.merkle.virtual.ContractKey;
@@ -87,6 +90,9 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 	private FCVirtualMapHashStore<ContractPath> hashStore;
 	private FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
 
+	private final BootstrapProperties bootstrapProperties;
+	private final GlobalDynamicProperties properties;
+
 	public ContractCallTransitionLogic(
 			LegacyCaller delegate,
 			OptionValidator validator,
@@ -103,6 +109,9 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 		this.contracts = contracts;
 		this.txProcessor = txProcessor;
 		this.store = store;
+
+		this.bootstrapProperties = new BootstrapProperties();
+		this.properties = new GlobalDynamicProperties(new HederaNumbers(bootstrapProperties), bootstrapProperties);
 	}
 
 	@FunctionalInterface
@@ -207,7 +216,7 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 				Address.ZERO, //Coinbase might be the 0.98 address?
 				Difficulty.ONE,
 				0,
-				12_500_000L,
+				properties.maxGas(),
 				timestamp,
 				1L);
 	}

@@ -96,7 +96,7 @@ public class ContractCallPerfSuite extends HapiApiSuite {
 				.given(
 						/* crypto create */
 						cryptoCreate(SENDER)
-								.balance(10 * ONE_HUNDRED_HBARS),
+								.balance(10 * ONE_MILLION_HBARS),
 						cryptoCreate(RECIPIENT)
 								.balance(10 * ONE_HUNDRED_HBARS),
 						/* contract creation */

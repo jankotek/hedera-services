@@ -1447,7 +1447,7 @@ public class ServicesContext {
 				/* Contract */
 				entry(ContractCreate,
 						List.of(new ContractCreateTransitionLogic(
-								ledger(), hfs(), contracts()::createContract, validator(), txnCtx(), besuContracts(), contractsStore(), this::seqNo))),
+								ledger(), hfs(), contracts()::createContract, validator(), txnCtx(), besuContracts(), contractsStore(), this::seqNo, globalDynamicProperties()))),
 				entry(ContractUpdate,
 						List.of(new ContractUpdateTransitionLogic(
 								ledger(), validator(), txnCtx(), new UpdateCustomizerFactory(), this::accounts))),
@@ -1456,7 +1456,7 @@ public class ServicesContext {
 								ledger(), contracts()::deleteContract, validator(), txnCtx(), this::accounts))),
 				entry(ContractCall,
 						List.of(new ContractCallTransitionLogic(
-								contracts()::contractCall, validator(), txnCtx(), this::seqNo, this::accounts, besuContracts(), contractsStore()))),
+								contracts()::contractCall, validator(), txnCtx(), this::seqNo, this::accounts, besuContracts(), contractsStore(), globalDynamicProperties()))),
 				/* Consensus */
 				entry(ConsensusCreateTopic,
 						List.of(new TopicCreateTransitionLogic(

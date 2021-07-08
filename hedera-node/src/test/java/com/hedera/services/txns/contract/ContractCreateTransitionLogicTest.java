@@ -21,6 +21,7 @@ package com.hedera.services.txns.contract;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.files.HederaFs;
 import com.hedera.services.ledger.HederaLedger;
 import com.hedera.services.state.submerkle.SequenceNumber;
@@ -83,6 +84,7 @@ public class ContractCreateTransitionLogicTest {
 	private TransactionContext txnCtx;
 	private PlatformTxnAccessor accessor;
 	private ContractCreateTransitionLogic subject;
+	private GlobalDynamicProperties properties;
 
 	@BeforeEach
 	private void setup() {
@@ -97,8 +99,9 @@ public class ContractCreateTransitionLogicTest {
 		validator = mock(OptionValidator.class);
 		withRubberstampingValidator();
 		seqNo = mock(SequenceNumber.class);
+		properties = mock(GlobalDynamicProperties.class);
 
-		subject = new ContractCreateTransitionLogic(ledger, hfs, delegate, validator, txnCtx, null, null, null);
+		subject = new ContractCreateTransitionLogic(ledger, hfs, delegate, validator, txnCtx, null, null, null, properties);
 	}
 
 	@Test

@@ -21,6 +21,7 @@ package com.hedera.services.txns.contract;
  */
 
 import com.hedera.services.context.TransactionContext;
+import com.hedera.services.context.properties.GlobalDynamicProperties;
 import com.hedera.services.state.merkle.MerkleAccount;
 import com.hedera.services.state.merkle.MerkleEntityId;
 import com.hedera.services.state.submerkle.SequenceNumber;
@@ -69,6 +70,7 @@ public class ContractCallTransitionLogicTest {
 	private TransactionBody contractCallTxn;
 	private TransactionContext txnCtx;
 	private PlatformTxnAccessor accessor;
+	private GlobalDynamicProperties properties;
 	FCMap<MerkleEntityId, MerkleAccount> contracts;
 	ContractCallTransitionLogic subject;
 
@@ -82,9 +84,10 @@ public class ContractCallTransitionLogicTest {
 		given(txnCtx.consensusTime()).willReturn(consensusTime);
 		accessor = mock(PlatformTxnAccessor.class);
 		validator = mock(OptionValidator.class);
+		properties = mock(GlobalDynamicProperties.class);
 		withRubberstampingValidator();
 
-		subject = new ContractCallTransitionLogic(delegate, validator, txnCtx, () -> seqNo, () -> contracts, null, null);
+		subject = new ContractCallTransitionLogic(delegate, validator, txnCtx, () -> seqNo, () -> contracts, null, null, properties);
 	}
 
 	@Test

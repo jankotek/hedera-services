@@ -84,14 +84,12 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 	private final Supplier<FCMap<MerkleEntityId, MerkleAccount>> contracts;
 	private final MainnetTransactionProcessor txProcessor;
 	private final AccountStateStore store;
+	private final GlobalDynamicProperties properties;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
 
 	private FCVirtualMapHashStore<ContractPath> hashStore;
 	private FCVirtualMapLeafStore<ContractKey, ContractPath, ContractUint256> leafStore;
-
-	private final BootstrapProperties bootstrapProperties;
-	private final GlobalDynamicProperties properties;
 
 	public ContractCallTransitionLogic(
 			LegacyCaller delegate,
@@ -100,7 +98,8 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 			Supplier<SequenceNumber> seqNo,
 			Supplier<FCMap<MerkleEntityId, MerkleAccount>> contracts,
 			MainnetTransactionProcessor txProcessor,
-			AccountStateStore store
+			AccountStateStore store,
+			GlobalDynamicProperties properties
 	) {
 		this.delegate = delegate;
 		this.validator = validator;
@@ -109,9 +108,7 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 		this.contracts = contracts;
 		this.txProcessor = txProcessor;
 		this.store = store;
-
-		this.bootstrapProperties = new BootstrapProperties();
-		this.properties = new GlobalDynamicProperties(new HederaNumbers(bootstrapProperties), bootstrapProperties);
+		this.properties = properties;
 	}
 
 	@FunctionalInterface

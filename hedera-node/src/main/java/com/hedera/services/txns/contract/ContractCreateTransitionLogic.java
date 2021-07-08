@@ -96,11 +96,9 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	private final MainnetTransactionProcessor txProcessor;
 	private final ContractsStore store;
 	private final Supplier<SequenceNumber> seqNo;
+	private final GlobalDynamicProperties properties;
 
 	private final Function<TransactionBody, ResponseCodeEnum> SEMANTIC_CHECK = this::validate;
-
-	private final BootstrapProperties bootstrapProperties;
-	private final GlobalDynamicProperties properties;
 
 	public ContractCreateTransitionLogic(
 			HederaLedger ledger,
@@ -110,7 +108,8 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 			TransactionContext txnCtx,
 			MainnetTransactionProcessor txProcessor,
 			ContractsStore store,
-			Supplier<SequenceNumber> seqNo
+			Supplier<SequenceNumber> seqNo,
+			GlobalDynamicProperties properties
 	) {
 		this.ledger = ledger;
 		this.hfs = hfs;
@@ -120,9 +119,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 		this.txProcessor = txProcessor;
 		this.store = store;
 		this.seqNo = seqNo;
-
-		this.bootstrapProperties = new BootstrapProperties();
-		this.properties = new GlobalDynamicProperties(new HederaNumbers(bootstrapProperties), bootstrapProperties);
+		this.properties = properties;
 	}
 
 	@Override

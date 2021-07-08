@@ -149,7 +149,6 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 					OperationTracer.NO_TRACING,
 					null,
 					false);
-			updater.commit();
 			var contractFunctionResult = ContractFunctionResult.newBuilder()
 					.setGasUsed(result.getEstimateGasUsedByTransaction())
 					.setErrorMessage(result.getRevertReason().toString());
@@ -158,6 +157,7 @@ public class ContractCallTransitionLogic implements TransitionLogic {
 					.ifPresent(contractFunctionResult::setContractCallResult);
 			txnCtx.setCallResult(contractFunctionResult.build());
 			if (result.isSuccessful()) {
+				updater.commit();
 				txnCtx.setStatus(SUCCESS);
 			} else {
 				txnCtx.setStatus(FAIL_INVALID);

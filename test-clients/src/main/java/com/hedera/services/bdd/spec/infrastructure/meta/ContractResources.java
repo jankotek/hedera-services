@@ -51,6 +51,7 @@ public class ContractResources {
 	public static final String PAY_TEST_BYTECODE_PATH = bytecodePath("PayTest");
 	public static final String DOUBLE_SEND_BYTECODE_PATH = bytecodePath("DoubleSend");
 	public static final String BENCHMARK_CONTRACT = bytecodePath("BenchmarkContract");
+	public static final String HTS_TRANSFER_CONTRACT = bytecodePath("HTSTransfer");
 
 	public static final String CREATE_CHILD_ABI = "{\"constant\":false," +
 			"\"inputs\":[],\"name\":\"create\"," +
@@ -349,6 +350,8 @@ public class ContractResources {
 	public static final String BENCHMARK_GET_COUNTER = "{ \"inputs\": [], \"name\": \"counter\", \"outputs\": [ { \"internalType\": \"uint256\", \"name\": \"\", \"type\": \"uint256\" } ], \"stateMutability\": \"view\", \"type\": \"function\" }";
 	public static final String BIG_SSTORE = "{ \"inputs\": [ { \"internalType\": \"uint256[]\", \"name\": \"data\", \"type\": \"uint256[]\" } ], \"name\": \"bigSSTORE\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 	public static final String LOAD_TX = "{ \"inputs\": [ { \"internalType\": \"uint256\", \"name\": \"n\", \"type\": \"uint256\" } ], \"name\": \"loadTx\", \"outputs\": [], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
+
+	public static final String TOKEN_TRANSFER_ABI = "{ \"inputs\": [ { \"internalType\": \"address\", \"name\": \"token\", \"type\": \"address\" }, { \"internalType\": \"address\", \"name\": \"recipient\", \"type\": \"address\" }, { \"internalType\": \"uint256\", \"name\": \"amount\", \"type\": \"uint256\" } ], \"name\": \"tokenTransfer\", \"outputs\": [ { \"internalType\": \"bytes\", \"name\": \"\", \"type\": \"bytes\" } ], \"stateMutability\": \"nonpayable\", \"type\": \"function\" }";
 
 	public static final String bytecodePath(String bytecode) {
 		return String.format("src/main/resource/contract/bytecodes/%s.bin", bytecode);

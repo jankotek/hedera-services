@@ -262,6 +262,7 @@ import com.hedera.services.store.AccountStore;
 import com.hedera.services.store.TypedTokenStore;
 import com.hedera.services.store.contracts.ContractsStateView;
 import com.hedera.services.store.contracts.ContractsStore;
+import com.hedera.services.store.contracts.precompiles.HTSTransferPrecompileContract;
 import com.hedera.services.store.models.NftId;
 import com.hedera.services.store.schedule.HederaScheduleStore;
 import com.hedera.services.store.schedule.ScheduleStore;
@@ -1976,8 +1977,12 @@ public class ServicesContext {
 			var evm = MainnetEvmRegistries.constantinople(gasCalculator);
 			var contractCreateProcessor = new MainnetContractCreationProcessor(gasCalculator, evm, false, Collections.singletonList(MaxCodeSizeRule.of(24576)), 0);
 			var privacyParameters = new PrivacyParameters.Builder().setEnabled(false).build();
+
 			var precompiledContractConfiguration = new PrecompiledContractConfiguration(gasCalculator, privacyParameters);
 			PrecompileContractRegistry precompileContractRegistry = MainnetPrecompiledContractRegistries.byzantium(precompiledContractConfiguration);
+			final var htsTransferPrecompileContract = new HTSTransferPrecompileContract(ledger(), precompiledContractConfiguration.getGasCalculator());
+			precompileContractRegistry.put(HTSTransferPrecompileContract.precompiledAddress(), Account.DEFAULT_VERSION, htsTransferPrecompileContract);
+
 			var messageCallProcessor = new MainnetMessageCallProcessor(evm, precompileContractRegistry);
 			besuContracts = new MainnetTransactionProcessor(
 					gasCalculator,

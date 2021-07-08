@@ -20,6 +20,8 @@ package com.hedera.services.bdd.spec.transactions;
  * ‍
  */
 
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.bdd.spec.HapiApiSpec;
 import com.hedera.services.bdd.spec.HapiPropertySource;
@@ -51,6 +53,7 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransferList;
 import com.hederahashgraph.fee.SigValueObj;
+import com.swirlds.common.CommonUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.ethereum.util.ByteUtil;
@@ -91,6 +94,7 @@ import static com.hederahashgraph.fee.FeeBuilder.BASIC_RECEIPT_SIZE;
 import static com.hederahashgraph.fee.FeeBuilder.FEE_MATRICES_CONST;
 import static com.hederahashgraph.fee.FeeBuilder.HRS_DIVISOR;
 import static com.hederahashgraph.fee.FeeBuilder.RECEIPT_STORAGE_TIME_SEC;
+import static java.lang.System.arraycopy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -193,6 +197,28 @@ public class TxnUtils {
 
 	public static ContractID asContractId(String s, HapiApiSpec lookupSpec) {
 		return isIdLiteral(s) ? asContract(s) : lookupSpec.registry().getContractId(s);
+	}
+
+	public static String asSolidityAddressHex(TokenID id) {
+		return CommonUtils.hex(asSolidityAddress((int) id.getShardNum(), id.getRealmNum(), id.getTokenNum()));
+	}
+
+	public static String asSolidityAddressHex(AccountID id) {
+		return CommonUtils.hex(asSolidityAddress((int) id.getShardNum(), id.getRealmNum(), id.getAccountNum()));
+	}
+
+	public static byte[] asSolidityAddress(ContractID id) {
+		return asSolidityAddress((int) id.getShardNum(), id.getRealmNum(), id.getContractNum());
+	}
+
+	public static byte[] asSolidityAddress(int shard, long realm, long num) {
+		byte[] solidityAddress = new byte[20];
+
+		arraycopy(Ints.toByteArray(shard), 0, solidityAddress, 0, 4);
+		arraycopy(Longs.toByteArray(realm), 0, solidityAddress, 4, 8);
+		arraycopy(Longs.toByteArray(num), 0, solidityAddress, 12, 8);
+
+		return solidityAddress;
 	}
 
 	public static String txnToString(Transaction txn) {

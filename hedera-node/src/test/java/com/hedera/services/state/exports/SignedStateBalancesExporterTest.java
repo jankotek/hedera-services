@@ -278,7 +278,7 @@ class SignedStateBalancesExporterTest {
 				new MerkleEntityId(0, 0, 2),
 				MerkleAccountFactory.newAccount()
 						.balance(4999999999999999920L)
-						.tokens(asToken("0.0.1001"), asToken("0.0.1002"), asToken("0.0.1111"))
+						.tokens(asToken("0.0.1001"), asToken("0.0.1002"))
 						.get());
 		accounts.put(
 				new MerkleEntityId(0, 0, 3),
@@ -291,9 +291,6 @@ class SignedStateBalancesExporterTest {
 		tokenRels.put(
 				new MerkleEntityAssociation(0, 0, 2, 0, 0, 1001),
 				new MerkleTokenRelStatus(666L, false, false));
-		tokenRels.put(
-				new MerkleEntityAssociation(0, 0, 2, 0, 0, 1002),
-				new MerkleTokenRelStatus(444L, false, false));
 		tokenRels.put(
 				new MerkleEntityAssociation(0, 0, 2, 0, 0, 1002),
 				new MerkleTokenRelStatus(444L, false, false));
@@ -375,7 +372,7 @@ class SignedStateBalancesExporterTest {
 		assertThat(logCaptor.debugLogs(), contains(desiredDebugMsg));
 
 		// cleanup:
-//		new File(loc).delete();
+		new File(loc).delete();
 	}
 
 	@Test

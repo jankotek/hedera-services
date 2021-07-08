@@ -206,7 +206,7 @@ public class ContractCreateTransitionLogic implements TransitionLogic {
 	private ProcessableBlockHeader stubbedBlockHeader(long timestamp) {
 		return new ProcessableBlockHeader(
 				Hash.EMPTY,
-				Address.ZERO, // TODO Coinbase might be the 0.98 address
+				Address.fromHexString(asSolidityAddressHex(txnCtx.submittingNodeAccount())),
 				Difficulty.ONE,
 				0,
 				properties.maxGas(),

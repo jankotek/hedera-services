@@ -9,9 +9,9 @@ package com.hedera.services.store;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -212,17 +212,18 @@ class TypedTokenStoreTest {
 
 	@Test
 	void loadsUniqueTokens() {
-		var aToken = new Token(miscId);
-		var merkleUniqueToken = mock(MerkleUniqueToken.class);
+		final var aToken = new Token(miscId);
+		final var merkleUniqueToken = mock(MerkleUniqueToken.class);
+		final var serialNumbers = List.of(1L, 2L);
 		given(merkleUniqueToken.getOwner()).willReturn(new EntityId(Id.DEFAULT));
 		given(uniqueTokens.get(any())).willReturn(merkleUniqueToken);
 
-		subject.loadUniqueTokens(aToken, List.of(1L, 2L));
+		subject.loadUniqueTokens(aToken, serialNumbers);
 
-		assertEquals(aToken.getLoadedUniqueTokens().size(), 2);
+		assertEquals(2, aToken.getLoadedUniqueTokens().size());
 		
 		given(uniqueTokens.get(any())).willReturn(null);
-		assertThrows(InvalidTransactionException.class, () -> subject.loadUniqueTokens(aToken, List.of(1L, 2L)));
+		assertThrows(InvalidTransactionException.class, () -> subject.loadUniqueTokens(aToken, serialNumbers));
 	}
 
 
@@ -370,7 +371,6 @@ class TypedTokenStoreTest {
 			0, 0, miscAccountNum,
 			0, 0, tokenNum);
 	private final TokenRelationship miscTokenRel = new TokenRelationship(token, miscAccount);
-
 	private MerkleToken merkleToken;
 	private MerkleTokenRelStatus miscTokenMerkleRel;
 }
